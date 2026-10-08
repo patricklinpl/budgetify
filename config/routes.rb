@@ -1,4 +1,12 @@
 Rails.application.routes.draw do
+  resource :session
+  resources :passwords, param: :token
+  post "v1/session", to: "api/v1/sessions#create", as: :api_v1_session, defaults: { format: :json }
+  delete "v1/session", to: "api/v1/sessions#destroy", defaults: { format: :json }
+
+  root "rails/health#show"
+  get "v1/user", to: "api/v1/users#show", as: :api_v1_user, defaults: { format: :json }
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
