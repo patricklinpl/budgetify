@@ -1,0 +1,15 @@
+<% content_for :title, @budget.name %>
+
+<main class="app-home">
+  <header class="app-home-header">
+    <%= link_to "Budgetify", app_root_path, class: "app-home-brand" %>
+    <%= button_to "Sign out", session_path, method: :delete, class: "app-home-signout" %>
+  </header>
+
+  <section class="app-home-content">
+    <p class="app-home-eyebrow">Selected budget</p>
+    <h1><%= @budget.name %></h1>
+    <p>This budget belongs to <strong><%= Current.user.email_address %></strong>.</p>
+    <%= link_to "Choose another budget", users_budgets_path, class: "budget-back-link" %>
+  </section>
+</main>

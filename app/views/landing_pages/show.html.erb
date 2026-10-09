@@ -1,0 +1,100 @@
+<% content_for :title, "Budgetify — A plan for every dollar" %>
+
+<main class="marketing-page">
+  <header class="marketing-header">
+    <%= link_to root_path, class: "marketing-brand" do %>
+      <span class="marketing-brand-mark" aria-hidden="true">B</span>
+      <span>Budgetify</span>
+    <% end %>
+
+    <nav class="marketing-nav-links" aria-label="Main navigation">
+      <%= link_to "How it works", "#method" %>
+      <%= link_to "Our approach", "#principles" %>
+    </nav>
+
+    <div class="marketing-header-actions">
+      <%= link_to "Log in", app_entry_url, class: "marketing-login-link" %>
+      <%= link_to "Open Budgetify", app_entry_url, class: "marketing-header-button" %>
+    </div>
+  </header>
+
+  <section class="marketing-hero" aria-labelledby="marketing-title">
+    <div class="marketing-hero-inner">
+      <div class="marketing-hero-copy">
+        <p class="marketing-eyebrow">Budget with intention</p>
+        <h1 id="marketing-title">A plan for every dollar.</h1>
+        <p class="marketing-lead">Give your money a clear purpose, then adjust your plan as life changes.</p>
+        <div class="marketing-hero-actions">
+          <%= link_to "Open Budgetify", app_entry_url, class: "marketing-primary-button" %>
+          <%= link_to "How it works", "#method", class: "marketing-text-link" %>
+        </div>
+        <p class="marketing-caption">For existing Budgetify accounts</p>
+      </div>
+
+      <div class="marketing-art" aria-hidden="true">
+        <div class="marketing-art-orbit"></div>
+        <div class="marketing-art-bubble marketing-art-bubble--one"></div>
+        <div class="marketing-art-bubble marketing-art-bubble--two"></div>
+        <div class="marketing-plan-card">
+          <div class="marketing-plan-header">
+            <span class="marketing-plan-mark">B</span>
+            <span>Budgetify</span>
+            <span class="marketing-plan-menu">•••</span>
+          </div>
+          <p class="marketing-plan-kicker">A clear plan</p>
+          <h2>Make room for what matters.</h2>
+          <div class="marketing-plan-row">
+            <span class="marketing-plan-dot marketing-plan-dot--mint"></span>
+            <span class="marketing-plan-lines"><i></i><i></i></span>
+          </div>
+          <div class="marketing-plan-row">
+            <span class="marketing-plan-dot marketing-plan-dot--yellow"></span>
+            <span class="marketing-plan-lines"><i></i><i></i></span>
+          </div>
+          <div class="marketing-plan-row">
+            <span class="marketing-plan-dot marketing-plan-dot--coral"></span>
+            <span class="marketing-plan-lines"><i></i><i></i></span>
+          </div>
+          <div class="marketing-plan-footer">PLAN <span>·</span> SPEND <span>·</span> ADJUST</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="marketing-method" id="method">
+    <div class="marketing-method-intro" id="principles">
+      <p class="marketing-eyebrow">The Budgetify approach</p>
+      <h2>Plan. Spend. Adjust.</h2>
+      <p>A useful plan starts with your priorities and stays flexible as your day-to-day choices change.</p>
+    </div>
+
+    <div class="marketing-steps">
+      <article class="marketing-step">
+        <span class="marketing-step-number">01</span>
+        <h3>Give money a purpose</h3>
+        <p>Start with the priorities that matter to you.</p>
+      </article>
+      <article class="marketing-step">
+        <span class="marketing-step-number">02</span>
+        <h3>Make intentional choices</h3>
+        <p>Use your plan to guide the decisions in front of you.</p>
+      </article>
+      <article class="marketing-step">
+        <span class="marketing-step-number">03</span>
+        <h3>Adjust as life changes</h3>
+        <p>Keep your plan useful by changing it when you need to.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="marketing-close">
+    <p class="marketing-eyebrow">Your next step</p>
+    <h2>Make a plan that feels like yours.</h2>
+    <%= link_to "Log in to Budgetify", app_entry_url, class: "marketing-primary-button" %>
+  </section>
+
+  <footer class="marketing-footer">
+    <%= link_to "Budgetify", root_path, class: "marketing-footer-brand" %>
+    <span>© <%= Date.current.year %> Budgetify</span>
+  </footer>
+</main>

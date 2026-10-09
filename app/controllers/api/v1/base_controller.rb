@@ -1,6 +1,7 @@
 module Api
   module V1
     class BaseController < ActionController::API
+      include ActionController::Cookies
       private
 
       def authenticate_bearer_session!

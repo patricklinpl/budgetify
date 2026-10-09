@@ -1,11 +1,57 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+<% content_for :title, "Log in · Budgetify" %>
 
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %><br>
-  <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
-<% end %>
-<br>
+<main class="login-page" data-controller="login">
+  <div class="login-frame">
+    <section class="login-story" aria-label="About Budgetify">
+      <div class="login-brand">
+        <span class="login-brand-mark" aria-hidden="true">B</span>
+        <span>Budgetify</span>
+      </div>
 
-<%= link_to "Forgot password?", new_password_path %>
+      <div class="login-story-copy">
+        <p class="login-eyebrow">A plan for today</p>
+        <h2>A plan for every dollar.</h2>
+        <p>Build a thoughtful routine around the money you have today.</p>
+      </div>
+
+    </section>
+
+    <section class="login-panel" aria-labelledby="login-heading">
+      <% if flash[:alert].present? %>
+        <div class="login-error" role="alert"><%= flash[:alert] %></div>
+      <% end %>
+      <% if flash[:notice].present? %>
+        <div class="login-notice" role="status"><%= flash[:notice] %></div>
+      <% end %>
+      <div data-login-target="error" class="login-error" role="alert" aria-live="polite" hidden></div>
+
+
+      <div class="login-form-panel">
+        <h1 id="login-heading">Log In</h1>
+        <p class="login-intro">Sign in to continue.</p>
+
+        <form action="<%= login_user_path %>" method="post" data-login-target="form" data-action="submit->login#submit">
+          <div class="login-field">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" required autofocus autocomplete="username" data-login-target="email">
+          </div>
+
+          <div class="login-field">
+            <div class="login-field-heading">
+              <label for="login-password">Password</label>
+              <%= link_to "Forgot password?", new_password_path, class: "login-link" %>
+            </div>
+            <div class="login-password-wrap">
+              <input id="login-password" name="password" type="password" required autocomplete="current-password" maxlength="72" data-login-target="password">
+              <button class="password-toggle" type="button" data-action="login#togglePassword" data-login-target="passwordToggle" aria-controls="login-password" aria-pressed="false">Show</button>
+            </div>
+          </div>
+
+          <button class="login-button" type="submit" data-login-target="submit">Log in</button>
+        </form>
+
+        <p class="login-footnote">Email and password sign-in only.</p>
+      </div>
+    </section>
+  </div>
+</main>

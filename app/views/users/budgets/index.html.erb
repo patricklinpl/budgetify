@@ -1,0 +1,31 @@
+<% content_for :title, "Choose a budget" %>
+
+<main class="app-home">
+  <header class="app-home-header">
+    <%= link_to "Budgetify", app_root_path, class: "app-home-brand" %>
+    <%= button_to "Sign out", session_path, method: :delete, class: "app-home-signout" %>
+  </header>
+
+  <section class="app-home-content">
+    <p class="app-home-eyebrow">Your Budgetify account</p>
+    <h1>Choose a budget.</h1>
+    <p>Select the budget you want to access.</p>
+
+    <% if @budgets.any? %>
+      <div class="budget-list">
+        <% @budgets.each do |budget| %>
+          <%= link_to users_budget_path(budget.public_id), class: "budget-selection-card" do %>
+            <span class="budget-selection-mark" aria-hidden="true">B</span>
+            <span class="budget-selection-name"><%= budget.name %></span>
+            <span class="budget-selection-arrow" aria-hidden="true">→</span>
+          <% end %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="budget-empty-state" role="status">
+        <h2>No budgets are available yet.</h2>
+        <p>This account has no budgets to select.</p>
+      </div>
+    <% end %>
+  </section>
+</main>
