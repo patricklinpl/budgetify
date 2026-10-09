@@ -77,4 +77,4 @@ In deployment, DNS and the reverse proxy must direct both the root domain and `a
 
 ## Verification
 
-Run the full suite with `bin/rails test`. The latest verified run passed 26 tests and 106 assertions. Browser smoke coverage exercised the marketing page, signed-out app redirect, email/password login, catalog request, budget selector, and sign-out.
+`bin/rails test` passes 26 tests and 106 assertions. The CI command `bin/rails db:test:prepare test:system` passes the browser test at `test/system/logins_test.rb` (1 test, 1 assertion). Browser smoke coverage also exercised catalog sync, app-host redirect, and budget selection.
