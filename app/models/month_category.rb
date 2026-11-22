@@ -6,13 +6,15 @@ class MonthCategory < ApplicationRecord
 
   # Splits a negative month-end balance into its cash part (deducted from
   # next month's Ready to Assign) and its credit part (becomes credit-card
-  # payment underfunding instead), crediting up to the month's
-  # credit-account outflows (spec: MonthSummary.to_be_budgeted; YNAB docs:
-  # cash vs credit overspending).
-  def self.overspend_split(balance, credit_activity)
+  # payment underfunding instead). Cash is assigned first, up to the
+  # month's cash-account outflows; only the remainder is credit
+  # overspending (spec: MonthSummary.to_be_budgeted; YNAB docs: cash vs
+  # credit overspending).
+  def self.overspend_split(balance, activity, credit_activity)
     overspend = -balance
-    credit = [ overspend, [ -credit_activity.to_i, 0 ].max ].min
-    [ overspend - credit, credit ]
+    cash_outflows = [ -(activity.to_i - credit_activity.to_i), 0 ].max
+    cash = [ overspend, cash_outflows ].min
+    [ cash, overspend - cash ]
   end
 
   # Assigning a month amount changes the category as far as YNAB delta
