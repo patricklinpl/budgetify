@@ -14,7 +14,7 @@ class UserApiTest < ActionDispatch::IntegrationTest
     assert_equal({
       "error" => {
         "id" => "401",
-        "name" => "Unauthorized",
+        "name" => "unauthorized",
         "detail" => "A valid bearer token is required."
       }
     }, response.parsed_body)
