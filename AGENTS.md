@@ -14,7 +14,8 @@ Every pull request must carry proof that it works, posted on the PR itself (body
 One agent implements; a separate, independent agent verifies. The writer never verifies its own PR.
 
 - Every piece of work starts from a written spec of its requirements. For the YNAB API work, the spec is the GitHub issue plus the vendored OpenAPI spec at `test/fixtures/files/ynab_open_api_spec_v1.88.0.yaml`.
-- The verifier reads the PR's code and the written spec itself, and verifies the implementation against the spec explicitly, requirement by requirement, reporting a per-requirement verdict on the PR.
+- The verifier reads the PR's code and the written spec itself, and verifies the implementation against the spec explicitly, requirement by requirement.
+- The verifier posts its per-requirement verdict as a review on the pull request itself, so another agent can pick up the findings and work on them.
 - A PR is not considered done until the independent verifier confirms every requirement in the spec.
 
 No PR is complete until this evidence is on the PR and CI is green. Agents never merge PRs; the user reviews and merges.
