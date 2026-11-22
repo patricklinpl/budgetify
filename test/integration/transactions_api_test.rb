@@ -366,6 +366,53 @@ class TransactionsApiTest < ActionDispatch::IntegrationTest
     assert_equal 55000, response.parsed_body.fetch("data").fetch("category").fetch("balance")
   end
 
+  test "blended cash and credit overspending deducts cash from next month's Ready to Assign first" do
+    credit = @plan.accounts.create!(name: "Visa", type: "creditCard")
+    last_month = (@current - 1.month).beginning_of_month
+    # Budget 100000 last month, then spend 80000 cash and 70000 credit:
+    # shortfall -50000; cash outflows (80000) cover it first, so the whole
+    # 50000 deducts from this month's Ready to Assign.
+    patch "/v1/plans/#{@plan.public_id}/months/#{last_month.iso8601}/categories/#{@groceries.public_id}",
+      params: { category: { budgeted: 100000 } },
+      headers: auth_headers, as: :json
+    assert_response :ok
+    create_transaction(amount: -80000, date: last_month, approved: true, category: @groceries)
+    post "/v1/plans/#{@plan.public_id}/transactions",
+      params: { transaction: { account_id: credit.public_id, date: last_month.iso8601, amount: -70000, category_id: @groceries.public_id, cleared: "cleared" } },
+      headers: auth_headers, as: :json
+    assert_response :created
+
+    get "/v1/plans/#{@plan.public_id}/months", headers: auth_headers
+    current = response.parsed_body.fetch("data").fetch("months").find { |m| m.fetch("month") == @current.iso8601 }
+    assert_equal(-150000, current.fetch("to_be_budgeted")) # -100000 assigned, -50000 cash shortfall
+
+    # Reverse: cash is assigned to the shortfall only up to cash outflows -
+    # 20000 cash and 50000 credit against 40000 assigned leaves -30000;
+    # cash covers min(30000, 20000) = 20000, the other 10000 is credit debt.
+    plan2 = @user.budgets.create!(name: "Second")
+    account2 = plan2.accounts.create!(name: "Checking", type: "checking")
+    credit2 = plan2.accounts.create!(name: "Visa", type: "creditCard")
+    group2 = plan2.category_groups.create!(name: "Everyday Expenses")
+    groceries2 = group2.categories.create!(budget: plan2, name: "Groceries")
+    patch "/v1/plans/#{plan2.public_id}/months/#{last_month.iso8601}/categories/#{groceries2.public_id}",
+      params: { category: { budgeted: 40000 } },
+      headers: auth_headers, as: :json
+    assert_response :ok
+    post "/v1/plans/#{plan2.public_id}/transactions",
+      params: { transactions: [
+        { account_id: account2.public_id, date: last_month.iso8601, amount: -20000, category_id: groceries2.public_id, cleared: "cleared" },
+        { account_id: credit2.public_id, date: last_month.iso8601, amount: -50000, category_id: groceries2.public_id, cleared: "cleared" }
+      ] },
+      headers: auth_headers, as: :json
+    assert_response :created
+
+    get "/v1/plans/#{plan2.public_id}/months", headers: auth_headers
+    current2 = response.parsed_body.fetch("data").fetch("months").find { |m| m.fetch("month") == @current.iso8601 }
+    assert_equal(-60000, current2.fetch("to_be_budgeted")) # -40000 assigned, -20000 cash shortfall
+    get "/v1/plans/#{plan2.public_id}/months/#{@current.iso8601}/categories/#{groceries2.public_id}", headers: auth_headers
+    assert_equal 0, response.parsed_body.fetch("data").fetch("category").fetch("balance")
+  end
+
   test "credit overspending resets Available without reducing Ready to Assign" do
     credit = @plan.accounts.create!(name: "Visa", type: "creditCard")
     last_month = (@current - 1.month).beginning_of_month
