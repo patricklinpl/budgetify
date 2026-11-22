@@ -83,7 +83,7 @@ class MonthSerializer
           next if entry.month >= @month
           next unless balance.negative?
 
-          cash, _credit = MonthCategory.overspend_split(balance, entry.credit_activity)
+          cash, _credit = MonthCategory.overspend_split(balance, entry.activity, entry.credit_activity)
           total -= cash
           balance = 0
         end
