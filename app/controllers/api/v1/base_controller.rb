@@ -17,6 +17,7 @@ module Api
       RATE_LIMIT_WINDOW = 1.hour
 
       before_action :enforce_rolling_rate_limit
+      include IntegerMilliunits
 
       private
 
