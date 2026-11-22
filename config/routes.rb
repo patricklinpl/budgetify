@@ -28,6 +28,13 @@ Rails.application.routes.draw do
   patch "v1/plans/:plan_id/category_groups/:category_group_id", to: "api/v1/category_groups#update", defaults: { format: :json }
   get "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#show", defaults: { format: :json }
   patch "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#update", defaults: { format: :json }
+  get "v1/plans/:plan_id/payees", to: "api/v1/payees#index", defaults: { format: :json }
+  post "v1/plans/:plan_id/payees", to: "api/v1/payees#create", defaults: { format: :json }
+  get "v1/plans/:plan_id/payees/:payee_id", to: "api/v1/payees#show", defaults: { format: :json }
+  patch "v1/plans/:plan_id/payees/:payee_id", to: "api/v1/payees#update", defaults: { format: :json }
+  get "v1/plans/:plan_id/payee_locations", to: "api/v1/payee_locations#index", defaults: { format: :json }
+  get "v1/plans/:plan_id/payee_locations/:payee_location_id", to: "api/v1/payee_locations#show", defaults: { format: :json }
+  get "v1/plans/:plan_id/payees/:payee_id/payee_locations", to: "api/v1/payee_locations#for_payee", defaults: { format: :json }
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
