@@ -46,7 +46,7 @@ module Api
           if @month > current
             render_api_error(:bad_request, "The month cannot be in the future.", id: "400", name: "bad_request")
             @month = nil
-          elsif @month < plan.created_at.to_date.beginning_of_month
+          elsif @month < plan.first_month
             # Months before the plan's first month do not exist (spec:
             # getPlanMonth 404 "The plan month was not found").
             render_api_error(:not_found, "The plan month was not found.", id: "404.2", name: "resource_not_found")
@@ -58,18 +58,13 @@ module Api
         end
 
         def plan_months
-          current = Date.current.beginning_of_month
           months = []
-          month = plan.created_at.to_date.beginning_of_month
-          while month <= current
+          month = plan.first_month
+          while month <= plan.last_month
             months << month
             month = month.next_month
           end
-          assigned = MonthCategory.joins(:category)
-            .where(categories: { budget_id: plan.id })
-            .where("month <= ?", current)
-            .distinct.pluck(:month)
-          (months | assigned).sort
+          months
         end
 
         def delta_months(months)

@@ -32,6 +32,10 @@ class Budget < ApplicationRecord
   # child entities stamp their knowledge from it.
   def next_knowledge!
     increment!(:server_knowledge)
+    # A child write is also a plan change. Keep both summary metadata
+    # and the documented plans-list delta extension current. Reads use
+    # update_column(:last_used_at) and do not call this method.
+    update_columns(updated_at: Time.current, knowledge: user.next_server_knowledge!)
     server_knowledge
   end
 
@@ -43,6 +47,18 @@ class Budget < ApplicationRecord
     return CurrencyFormat.default if stored.blank?
 
     CurrencyFormat.new(**stored.symbolize_keys)
+  end
+
+  # The same month range is used by summaries and the month endpoints.
+  # Historical transactions/assignments can predate plan creation.
+  def first_month
+    assigned = MonthCategory.joins(:category).where(categories: { budget_id: id }).minimum(:month)
+    earliest_transaction = transactions.not_deleted.minimum(:date)&.beginning_of_month
+    [ created_at.to_date.beginning_of_month, assigned, earliest_transaction, Date.current.beginning_of_month ].compact.min
+  end
+
+  def last_month
+    Date.current.beginning_of_month
   end
 
   private
