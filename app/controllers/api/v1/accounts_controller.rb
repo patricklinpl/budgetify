@@ -18,7 +18,11 @@ module Api
       # create (spec: SaveAccountType) and auto-creates the account's
       # transfer payee.
       def create
-        attributes = params.require(:account).permit(:name, :type, :balance)
+        begin
+          attributes = params.require(:account).permit(:name, :type, :balance)
+        rescue ActionController::ParameterMissing
+          return render_api_error(:bad_request, "Request body must include an account object with name, type and balance.", id: "400", name: "bad_request")
+        end
         unless Account::SAVE_TYPES.include?(attributes[:type])
           return render_api_error(:bad_request, "The account type is not valid for creating an account.", id: "400", name: "bad_request")
         end
@@ -36,7 +40,7 @@ module Api
         account = plan.accounts.not_deleted.find_by(public_id: params[:account_id])
         return render_api_error(:not_found, "No account was found with the given id.", id: "404.2", name: "resource_not_found") if account.nil?
 
-        render_data({ account: AccountSerializer.as_json(account) }, server_knowledge: plan.server_knowledge)
+        render json: { data: { account: AccountSerializer.as_json(account) } }
       end
     end
   end
