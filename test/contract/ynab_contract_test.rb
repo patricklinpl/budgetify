@@ -130,6 +130,50 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "CategoryResponse"
   end
 
+  test "POST /v1/plans/:plan_id/categories conforms to the spec's SaveCategoryResponse schema" do
+    user = User.create!(email_address: "contract-save-category@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+
+    post "/v1/plans/#{plan.public_id}/categories",
+      params: { category: { category_group_id: group.public_id, name: "Groceries", goal_target: 400_000, goal_frequency: "monthly" } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :created
+    assert_json_conforms_to_schema response.parsed_body, "SaveCategoryResponse"
+  end
+
+  test "PATCH /v1/plans/:plan_id/categories/:category_id conforms to the spec's SaveCategoryResponse schema" do
+    user = User.create!(email_address: "contract-patch-category@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+    category = group.categories.create!(budget: plan, name: "Groceries")
+
+    patch "/v1/plans/#{plan.public_id}/categories/#{category.public_id}",
+      params: { category: { name: "Food" } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "SaveCategoryResponse"
+  end
+
+  test "PATCH /v1/plans/:plan_id/months/:month/categories/:category_id conforms to the spec's SaveCategoryResponse schema" do
+    user = User.create!(email_address: "contract-patch-month-category@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+    category = group.categories.create!(budget: plan, name: "Groceries")
+
+    patch "/v1/plans/#{plan.public_id}/months/current/categories/#{category.public_id}",
+      params: { category: { budgeted: 350_000 } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "SaveCategoryResponse"
+  end
+
   test "POST /v1/plans/:plan_id/category_groups conforms to the spec's SaveCategoryGroupResponse schema" do
     user = User.create!(email_address: "contract-category-group@example.com", password: "password123")
     token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
