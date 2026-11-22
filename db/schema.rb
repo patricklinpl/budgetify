@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -185,6 +185,63 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_080000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "sub_transactions", force: :cascade do |t|
+    t.integer "transaction_id", null: false
+    t.string "public_id", null: false
+    t.bigint "amount", default: 0, null: false
+    t.text "memo"
+    t.integer "payee_id"
+    t.integer "category_id"
+    t.integer "transfer_account_id"
+    t.bigint "transfer_transaction_id"
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id"], name: "index_sub_transactions_on_category_id"
+    t.index ["payee_id"], name: "index_sub_transactions_on_payee_id"
+    t.index ["public_id"], name: "index_sub_transactions_on_public_id", unique: true
+    t.index ["transaction_id"], name: "index_sub_transactions_on_transaction_id"
+    t.index ["transfer_account_id"], name: "index_sub_transactions_on_transfer_account_id"
+  end
+
+  create_table "transactions", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.string "public_id", null: false
+    t.integer "account_id", null: false
+    t.date "date", null: false
+    t.bigint "amount", default: 0, null: false
+    t.text "memo"
+    t.string "cleared", default: "uncleared", null: false
+    t.boolean "approved", default: false, null: false
+    t.string "flag_color"
+    t.string "flag_name"
+    t.integer "payee_id"
+    t.integer "category_id"
+    t.integer "transfer_account_id"
+    t.bigint "transfer_transaction_id"
+    t.bigint "matched_transaction_id"
+    t.string "import_id"
+    t.string "import_payee_name"
+    t.string "import_payee_name_original"
+    t.string "debt_transaction_type"
+    t.bigint "knowledge", default: 0, null: false
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "date"], name: "index_transactions_on_account_id_and_date"
+    t.index ["account_id"], name: "index_transactions_on_account_id"
+    t.index ["budget_id", "date"], name: "index_transactions_on_budget_id_and_date"
+    t.index ["budget_id", "knowledge"], name: "index_transactions_on_budget_id_and_knowledge"
+    t.index ["budget_id"], name: "index_transactions_on_budget_id"
+    t.index ["category_id", "date"], name: "index_transactions_on_category_id_and_date"
+    t.index ["category_id"], name: "index_transactions_on_category_id"
+    t.index ["import_id"], name: "index_transactions_on_import_id"
+    t.index ["payee_id", "date"], name: "index_transactions_on_payee_id_and_date"
+    t.index ["payee_id"], name: "index_transactions_on_payee_id"
+    t.index ["public_id"], name: "index_transactions_on_public_id", unique: true
+    t.index ["transfer_account_id"], name: "index_transactions_on_transfer_account_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "public_id", null: false
     t.datetime "created_at", null: false
@@ -214,4 +271,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_080000) do
   add_foreign_key "payees", "accounts", column: "transfer_account_id"
   add_foreign_key "payees", "budgets"
   add_foreign_key "sessions", "users"
+  add_foreign_key "sub_transactions", "accounts", column: "transfer_account_id"
+  add_foreign_key "sub_transactions", "categories"
+  add_foreign_key "sub_transactions", "payees"
+  add_foreign_key "sub_transactions", "transactions"
+  add_foreign_key "transactions", "accounts"
+  add_foreign_key "transactions", "accounts", column: "transfer_account_id"
+  add_foreign_key "transactions", "budgets"
+  add_foreign_key "transactions", "categories"
+  add_foreign_key "transactions", "payees"
 end
