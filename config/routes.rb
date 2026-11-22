@@ -28,6 +28,17 @@ Rails.application.routes.draw do
   patch "v1/plans/:plan_id/category_groups/:category_group_id", to: "api/v1/category_groups#update", defaults: { format: :json }
   get "v1/plans/:plan_id/months", to: "api/v1/months#index", defaults: { format: :json }
   get "v1/plans/:plan_id/months/:month", to: "api/v1/months#show", defaults: { format: :json }
+  get "v1/plans/:plan_id/transactions", to: "api/v1/transactions#index", defaults: { format: :json }
+  post "v1/plans/:plan_id/transactions", to: "api/v1/transactions#create", defaults: { format: :json }
+  patch "v1/plans/:plan_id/transactions", to: "api/v1/transactions#update_bulk", defaults: { format: :json }
+  post "v1/plans/:plan_id/transactions/import", to: "api/v1/transactions#import", defaults: { format: :json }
+  get "v1/plans/:plan_id/transactions/:transaction_id", to: "api/v1/transactions#show", defaults: { format: :json }
+  put "v1/plans/:plan_id/transactions/:transaction_id", to: "api/v1/transactions#update", defaults: { format: :json }
+  delete "v1/plans/:plan_id/transactions/:transaction_id", to: "api/v1/transactions#destroy", defaults: { format: :json }
+  get "v1/plans/:plan_id/accounts/:account_id/transactions", to: "api/v1/transactions#for_account", defaults: { format: :json }
+  get "v1/plans/:plan_id/categories/:category_id/transactions", to: "api/v1/transactions#for_category", defaults: { format: :json }
+  get "v1/plans/:plan_id/payees/:payee_id/transactions", to: "api/v1/transactions#for_payee", defaults: { format: :json }
+  get "v1/plans/:plan_id/months/:month/transactions", to: "api/v1/transactions#for_month", defaults: { format: :json }
   get "v1/plans/:plan_id/money_movements", to: "api/v1/money_movements#index", defaults: { format: :json }
   get "v1/plans/:plan_id/months/:month/money_movements", to: "api/v1/money_movements#for_month", defaults: { format: :json }
   get "v1/plans/:plan_id/money_movement_groups", to: "api/v1/money_movement_groups#index", defaults: { format: :json }
