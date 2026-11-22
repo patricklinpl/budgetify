@@ -28,6 +28,10 @@ Rails.application.routes.draw do
   patch "v1/plans/:plan_id/category_groups/:category_group_id", to: "api/v1/category_groups#update", defaults: { format: :json }
   get "v1/plans/:plan_id/months", to: "api/v1/months#index", defaults: { format: :json }
   get "v1/plans/:plan_id/months/:month", to: "api/v1/months#show", defaults: { format: :json }
+  get "v1/plans/:plan_id/money_movements", to: "api/v1/money_movements#index", defaults: { format: :json }
+  get "v1/plans/:plan_id/months/:month/money_movements", to: "api/v1/money_movements#for_month", defaults: { format: :json }
+  get "v1/plans/:plan_id/money_movement_groups", to: "api/v1/money_movement_groups#index", defaults: { format: :json }
+  get "v1/plans/:plan_id/months/:month/money_movement_groups", to: "api/v1/money_movement_groups#for_month", defaults: { format: :json }
   get "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#show", defaults: { format: :json }
   patch "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#update", defaults: { format: :json }
   get "v1/plans/:plan_id/payees", to: "api/v1/payees#index", defaults: { format: :json }
