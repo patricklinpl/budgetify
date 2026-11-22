@@ -415,6 +415,70 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "TransactionResponse"
   end
 
+  test "GET /v1/plans/:plan_id/scheduled_transactions conforms to the spec's ScheduledTransactionsResponse schema" do
+    user = User.create!(email_address: "contract-scheduled-transactions@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    future = Date.current + 7
+    plan.scheduled_transactions.create!(account: account, date_first: future, date_next: future, amount: -45000)
+
+    get "/v1/plans/#{plan.public_id}/scheduled_transactions", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "ScheduledTransactionsResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/scheduled_transactions/:scheduled_transaction_id conforms to the spec's ScheduledTransactionResponse schema" do
+    user = User.create!(email_address: "contract-scheduled-transaction@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    future = Date.current + 7
+    scheduled = plan.scheduled_transactions.create!(account: account, date_first: future, date_next: future, amount: -45000)
+
+    get "/v1/plans/#{plan.public_id}/scheduled_transactions/#{scheduled.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "ScheduledTransactionResponse"
+  end
+
+  test "POST /v1/plans/:plan_id/scheduled_transactions conforms to the spec's ScheduledTransactionResponse schema" do
+    user = User.create!(email_address: "contract-save-scheduled@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+
+    post "/v1/plans/#{plan.public_id}/scheduled_transactions",
+      params: { scheduled_transaction: { account_id: account.public_id, date: (Date.current + 7).iso8601, amount: -45000 } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :created
+    assert_json_conforms_to_schema response.parsed_body, "ScheduledTransactionResponse"
+  end
+
+
+  test "scheduled update and delete conform to pinned response and request requirements" do
+    user = User.create!(email_address: "contract-scheduled-lifecycle@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    future = Date.current + 7
+    scheduled = plan.scheduled_transactions.create!(account: account, date_first: future, date_next: future)
+    headers = { "Authorization" => "Bearer #{token}" }
+    put "/v1/plans/#{plan.public_id}/scheduled_transactions/#{scheduled.public_id}",
+      params: { scheduled_transaction: { account_id: account.public_id, date: (future + 1).iso8601, frequency: "monthly" } }, headers: headers, as: :json
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "ScheduledTransactionResponse"
+    delete "/v1/plans/#{plan.public_id}/scheduled_transactions/#{scheduled.public_id}", headers: headers
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "ScheduledTransactionResponse"
+    required = spec.dig("components", "schemas", "SaveScheduledTransaction", "required")
+    assert_equal %w[account_id date], required
+    summary = resolve_schema(spec.dig("components", "schemas", "ScheduledTransactionSummaryBase"))
+    assert_equal summary.dig("properties", "frequency", "enum").sort, ScheduledTransaction::FREQUENCIES.sort
+  end
+
   private
     def resolve_schema(schema)
       seen = []
