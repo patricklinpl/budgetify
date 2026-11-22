@@ -79,6 +79,25 @@ class AccountsApiTest < ActionDispatch::IntegrationTest
     assert_equal account.public_id, response.parsed_body.dig("data", "account", "id")
   end
 
+  test "GET one account response has no server_knowledge (spec: AccountResponse)" do
+    account = @plan.accounts.create!(name: "Cash", type: "cash", balance: 0)
+
+    get "/v1/plans/#{@plan.public_id}/accounts/#{account.public_id}", headers: auth_headers
+
+    assert_response :ok
+    assert_equal %w[account], response.parsed_body.fetch("data").keys
+  end
+
+  test "POST without an account wrapper returns 400 in the error envelope" do
+    post "/v1/plans/#{@plan.public_id}/accounts",
+      params: { wrong: { name: "Nope" } }, headers: auth_headers, as: :json
+
+    assert_response :bad_request
+    error = response.parsed_body.fetch("error")
+    assert_equal "400", error.fetch("id")
+    assert_equal "bad_request", error.fetch("name")
+  end
+
   test "GET unknown account returns 404.2 resource_not_found" do
     get "/v1/plans/#{@plan.public_id}/accounts/00000000-0000-0000-0000-000000000000", headers: auth_headers
 
