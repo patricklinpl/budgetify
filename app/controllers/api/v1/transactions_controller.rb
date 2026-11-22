@@ -13,6 +13,8 @@ module Api
       # last_knowledge_of_server delta (spec: getTransactions).
       def index
         transactions = filtered_scope(plan.transactions)
+        return if transactions.nil?
+
         render_data({
           transactions: transactions.map { |transaction| TransactionSerializer.detail_as_json(transaction) },
           server_knowledge: plan.server_knowledge
@@ -25,7 +27,10 @@ module Api
         account = plan.accounts.not_deleted.find_by(public_id: params[:account_id])
         return render_not_found("No account was found with the given id.") if account.nil?
 
-        render_hybrid(filtered_scope(account.transactions))
+        transactions = filtered_scope(account.transactions)
+        return if transactions.nil?
+
+        render_hybrid(transactions, sub_scope: plan_sub_transactions.joins(:parent_transaction).where(transactions: { account_id: account.id }))
       end
 
       # GET /v1/plans/:plan_id/categories/:category_id/transactions - hybrid
@@ -35,7 +40,10 @@ module Api
         category = plan.categories.not_deleted.find_by(public_id: params[:category_id])
         return render_not_found("No category was found with the given id.") if category.nil?
 
-        render_hybrid(filtered_scope(plan.transactions.where(category_id: category.id)), sub_scope: plan_sub_transactions.where(category_id: category.id))
+        transactions = filtered_scope(plan.transactions.where(category_id: category.id))
+        return if transactions.nil?
+
+        render_hybrid(transactions, sub_scope: plan_sub_transactions.where(category_id: category.id))
       end
 
       # GET /v1/plans/:plan_id/payees/:payee_id/transactions - hybrid list
@@ -45,7 +53,10 @@ module Api
         payee = plan.payees.not_deleted.find_by(public_id: params[:payee_id])
         return render_not_found("No payee was found with the given id.") if payee.nil?
 
-        render_hybrid(filtered_scope(plan.transactions.where(payee_id: payee.id)), sub_scope: plan_sub_transactions.where(payee_id: payee.id))
+        transactions = filtered_scope(plan.transactions.where(payee_id: payee.id))
+        return if transactions.nil?
+
+        render_hybrid(transactions, sub_scope: plan_sub_transactions.where(payee_id: payee.id))
       end
 
       # GET /v1/plans/:plan_id/months/:month/transactions - hybrid list for
@@ -53,7 +64,10 @@ module Api
       def for_month
         return if @month.nil?
 
-        render_hybrid(filtered_scope(plan.transactions.where(date: @month..@month.end_of_month)))
+        transactions = filtered_scope(plan.transactions.where(date: @month..@month.end_of_month))
+        return if transactions.nil?
+
+        render_hybrid(transactions, sub_scope: plan_sub_transactions.joins(:parent_transaction).where(transactions: { date: @month..@month.end_of_month }))
       end
 
       # GET /v1/plans/:plan_id/transactions/:transaction_id -
@@ -77,8 +91,12 @@ module Api
         attributes = permitted_transaction_params(:transaction)
         return if attributes.nil?
 
+        transaction = build_transaction(attributes)
+        return if transaction.nil?
+
+        # import_id dedupe is per account (spec: NewTransaction.import_id).
         if attributes["import_id"].present? &&
-           plan.transactions.not_deleted.exists?(import_id: attributes["import_id"])
+           plan.transactions.not_deleted.exists?(account: transaction.account, import_id: attributes["import_id"])
           return render json: { data: {
             transaction_ids: [],
             duplicate_import_ids: [ attributes["import_id"] ],
@@ -86,17 +104,14 @@ module Api
           } }, status: :created
         end
 
-        transaction = build_transaction(attributes)
-        return if transaction.nil?
         return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.save
 
         sync_transfer!(transaction)
-        transaction.apply_amounts!(+1)
-        transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, +1) }
+        apply_all_amounts!(transaction, +1)
         render json: { data: {
           transaction_ids: [ transaction.public_id ],
           duplicate_import_ids: [],
-          transaction: TransactionSerializer.detail_as_json(transaction),
+          transaction: TransactionSerializer.detail_as_json(transaction.reload),
           server_knowledge: plan.reload.server_knowledge
         } }, status: :created
       end
@@ -118,15 +133,27 @@ module Api
         end
         return render_bad_request("The subtransactions must add up to the transaction amount.") unless sub_amounts_valid?(attributes, transaction.amount)
 
-        transaction.apply_amounts!(-1) # reverse the old effects
-        transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, -1) }
-        return unless assign_transaction_attributes(transaction, attributes)
-        return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.save
+        # Reverse, re-apply and re-sync the transfer pair atomically: a
+        # validation or lookup failure after reversal must not leave
+        # balances reduced (issue #33: account balances update from
+        # transaction writes).
+        Transaction.transaction do
+          apply_all_amounts!(transaction, -1)
 
-        rebuild_sub_transactions(transaction, attributes["subtransactions"])
-        sync_transfer!(transaction)
-        transaction.apply_amounts!(+1)
-        transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, +1) }
+          unless assign_transaction_attributes(transaction, attributes)
+            raise ActiveRecord::Rollback
+          end
+          unless transaction.save
+            render_bad_request(transaction.errors.full_messages.to_sentence)
+            raise ActiveRecord::Rollback
+          end
+
+          rebuild_sub_transactions(transaction, attributes["subtransactions"])
+          sync_transfer!(transaction)
+          apply_all_amounts!(transaction, +1)
+        end
+        return if performed?
+
         render_data({
           transaction_ids: [ transaction.public_id ],
           transaction: TransactionSerializer.detail_as_json(transaction.reload),
@@ -142,22 +169,49 @@ module Api
         return render_bad_request("Request body must include a transactions array.") unless entries.is_a?(Array)
 
         updated = []
-        entries.each do |entry|
-          attributes = entry.respond_to?(:permit) ? entry.permit!.to_h : entry.to_h
-          transaction = if attributes["id"].present?
-            plan.transactions.not_deleted.find_by(public_id: attributes["id"])
-          elsif attributes["import_id"].present?
-            plan.transactions.not_deleted.find_by(import_id: attributes["import_id"])
+        # All-or-nothing: an unknown id/import_id, invalid field or future
+        # date fails the request instead of being silently skipped or
+        # half-applied (spec: SaveTransactionWithIdOrImportId).
+        Transaction.transaction do
+          entries.each do |entry|
+            attributes = entry.respond_to?(:permit) ? entry.permit!.to_h : entry.to_h
+            transaction = if attributes["id"].present?
+              plan.transactions.not_deleted.find_by(public_id: attributes["id"])
+            elsif attributes["import_id"].present?
+              plan.transactions.not_deleted.find_by(import_id: attributes["import_id"])
+            end
+            if transaction.nil?
+              render_bad_request("A transaction was not found for the given id or import_id.")
+              raise ActiveRecord::Rollback
+            end
+            if attributes["date"].present?
+              begin
+                if Date.iso8601(attributes["date"].to_s) > Date.current
+                  render_bad_request("The transaction date cannot be in the future.")
+                  raise ActiveRecord::Rollback
+                end
+              rescue ArgumentError, TypeError
+                render_bad_request("The transaction date is not valid; use ISO format (e.g. 2016-12-01).")
+                raise ActiveRecord::Rollback
+              end
+            end
+
+            apply_all_amounts!(transaction, -1)
+
+            unless assign_transaction_attributes(transaction, attributes.except("id"))
+              raise ActiveRecord::Rollback
+            end
+            unless transaction.save
+              render_bad_request(transaction.errors.full_messages.to_sentence)
+              raise ActiveRecord::Rollback
+            end
+
+            sync_transfer!(transaction)
+            apply_all_amounts!(transaction, +1)
+            updated << transaction
           end
-          next if transaction.nil?
-
-          transaction.apply_amounts!(-1)
-          assign_transaction_attributes(transaction, attributes.except("id"))
-          next unless transaction.save
-
-          transaction.apply_amounts!(+1)
-          updated << transaction
         end
+        return if performed?
 
         render_data({
           transaction_ids: updated.map(&:public_id),
@@ -173,11 +227,12 @@ module Api
         transaction = find_transaction
         return if transaction.nil?
 
-        transaction.apply_amounts!(-1)
-        transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, -1) }
-        transaction.update!(deleted: true)
-        transaction.transfer_transaction&.update!(deleted: true)
-        render_data({ transaction: TransactionSerializer.detail_as_json(transaction.reload) })
+        Transaction.transaction do
+          apply_all_amounts!(transaction, -1)
+          transaction.transfer_transaction&.update!(deleted: true)
+          transaction.update!(deleted: true)
+        end
+        render_data({ transaction: TransactionSerializer.detail_as_json(transaction.reload), server_knowledge: plan.reload.server_knowledge })
       end
 
       # POST /v1/plans/:plan_id/transactions/import - YNAB deprecated
@@ -190,25 +245,35 @@ module Api
         def create_bulk
           entries = params[:transactions]
           attributes_list = entries.map { |entry| entry.respond_to?(:permit) ? entry.permit!.to_h : entry.to_h }
-          seen = plan.transactions.not_deleted.where(import_id: attributes_list.map { |a| a["import_id"] }.compact).distinct.pluck(:import_id)
+          seen = []
           created = []
+          duplicate_import_ids = []
           attributes_list.each do |attributes|
-            next if attributes["import_id"].present? && seen.include?(attributes["import_id"])
-
             transaction = build_transaction(attributes)
             return if transaction.nil?
+
+            # import_id dedupe is per account, including repeats within
+            # the same bulk request (spec: NewTransaction.import_id).
+            import_id = attributes["import_id"]
+            if import_id.present? &&
+               (seen.include?([ transaction.account_id, import_id ]) ||
+                plan.transactions.not_deleted.exists?(account: transaction.account, import_id: import_id))
+              duplicate_import_ids << import_id
+              next
+            end
+
             return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.save
 
+            seen << [ transaction.account_id, import_id ] if import_id.present?
             sync_transfer!(transaction)
-            transaction.apply_amounts!(+1)
-            transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, +1) }
+            apply_all_amounts!(transaction, +1)
             created << transaction
           end
 
           render json: { data: {
             transaction_ids: created.map(&:public_id),
             transactions: created.map { |transaction| TransactionSerializer.detail_as_json(transaction) },
-            duplicate_import_ids: seen,
+            duplicate_import_ids: duplicate_import_ids,
             server_knowledge: plan.reload.server_knowledge
           } }, status: :created
         end
@@ -318,14 +383,21 @@ module Api
         # transfer_transaction_id).
         def sync_transfer!(transaction)
           transfer_account = transaction.transfer_account
+          pair = transaction.transfer_transaction
           if transfer_account.nil?
-            transaction.transfer_transaction&.update!(transfer_transaction: nil)
+            # Unlinked from a transfer: the mirror is soft-deleted (its
+            # amounts were already reversed by the caller) rather than
+            # left live with a stale amount.
+            if pair
+              pair.update!(transfer_transaction: nil, deleted: true)
+              transaction.update_columns(transfer_transaction_id: nil)
+            end
             return
           end
 
-          pair = transaction.transfer_transaction ||
-            plan.transactions.new(account: transfer_account)
+          pair ||= plan.transactions.new(account: transfer_account)
           pair.assign_attributes(
+            account: transfer_account,
             date: transaction.date,
             amount: -transaction.amount.to_i,
             cleared: transaction.cleared,
@@ -338,12 +410,24 @@ module Api
           transaction.update_columns(transfer_transaction_id: pair.id) if transaction.transfer_transaction_id != pair.id
         end
 
+        # Applies (or reverses, with sign -1) this transaction's
+        # account/category effects, its subtransactions', and its transfer
+        # pair's (issue #33: transfers keep both sides in sync; account
+        # balances update from transaction writes).
+        def apply_all_amounts!(transaction, sign)
+          transaction.reload
+          transaction.apply_amounts!(sign)
+          transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, sign) }
+          transaction.transfer_transaction&.apply_amounts!(sign)
+        end
+
         def apply_sub_amounts(sub, sign)
           return if sub.category.nil?
 
+          delta = sub.amount.to_i * sign
           month_category = sub.category.month_category_for(sub.parent_transaction.month)
-          month_category.activity = month_category.activity.to_i + sub.amount.to_i * sign
-          month_category.balance = month_category.balance.to_i + sub.amount.to_i * sign
+          month_category.activity = month_category.activity.to_i + delta
+          month_category.credit_activity = month_category.credit_activity.to_i + delta if sub.parent_transaction.account.credit?
           month_category.save!
         end
 
@@ -353,15 +437,24 @@ module Api
           transaction
         end
 
+        # Returns nil (after rendering a 400) when a date filter is not an
+        # ISO date (spec: 400 on invalid query parameters).
         def filtered_scope(scope)
           scope = scope.not_deleted.order(:date, :knowledge)
           knowledge = params[:last_knowledge_of_server]
           scope = scope.where(knowledge: (knowledge.to_i + 1)..) if knowledge.present?
-          scope = scope.where("date >= ?", Date.iso8601(params[:since_date])) if params[:since_date].present?
-          scope = scope.where("date <= ?", Date.iso8601(params[:until_date])) if params[:until_date].present?
+          begin
+            scope = scope.where("date >= ?", Date.iso8601(params[:since_date])) if params[:since_date].present?
+            scope = scope.where("date <= ?", Date.iso8601(params[:until_date])) if params[:until_date].present?
+          rescue ArgumentError, TypeError
+            render_bad_request("The date filter is not valid; use ISO format (e.g. 2016-12-01).")
+            return nil
+          end
           case params[:type]
           when "uncategorized"
-            scope = scope.where(category_id: nil)
+            # Split parents are categorized via their subtransactions, so
+            # they are not uncategorized (spec: getTransactions type).
+            scope = scope.where(category_id: nil).where.not(id: SubTransaction.where(deleted: false).select(:transaction_id))
           when "unapproved"
             scope = scope.where(approved: false)
           end
@@ -374,7 +467,10 @@ module Api
         def render_hybrid(transactions, sub_scope: nil)
           rows = transactions.map { |transaction| TransactionSerializer.hybrid_as_json(transaction) }
           if sub_scope
-            subs = sub_scope.not_deleted.includes(parent_transaction: [ :account, :budget ])
+            sub_scope = sub_scope.not_deleted
+            knowledge = params[:last_knowledge_of_server]
+            sub_scope = sub_scope.where(knowledge: (knowledge.to_i + 1)..) if knowledge.present?
+            subs = sub_scope.includes(parent_transaction: [ :account, :budget ])
             rows.concat(subs.map { |sub| TransactionSerializer.hybrid_sub_as_json(sub) })
           end
           render_data({ transactions: rows, server_knowledge: plan.server_knowledge })
