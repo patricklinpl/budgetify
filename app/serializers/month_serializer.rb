@@ -56,7 +56,10 @@ class MonthSerializer
     end
 
     # Activity excludes transactions categorized to "Inflow: Ready to
-    # Assign" (spec: MonthSummary.activity).
+    # Assign" (spec: MonthSummary.activity). Credit Card Payment category
+    # movements are excluded too: no transactions are categorized to them
+    # (spec: SaveTransaction.category_id), so they are not "transactions
+    # categorized" in the month.
     def activity
       month_categories.where(categories: { internal: false }, month: @month).sum(:activity)
     end
@@ -69,17 +72,23 @@ class MonthSerializer
     # payment underfunding (YNAB docs: cash vs credit overspending;
     # spec: MonthSummary.to_be_budgeted).
     def to_be_budgeted
-      total = 0
-      month_categories.includes(:category).where("month <= ?", @month).order(:month).group_by(&:category_id).each_value do |entries|
+      # Transfers from credit (debt) accounts into cash accounts bring new
+      # money into the plan, increasing Ready to Assign (YNAB's "Inflow
+      # from Debt Account"; docs: Credit Card Cash Advances: An Overview).
+      # Cumulative through the month like the rest of the walk. Card
+      # payments (cash -> credit) and balance transfers (credit ->
+      # credit) move existing money or debt only, so neither counts.
+      total = debt_inflow_through(@month)
+      walk_entries_by_category.each_value do |entries|
         balance = 0
         entries.each do |entry|
-          if entry.category.internal?
-            total += entry.activity.to_i
+          if entry.internal
+            total += entry.activity
             next
           end
 
-          balance += entry.budgeted.to_i + entry.activity.to_i
-          total -= entry.budgeted.to_i
+          balance += entry.budgeted + entry.activity
+          total -= entry.budgeted
           next if entry.month >= @month
           next unless balance.negative?
 
@@ -89,5 +98,43 @@ class MonthSerializer
         end
       end
       total
+    end
+
+    # Normalized month rows for the Ready-to-Assign walk: stored month
+    # rows plus synthesized rows for Credit Card Payment categories,
+    # whose activity is derived (CreditCardFunding). A red payment
+    # category is cash overspending (YNAB docs: When Your Credit Card
+    # Payment Category is Red), so synthesized rows are all-cash.
+    MonthWalkEntry = Struct.new(:month, :budgeted, :activity, :credit_activity, :internal)
+
+    def walk_entries_by_category
+      stored = month_categories.includes(:category).where("month <= ?", @month).order(:month).group_by(&:category_id)
+      entries_by_category = stored.transform_values do |entries|
+        entries.map { |entry| MonthWalkEntry.new(entry.month, entry.budgeted.to_i, entry.activity.to_i, ledger.category_credit_activity(entry.category_id, entry.month), entry.category.internal?) }
+      end
+
+      @budget.categories.not_deleted.where.not(payment_account_id: nil).each do |category|
+        stored_budgeted = (entries_by_category.delete(category.id) || []).to_h { |entry| [ entry.month, entry.budgeted ] }
+        months = (stored_budgeted.keys + funding.active_months(category.payment_account_id, upto: @month)).uniq.sort
+        entries_by_category[category.id] = months.map do |entry_month|
+          MonthWalkEntry.new(entry_month, stored_budgeted.fetch(entry_month, 0), funding.payment_activity(category.payment_account_id, entry_month), 0, false)
+        end
+      end
+      entries_by_category
+    end
+
+    def funding
+      @funding ||= CreditCardFunding.new(@budget)
+    end
+
+    # Cumulative milliunits transferred from the plan's credit accounts
+    # into its cash accounts through the month (the cash-account side of
+    # those transfers; each transfer pair is counted once, on that side).
+    def debt_inflow_through(month)
+      ledger.debt_inflow_through(month)
+    end
+
+    def ledger
+      @ledger ||= CreditCardLedger.new(@budget)
     end
 end
