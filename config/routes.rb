@@ -20,6 +20,14 @@ Rails.application.routes.draw do
   get "v1/plans/:plan_id/accounts", to: "api/v1/accounts#index", defaults: { format: :json }
   post "v1/plans/:plan_id/accounts", to: "api/v1/accounts#create", defaults: { format: :json }
   get "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#show", defaults: { format: :json }
+  get "v1/plans/:plan_id/categories", to: "api/v1/categories#index", defaults: { format: :json }
+  post "v1/plans/:plan_id/categories", to: "api/v1/categories#create", defaults: { format: :json }
+  get "v1/plans/:plan_id/categories/:category_id", to: "api/v1/categories#show", defaults: { format: :json }
+  patch "v1/plans/:plan_id/categories/:category_id", to: "api/v1/categories#update", defaults: { format: :json }
+  post "v1/plans/:plan_id/category_groups", to: "api/v1/category_groups#create", defaults: { format: :json }
+  patch "v1/plans/:plan_id/category_groups/:category_group_id", to: "api/v1/category_groups#update", defaults: { format: :json }
+  get "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#show", defaults: { format: :json }
+  patch "v1/plans/:plan_id/months/:month/categories/:category_id", to: "api/v1/month_categories#update", defaults: { format: :json }
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
