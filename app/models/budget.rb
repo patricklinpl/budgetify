@@ -6,6 +6,8 @@ class Budget < ApplicationRecord
   has_many :payees, dependent: :destroy
   has_many :category_groups, dependent: :destroy
   has_many :categories, dependent: :destroy
+  has_many :money_movements, dependent: :destroy
+  has_many :money_movement_groups, dependent: :destroy
 
   # YNAB's built-in internal group/category: the "Inflow: Ready to Assign"
   # category is internal and not assignable via the API (spec: Category
