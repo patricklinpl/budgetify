@@ -250,6 +250,47 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "PayeeLocationResponse"
   end
 
+  test "PATCH /v1/plans/:plan_id/payees/:payee_id conforms to the spec's SavePayeeResponse schema" do
+    user = User.create!(email_address: "contract-patch-payee@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    payee = plan.payees.create!(name: "Grocery Store")
+
+    patch "/v1/plans/#{plan.public_id}/payees/#{payee.public_id}",
+      params: { payee: { name: "Corner Store" } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "SavePayeeResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/months conforms to the spec's MonthSummariesResponse schema" do
+    user = User.create!(email_address: "contract-months@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+    category = group.categories.create!(budget: plan, name: "Groceries")
+    category.month_categories.create!(month: Date.current.beginning_of_month, budgeted: 500000, activity: -200000, balance: 300000)
+
+    get "/v1/plans/#{plan.public_id}/months", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "MonthSummariesResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/months/:month conforms to the spec's MonthDetailResponse schema" do
+    user = User.create!(email_address: "contract-month@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+    group.categories.create!(budget: plan, name: "Groceries")
+
+    get "/v1/plans/#{plan.public_id}/months/current", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "MonthDetailResponse"
+  end
+
   private
     def resolve_schema(schema)
       seen = []
