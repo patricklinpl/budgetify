@@ -35,9 +35,9 @@ module Milliunits
     # The full milliunit + *_currency + *_formatted triple for one field.
     def fields(field, milliunits, currency_format = CurrencyFormat.default)
       {
-        field => milliunits.to_i,
-        "#{field}_currency" => to_currency(milliunits, currency_format),
-        "#{field}_formatted" => format(milliunits, currency_format)
+        field.to_sym => milliunits.to_i,
+        "#{field}_currency".to_sym => to_currency(milliunits, currency_format),
+        "#{field}_formatted".to_sym => format(milliunits, currency_format)
       }
     end
 end
