@@ -10,9 +10,16 @@ class User < ApplicationRecord
 
   validates :email_address, presence: true, uniqueness: true
 
-  private
-
-  def assign_public_id
-    self.public_id ||= SecureRandom.uuid
+  # The next value of the user's global knowledge counter. YNAB delta
+  # requests (last_knowledge_of_server) on the plans list are evaluated
+  # against this counter.
+  def next_server_knowledge!
+    increment!(:server_knowledge)
+    server_knowledge
   end
+
+  private
+    def assign_public_id
+      self.public_id ||= SecureRandom.uuid
+    end
 end

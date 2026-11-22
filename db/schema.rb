@@ -10,13 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_190000) do
   create_table "budgets", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "public_id", null: false
     t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "last_used_at"
+    t.integer "server_knowledge", default: 0, null: false
+    t.integer "knowledge", default: 0, null: false
+    t.boolean "deleted", default: false, null: false
     t.index ["public_id"], name: "index_budgets_on_public_id", unique: true
     t.index ["user_id", "name"], name: "index_budgets_on_user_id_and_name"
     t.index ["user_id"], name: "index_budgets_on_user_id"
@@ -40,6 +44,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_180000) do
     t.string "email_address"
     t.string "password_digest"
     t.integer "sign_in_count", default: 0, null: false
+    t.integer "server_knowledge", default: 0, null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["public_id"], name: "index_users_on_public_id", unique: true
   end
