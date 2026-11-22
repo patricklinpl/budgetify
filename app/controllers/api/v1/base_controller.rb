@@ -12,7 +12,7 @@ module Api
       # YNAB rate limit: 200 requests per hour per access token, answered
       # with the standard error envelope. Runs after authentication so the
       # limit is keyed on the token's session.
-      rate_limit to: 200, within: 1.hour,
+      rate_limit to: 200, within: 1.hour, name: "api",
                  by: -> { Current.session&.id || request.remote_ip },
                  with: -> { render_api_error(:too_many_requests, "API rate limit exceeded: 200 requests per hour per access token.") }
 
