@@ -25,8 +25,13 @@ class ApiV1FoundationsTest < ActionDispatch::IntegrationTest
   end
 
   setup do
+    Rails.cache.clear
     @user = User.create!(email_address: "foundations@example.com", password: "password123")
     @token = @user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+  end
+
+  teardown do
+    Rails.cache.clear
   end
 
   test "unauthenticated requests get a 401 in the error envelope" do
