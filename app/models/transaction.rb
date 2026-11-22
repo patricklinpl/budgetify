@@ -50,7 +50,7 @@ class Transaction < ApplicationRecord
 
     month_category = category.month_categories.find_or_initialize_by(month: month)
     month_category.activity = month_category.activity.to_i + delta
-    month_category.balance = month_category.balance.to_i + delta
+    month_category.credit_activity = month_category.credit_activity.to_i + delta if account.credit?
     month_category.save!
   end
 
