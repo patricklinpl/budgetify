@@ -9,11 +9,19 @@ class SubTransaction < ApplicationRecord
   scope :not_deleted, -> { where(deleted: false) }
 
   before_validation :assign_public_id, on: :create
+  before_save :assign_knowledge
 
   validates :amount, presence: true
 
   private
     def assign_public_id
       self.public_id ||= SecureRandom.uuid
+    end
+
+    # Stamps this subtransaction with the plan's next knowledge value so
+    # delta requests on hybrid lists surface sub-only changes (spec:
+    # last_knowledge_of_server).
+    def assign_knowledge
+      self.knowledge = parent_transaction.budget.next_knowledge!
     end
 end
