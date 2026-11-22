@@ -61,9 +61,28 @@ class MonthSerializer
       month_categories.where(categories: { internal: false }, month: @month).sum(:activity)
     end
 
+    # Ready to Assign is cumulative: income minus budgeted through the
+    # month, with cash overspending absorbed (a category ending a month
+    # negative reduces Ready to Assign and restarts at zero; spec:
+    # MonthSummary.to_be_budgeted).
     def to_be_budgeted
-      through = month_categories.where("month <= ?", @month)
-      through.where(categories: { internal: true }).sum(:activity) -
-        through.where(categories: { internal: false }).sum(:budgeted)
+      total = 0
+      month_categories.includes(:category).where("month <= ?", @month).order(:month).group_by(&:category_id).each_value do |entries|
+        balance = 0
+        entries.each do |entry|
+          if entry.category.internal?
+            total += entry.activity.to_i
+            next
+          end
+
+          balance += entry.budgeted.to_i + entry.activity.to_i
+          total -= entry.budgeted.to_i
+          if balance.negative?
+            total += balance
+            balance = 0
+          end
+        end
+      end
+      total
     end
 end
