@@ -18,14 +18,16 @@ module Api
         end
 
         # Renders the YNAB error envelope (spec: ErrorDetail schema):
-        # { "error": { "id", "name", "detail" } } where "id" is the HTTP
-        # status and "name" its snake_case short name.
-        def render_api_error(status, detail, id: nil)
+        # { "error": { "id", "name", "detail" } }. YNAB's documented error
+        # ids and names do not always match the HTTP status (docs:
+        # https://api.ynab.com/): pass explicit id:/name: for those cases,
+        # e.g. 401 "not_authorized" or 404.2 "resource_not_found".
+        def render_api_error(status, detail, id: nil, name: nil)
           status_code = Rack::Utils.status_code(status)
           render json: {
             error: {
               id: id.presence || status_code.to_s,
-              name: Rack::Utils::HTTP_STATUS_CODES.fetch(status_code).downcase.tr(" ", "_"),
+              name: name.presence || Rack::Utils::HTTP_STATUS_CODES.fetch(status_code).downcase.tr(" ", "_"),
               detail: detail
             }
           }, status: status
