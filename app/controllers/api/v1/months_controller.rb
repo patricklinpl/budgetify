@@ -78,6 +78,10 @@ module Api
 
           changed_category_ids = plan.categories.where(knowledge: (knowledge.to_i + 1)..).select(:id)
           changed_months = MonthCategory.where(category_id: changed_category_ids).distinct.pluck(:month)
+          # Debt inflows and payments can change month rollups even when
+          # the transfer has no explicit spending category.
+          transaction_months = plan.transactions.where(knowledge: (knowledge.to_i + 1)..).pluck(:date).map(&:beginning_of_month)
+          changed_months |= transaction_months
           months & changed_months
         end
     end
