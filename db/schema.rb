@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_060000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -47,6 +47,59 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_040000) do
     t.index ["public_id"], name: "index_budgets_on_public_id", unique: true
     t.index ["user_id", "name"], name: "index_budgets_on_user_id_and_name"
     t.index ["user_id"], name: "index_budgets_on_user_id"
+  end
+
+  create_table "categories", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.integer "category_group_id", null: false
+    t.string "public_id", null: false
+    t.string "name", null: false
+    t.boolean "hidden", default: false, null: false
+    t.boolean "internal", default: false, null: false
+    t.text "note"
+    t.string "goal_type"
+    t.bigint "goal_target"
+    t.date "goal_target_date"
+    t.integer "goal_cadence"
+    t.integer "goal_cadence_frequency"
+    t.integer "goal_day"
+    t.date "goal_creation_month"
+    t.boolean "goal_needs_whole_amount"
+    t.boolean "deleted", default: false, null: false
+    t.bigint "knowledge", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["budget_id", "knowledge"], name: "index_categories_on_budget_id_and_knowledge"
+    t.index ["budget_id"], name: "index_categories_on_budget_id"
+    t.index ["category_group_id"], name: "index_categories_on_category_group_id"
+    t.index ["public_id"], name: "index_categories_on_public_id", unique: true
+  end
+
+  create_table "category_groups", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.string "public_id", null: false
+    t.string "name", null: false
+    t.boolean "hidden", default: false, null: false
+    t.boolean "internal", default: false, null: false
+    t.boolean "deleted", default: false, null: false
+    t.bigint "knowledge", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["budget_id", "knowledge"], name: "index_category_groups_on_budget_id_and_knowledge"
+    t.index ["budget_id"], name: "index_category_groups_on_budget_id"
+    t.index ["public_id"], name: "index_category_groups_on_public_id", unique: true
+  end
+
+  create_table "month_categories", force: :cascade do |t|
+    t.integer "category_id", null: false
+    t.date "month", null: false
+    t.bigint "budgeted", default: 0, null: false
+    t.bigint "activity", default: 0, null: false
+    t.bigint "balance", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id", "month"], name: "index_month_categories_on_category_id_and_month", unique: true
+    t.index ["category_id"], name: "index_month_categories_on_category_id"
   end
 
   create_table "payees", force: :cascade do |t|
@@ -89,6 +142,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_040000) do
 
   add_foreign_key "accounts", "budgets"
   add_foreign_key "budgets", "users"
+  add_foreign_key "categories", "budgets"
+  add_foreign_key "categories", "category_groups"
+  add_foreign_key "category_groups", "budgets"
+  add_foreign_key "month_categories", "categories"
   add_foreign_key "payees", "accounts", column: "transfer_account_id"
   add_foreign_key "payees", "budgets"
   add_foreign_key "sessions", "users"
