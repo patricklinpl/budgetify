@@ -80,20 +80,22 @@ class ApiV1FoundationsTest < ActionDispatch::IntegrationTest
   test "delta requests return changes since last_knowledge_of_server, including tombstones" do
     with_probe_routes do
       first = @user.budgets.create!(name: "First")
+      first_knowledge = first.reload.knowledge
       second = @user.budgets.create!(name: "Second")
+      initial_knowledge = @user.reload.server_knowledge
 
       get "/v1/plans", headers: auth_headers
       assert_response :ok
       body = response.parsed_body.fetch("data")
       assert_equal [ first.public_id, second.public_id ], body.fetch("plans").map { |plan| plan.fetch("id") }
-      assert_equal 2, body.fetch("server_knowledge")
+      assert_equal initial_knowledge, body.fetch("server_knowledge")
 
-      get "/v1/plans", params: { last_knowledge_of_server: 1 }, headers: auth_headers
+      get "/v1/plans", params: { last_knowledge_of_server: first_knowledge }, headers: auth_headers
       plans = response.parsed_body.fetch("data").fetch("plans")
       assert_equal [ second.public_id ], plans.map { |plan| plan.fetch("id") }
 
       first.update!(deleted: true)
-      get "/v1/plans", params: { last_knowledge_of_server: 2 }, headers: auth_headers
+      get "/v1/plans", params: { last_knowledge_of_server: initial_knowledge }, headers: auth_headers
       plans = response.parsed_body.fetch("data").fetch("plans")
       assert_equal [ first.public_id ], plans.map { |plan| plan.fetch("id") }
       assert_equal true, plans.first.fetch("deleted")
