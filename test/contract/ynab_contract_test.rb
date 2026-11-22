@@ -319,6 +319,70 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "MoneyMovementGroupsResponse"
   end
 
+  test "GET /v1/plans/:plan_id/transactions conforms to the spec's TransactionsResponse schema" do
+    user = User.create!(email_address: "contract-transactions@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    plan.transactions.create!(account: account, date: Date.current.beginning_of_month, amount: -45000)
+
+    get "/v1/plans/#{plan.public_id}/transactions", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "TransactionsResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/transactions/:transaction_id conforms to the spec's TransactionResponse schema" do
+    user = User.create!(email_address: "contract-transaction@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    transaction = plan.transactions.create!(account: account, date: Date.current.beginning_of_month, amount: -45000)
+
+    get "/v1/plans/#{plan.public_id}/transactions/#{transaction.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "TransactionResponse"
+  end
+
+  test "POST /v1/plans/:plan_id/transactions conforms to the spec's SaveTransactionsResponse schema" do
+    user = User.create!(email_address: "contract-save-transactions@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+
+    post "/v1/plans/#{plan.public_id}/transactions",
+      params: { transaction: { account_id: account.public_id, date: Date.current.beginning_of_month.iso8601, amount: -45000 } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :created
+    assert_json_conforms_to_schema response.parsed_body, "SaveTransactionsResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/accounts/:account_id/transactions conforms to the spec's HybridTransactionsResponse schema" do
+    user = User.create!(email_address: "contract-hybrid-transactions@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    plan.transactions.create!(account: account, date: Date.current.beginning_of_month, amount: -45000)
+
+    get "/v1/plans/#{plan.public_id}/accounts/#{account.public_id}/transactions", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "HybridTransactionsResponse"
+  end
+
+  test "POST /v1/plans/:plan_id/transactions/import conforms to the spec's TransactionsImportResponse schema" do
+    user = User.create!(email_address: "contract-import-transactions@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+
+    post "/v1/plans/#{plan.public_id}/transactions/import", headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :created
+    assert_json_conforms_to_schema response.parsed_body, "TransactionsImportResponse"
+  end
+
   private
     def resolve_schema(schema)
       seen = []
