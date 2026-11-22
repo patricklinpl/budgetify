@@ -18,6 +18,7 @@ class Transaction < ApplicationRecord
   scope :not_deleted, -> { where(deleted: false) }
 
   before_validation :assign_public_id, on: :create
+  before_validation :set_opening_balance_category, if: :opening_balance?
   before_save :assign_knowledge
 
   validates :date, presence: true
@@ -62,6 +63,16 @@ class Transaction < ApplicationRecord
   end
 
   private
+    # Only newly created, explicitly marked opening entries use this rule.
+    # Existing debt must not remove assignable cash; a positive card
+    # opening does add cash. Recompute on edits across zero, independent
+    # of the current payee name. Tracking openings remain outside RTA.
+    def set_opening_balance_category
+      self.category = if account&.on_budget? && (!account.credit? || amount.to_i.positive?)
+        budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME)
+      end
+    end
+
     def assign_public_id
       self.public_id ||= SecureRandom.uuid
     end
