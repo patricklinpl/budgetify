@@ -1,4 +1,15 @@
 Rails.application.routes.draw do
+  get "v1/plans/:plan_id/scheduled_transactions", to: "api/v1/scheduled_transactions#index", defaults: { format: :json }
+
+  post "v1/plans/:plan_id/scheduled_transactions", to: "api/v1/scheduled_transactions#create", defaults: { format: :json }
+
+  get "v1/plans/:plan_id/scheduled_transactions/:scheduled_transaction_id", to: "api/v1/scheduled_transactions#show", defaults: { format: :json }
+
+  put "v1/plans/:plan_id/scheduled_transactions/:scheduled_transaction_id", to: "api/v1/scheduled_transactions#update", defaults: { format: :json }
+
+  delete "v1/plans/:plan_id/scheduled_transactions/:scheduled_transaction_id", to: "api/v1/scheduled_transactions#destroy", defaults: { format: :json }
+
+
   resource :session, only: %i[ create destroy ]
   resources :passwords, param: :token
   post "loginUser", to: "api/v1/sessions#create", as: :login_user, defaults: { format: :json }
