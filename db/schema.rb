@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_130000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -176,6 +176,51 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_120000) do
     t.index ["transfer_account_id"], name: "index_payees_on_transfer_account_id"
   end
 
+  create_table "scheduled_sub_transactions", force: :cascade do |t|
+    t.integer "scheduled_transaction_id", null: false
+    t.integer "payee_id"
+    t.integer "category_id"
+    t.integer "transfer_account_id"
+    t.string "public_id", null: false
+    t.integer "amount", default: 0, null: false
+    t.string "memo"
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id"], name: "index_scheduled_sub_transactions_on_category_id"
+    t.index ["payee_id"], name: "index_scheduled_sub_transactions_on_payee_id"
+    t.index ["public_id"], name: "index_scheduled_sub_transactions_on_public_id", unique: true
+    t.index ["scheduled_transaction_id"], name: "index_scheduled_sub_transactions_on_scheduled_transaction_id"
+    t.index ["transfer_account_id"], name: "index_scheduled_sub_transactions_on_transfer_account_id"
+  end
+
+  create_table "scheduled_transactions", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.integer "account_id", null: false
+    t.integer "payee_id"
+    t.integer "category_id"
+    t.integer "transfer_account_id"
+    t.string "public_id", null: false
+    t.date "date_first", null: false
+    t.date "date_next", null: false
+    t.string "frequency", default: "never", null: false
+    t.integer "amount", default: 0, null: false
+    t.string "memo"
+    t.string "flag_color"
+    t.string "flag_name"
+    t.boolean "deleted", default: false, null: false
+    t.integer "knowledge", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_scheduled_transactions_on_account_id"
+    t.index ["budget_id", "knowledge"], name: "index_scheduled_transactions_on_budget_id_and_knowledge"
+    t.index ["budget_id"], name: "index_scheduled_transactions_on_budget_id"
+    t.index ["category_id"], name: "index_scheduled_transactions_on_category_id"
+    t.index ["payee_id"], name: "index_scheduled_transactions_on_payee_id"
+    t.index ["public_id"], name: "index_scheduled_transactions_on_public_id", unique: true
+    t.index ["transfer_account_id"], name: "index_scheduled_transactions_on_transfer_account_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "ip_address"
@@ -274,6 +319,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_120000) do
   add_foreign_key "payee_locations", "payees"
   add_foreign_key "payees", "accounts", column: "transfer_account_id"
   add_foreign_key "payees", "budgets"
+  add_foreign_key "scheduled_sub_transactions", "accounts", column: "transfer_account_id"
+  add_foreign_key "scheduled_sub_transactions", "categories"
+  add_foreign_key "scheduled_sub_transactions", "payees"
+  add_foreign_key "scheduled_sub_transactions", "scheduled_transactions"
+  add_foreign_key "scheduled_transactions", "accounts"
+  add_foreign_key "scheduled_transactions", "accounts", column: "transfer_account_id"
+  add_foreign_key "scheduled_transactions", "budgets"
+  add_foreign_key "scheduled_transactions", "categories"
+  add_foreign_key "scheduled_transactions", "payees"
   add_foreign_key "sessions", "users"
   add_foreign_key "sub_transactions", "accounts", column: "transfer_account_id"
   add_foreign_key "sub_transactions", "categories"
