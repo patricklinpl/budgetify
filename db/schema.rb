@@ -73,6 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_120000) do
     t.index ["budget_id", "knowledge"], name: "index_categories_on_budget_id_and_knowledge"
     t.index ["budget_id"], name: "index_categories_on_budget_id"
     t.index ["category_group_id"], name: "index_categories_on_category_group_id"
+    t.index ["payment_account_id"], name: "index_categories_on_payment_account_id"
     t.index ["public_id"], name: "index_categories_on_public_id", unique: true
   end
 
