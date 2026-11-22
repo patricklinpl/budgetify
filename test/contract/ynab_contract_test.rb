@@ -11,6 +11,9 @@ require "test_helper"
 class YnabContractTest < ActionDispatch::IntegrationTest
   SPEC_PATH = Rails.root.join("test/fixtures/files/ynab_open_api_spec_v1.88.0.yaml")
 
+  setup { Rails.cache.clear }
+  teardown { Rails.cache.clear }
+
   def spec
     @spec ||= YAML.load_file(SPEC_PATH, aliases: true)
   end
