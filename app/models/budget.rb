@@ -17,6 +17,16 @@ class Budget < ApplicationRecord
     server_knowledge
   end
 
+  # The plan's persisted currency format (spec: CurrencyFormat schema).
+  # Falls back to the USD default when none is stored; settings become
+  # user-editable with a later issue.
+  def currency_format
+    stored = self[:currency_format]
+    return CurrencyFormat.default if stored.blank?
+
+    CurrencyFormat.new(**stored.symbolize_keys)
+  end
+
   private
     def assign_public_id
       self.public_id ||= SecureRandom.uuid

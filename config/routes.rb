@@ -14,6 +14,9 @@ Rails.application.routes.draw do
   end
   get "api/v1/catalog", to: "api/v1/catalogs#index", as: :api_v1_catalog, defaults: { format: :json }
   get "v1/user", to: "api/v1/users#show", as: :api_v1_user, defaults: { format: :json }
+  get "v1/plans", to: "api/v1/plans#index", as: :api_v1_plans, defaults: { format: :json }
+  get "v1/plans/:plan_id", to: "api/v1/plans#show", as: :api_v1_plan, defaults: { format: :json }
+  get "v1/plans/:plan_id/settings", to: "api/v1/plan_settings#show", as: :api_v1_plan_settings, defaults: { format: :json }
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
