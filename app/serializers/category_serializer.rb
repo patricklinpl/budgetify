@@ -8,6 +8,14 @@ class CategorySerializer
     month ||= Date.current.beginning_of_month
     month_category = category.month_category_for(month)
     currency_format = category.budget.currency_format
+    # The month's available balance carries over: positive balances roll
+    # forward, while cash overspending is absorbed by Ready to Assign and
+    # the category restarts at zero (spec: Category.balance).
+    balance = 0
+    category.month_categories.where("month <= ?", month).order(:month).each do |entry|
+      balance += entry.budgeted.to_i + entry.activity.to_i
+      balance = 0 if balance.negative?
+    end
     {
       id: category.public_id,
       category_group_id: category.category_group.public_id,
@@ -35,7 +43,7 @@ class CategorySerializer
     }.merge!(
       Milliunits.fields(:budgeted, month_category.budgeted, currency_format),
       Milliunits.fields(:activity, month_category.activity, currency_format),
-      Milliunits.fields(:balance, month_category.balance, currency_format),
+      Milliunits.fields(:balance, balance, currency_format),
       goal_target_fields(category, currency_format)
     )
   end
