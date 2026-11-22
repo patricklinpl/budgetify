@@ -270,7 +270,7 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     plan = user.budgets.create!(name: "Everyday")
     group = plan.category_groups.create!(name: "Everyday Expenses")
     category = group.categories.create!(budget: plan, name: "Groceries")
-    category.month_categories.create!(month: Date.current.beginning_of_month, budgeted: 500000, activity: -200000, balance: 300000)
+    category.month_categories.create!(month: Date.current.beginning_of_month, budgeted: 500000, activity: -200000)
 
     get "/v1/plans/#{plan.public_id}/months", headers: { "Authorization" => "Bearer #{token}" }
 
@@ -381,6 +381,19 @@ class YnabContractTest < ActionDispatch::IntegrationTest
 
     assert_response :created
     assert_json_conforms_to_schema response.parsed_body, "TransactionsImportResponse"
+  end
+
+  test "DELETE /v1/plans/:plan_id/transactions/:transaction_id conforms to the spec's TransactionResponse schema" do
+    user = User.create!(email_address: "contract-delete-transaction@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    account = plan.accounts.create!(name: "Checking", type: "checking")
+    transaction = plan.transactions.create!(account: account, date: Date.current, amount: -1000)
+
+    delete "/v1/plans/#{plan.public_id}/transactions/#{transaction.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "TransactionResponse"
   end
 
   private
