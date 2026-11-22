@@ -291,6 +291,34 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "MonthDetailResponse"
   end
 
+  test "GET /v1/plans/:plan_id/money_movements conforms to the spec's MoneyMovementsResponse schema" do
+    user = User.create!(email_address: "contract-money-movements@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    group = plan.category_groups.create!(name: "Everyday Expenses")
+    category = group.categories.create!(budget: plan, name: "Groceries")
+    month = Date.current.beginning_of_month
+    movement_group = plan.money_movement_groups.create!(group_created_at: Time.current, month: month, performed_by_user: user)
+    plan.money_movements.create!(money_movement_group: movement_group, month: month, moved_at: Time.current, performed_by_user: user, to_category: category, amount: 500000)
+
+    get "/v1/plans/#{plan.public_id}/money_movements", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "MoneyMovementsResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/money_movement_groups conforms to the spec's MoneyMovementGroupsResponse schema" do
+    user = User.create!(email_address: "contract-money-movement-groups@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    plan.money_movement_groups.create!(group_created_at: Time.current, month: Date.current.beginning_of_month, performed_by_user: user)
+
+    get "/v1/plans/#{plan.public_id}/money_movement_groups", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "MoneyMovementGroupsResponse"
+  end
+
   private
     def resolve_schema(schema)
       seen = []
