@@ -46,6 +46,11 @@ module Api
           if @month > current
             render_api_error(:bad_request, "The month cannot be in the future.", id: "400", name: "bad_request")
             @month = nil
+          elsif @month < plan.created_at.to_date.beginning_of_month
+            # Months before the plan's first month do not exist (spec:
+            # getPlanMonth 404 "The plan month was not found").
+            render_api_error(:not_found, "The plan month was not found.", id: "404.2", name: "resource_not_found")
+            @month = nil
           end
         rescue ArgumentError, TypeError
           render_api_error(:bad_request, "The month is not valid; use ISO format (e.g. 2016-12-01) or \"current\".", id: "400", name: "bad_request")

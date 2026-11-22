@@ -28,14 +28,41 @@ module Api
         return render_bad_request("The budgeted amount is required.") unless attributes.key?("budgeted") && !attributes["budgeted"].nil?
 
         month_category = @category.month_category_for(@month)
+        previous_budgeted = month_category.budgeted.to_i
         month_category.budgeted = attributes["budgeted"]
         month_category.balance = month_category.budgeted.to_i + month_category.activity.to_i
         return render_bad_request(month_category.errors.full_messages.to_sentence) unless month_category.save
+
+        record_money_movement(@month, month_category.budgeted.to_i - previous_budgeted)
 
         render_data({ category: CategorySerializer.as_json(@category, month: @month) }, server_knowledge: plan.reload.server_knowledge)
       end
 
       private
+        # Assigning (or unassigning) a month amount records a money
+        # movement between Ready to Assign and the category, bundled in its
+        # own group (spec: MoneyMovement / MoneyMovementGroup; issue #32).
+        # A positive change moves from Ready to Assign to the category; a
+        # negative change moves back.
+        def record_money_movement(month, delta)
+          return if delta.zero?
+
+          group = plan.money_movement_groups.create!(
+            group_created_at: Time.current,
+            month: month,
+            performed_by_user: Current.user
+          )
+          plan.money_movements.create!(
+            money_movement_group: group,
+            month: month,
+            moved_at: Time.current,
+            performed_by_user: Current.user,
+            from_category: delta.negative? ? @category : nil,
+            to_category: delta.negative? ? nil : @category,
+            amount: delta.abs
+          )
+        end
+
         # "current" resolves to the current calendar month (UTC); otherwise
         # an ISO plan month (first of month). Invalid or future months get
         # a 400 (spec: 400 on the month category endpoints).
