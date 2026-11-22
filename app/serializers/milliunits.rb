@@ -22,9 +22,9 @@ module Milliunits
     def format(milliunits, currency_format = CurrencyFormat.default)
       decimals = currency_format.decimal_digits || 2
       value = (milliunits.to_i.abs / MILLIUNITS_PER_UNIT.to_d).round(decimals)
-      whole, fraction = value.to_s("F").split(".")
+      whole, fraction = value.to_d.to_s("F").split(".")
       whole = whole.gsub(/(\d)(?=(\d{3})+(?!\d))/, "\\1#{currency_format.group_separator}")
-      fraction = fraction.to_s.ljust(decimals, "0") if decimals.positive?
+      fraction = decimals.positive? ? fraction.to_s.ljust(decimals, "0") : nil
       number = [ whole, fraction ].compact.join(currency_format.decimal_separator.to_s)
       if currency_format.display_symbol
         number = currency_format.symbol_first ? "#{currency_format.currency_symbol}#{number}" : "#{number}#{currency_format.currency_symbol}"

@@ -46,7 +46,7 @@ class AccountsApiTest < ActionDispatch::IntegrationTest
   end
 
   test "POST accounts creates an account with its transfer payee" do
-    assert_difference -> { @plan.accounts.count } => 1, -> { @plan.payees.count } => 1 do
+    assert_difference -> { @plan.accounts.count } => 1, -> { @plan.payees.count } => 2, -> { @plan.transactions.count } => 1 do
       post "/v1/plans/#{@plan.public_id}/accounts",
         params: { account: { name: "Savings", type: "savings", balance: 500000 } }, headers: auth_headers, as: :json
     end

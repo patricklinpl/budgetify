@@ -30,6 +30,14 @@ class MilliunitsTest < ActiveSupport::TestCase
     assert_equal "$123.00", Milliunits.format(123000)
   end
 
+  test "zero decimal currencies omit the decimal separator and fractional digits" do
+    jpy = CurrencyFormat.new(decimal_digits: 0, currency_symbol: "JPY", group_separator: ",")
+    assert_equal "JPY1,235", Milliunits.format(1_234_600, jpy)
+    assert_equal "-JPY1,235", Milliunits.format(-1_234_600, jpy)
+    jpy.display_symbol = false
+    assert_equal "1,235", Milliunits.format(1_234_600, jpy)
+  end
+
   test "currency format serializes to the YNAB CurrencyFormat schema" do
     assert_equal(
       {

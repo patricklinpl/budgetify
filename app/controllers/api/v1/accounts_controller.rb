@@ -27,9 +27,14 @@ module Api
           return render_api_error(:bad_request, "The account type is not valid for creating an account.", id: "400", name: "bad_request")
         end
 
-        account = plan.accounts.new(attributes)
-        unless account.save
-          return render_api_error(:bad_request, account.errors.full_messages.to_sentence, id: "400", name: "bad_request")
+        unless attributes["balance"].is_a?(Integer)
+          return render_api_error(:bad_request, "The balance is required and must be integer milliunits.", id: "400", name: "bad_request")
+        end
+
+        begin
+          account = Account.open!(budget: plan, attributes: attributes.to_h)
+        rescue ActiveRecord::RecordInvalid => error
+          return render_api_error(:bad_request, error.record.errors.full_messages.to_sentence, id: "400", name: "bad_request")
         end
 
         render json: { data: { account: AccountSerializer.as_json(account) } }, status: :created
