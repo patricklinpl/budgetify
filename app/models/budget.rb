@@ -4,11 +4,20 @@ class Budget < ApplicationRecord
   belongs_to :user
   has_many :accounts, dependent: :destroy
   has_many :payees, dependent: :destroy
+  has_many :category_groups, dependent: :destroy
+  has_many :categories, dependent: :destroy
+
+  # YNAB's built-in internal group/category: the "Inflow: Ready to Assign"
+  # category is internal and not assignable via the API (spec: Category
+  # internal flag; issue #29).
+  INTERNAL_GROUP_NAME = "Internal Master Category"
+  INFLOW_CATEGORY_NAME = "Inflow: Ready to Assign"
 
   scope :not_deleted, -> { where(deleted: false) }
 
   before_validation :assign_public_id, on: :create
   before_save :assign_knowledge
+  after_create :create_internal_category_group
   validates :name, presence: true
 
   # The next knowledge value for this plan's resources. YNAB delta requests
@@ -39,5 +48,12 @@ class Budget < ApplicationRecord
     # for later last_knowledge_of_server values.
     def assign_knowledge
       self.knowledge = user.next_server_knowledge!
+    end
+
+    # Creates the plan's built-in internal category group and its "Inflow:
+    # Ready to Assign" category (spec: internal categories).
+    def create_internal_category_group
+      group = category_groups.create!(name: INTERNAL_GROUP_NAME, internal: true, hidden: true)
+      group.categories.create!(budget: self, name: INFLOW_CATEGORY_NAME, internal: true, hidden: true)
     end
 end
