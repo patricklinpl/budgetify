@@ -187,6 +187,69 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "SaveCategoryGroupResponse"
   end
 
+  test "GET /v1/plans/:plan_id/payees conforms to the spec's PayeesResponse schema" do
+    user = User.create!(email_address: "contract-payees@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    plan.payees.create!(name: "Grocery Store")
+
+    get "/v1/plans/#{plan.public_id}/payees", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PayeesResponse"
+  end
+
+  test "POST /v1/plans/:plan_id/payees conforms to the spec's SavePayeeResponse schema" do
+    user = User.create!(email_address: "contract-save-payee@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+
+    post "/v1/plans/#{plan.public_id}/payees",
+      params: { payee: { name: "Coffee Shop" } },
+      headers: { "Authorization" => "Bearer #{token}" }, as: :json
+
+    assert_response :created
+    assert_json_conforms_to_schema response.parsed_body, "SavePayeeResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/payees/:payee_id conforms to the spec's PayeeResponse schema" do
+    user = User.create!(email_address: "contract-payee@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    payee = plan.payees.create!(name: "Grocery Store")
+
+    get "/v1/plans/#{plan.public_id}/payees/#{payee.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PayeeResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/payee_locations conforms to the spec's PayeeLocationsResponse schema" do
+    user = User.create!(email_address: "contract-payee-locations@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    payee = plan.payees.create!(name: "Coffee Shop")
+    payee.payee_locations.create!(latitude: "49.2827", longitude: "-123.1207")
+
+    get "/v1/plans/#{plan.public_id}/payee_locations", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PayeeLocationsResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/payee_locations/:payee_location_id conforms to the spec's PayeeLocationResponse schema" do
+    user = User.create!(email_address: "contract-payee-location@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    payee = plan.payees.create!(name: "Coffee Shop")
+    location = payee.payee_locations.create!(latitude: "49.2827", longitude: "-123.1207")
+
+    get "/v1/plans/#{plan.public_id}/payee_locations/#{location.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PayeeLocationResponse"
+  end
+
   private
     def resolve_schema(schema)
       seen = []

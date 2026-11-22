@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_060000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_070000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -102,6 +102,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_060000) do
     t.index ["category_id"], name: "index_month_categories_on_category_id"
   end
 
+  create_table "payee_locations", force: :cascade do |t|
+    t.integer "payee_id", null: false
+    t.string "public_id", null: false
+    t.string "latitude", null: false
+    t.string "longitude", null: false
+    t.bigint "knowledge", default: 0, null: false
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["knowledge"], name: "index_payee_locations_on_knowledge"
+    t.index ["payee_id"], name: "index_payee_locations_on_payee_id"
+    t.index ["public_id"], name: "index_payee_locations_on_public_id", unique: true
+  end
+
   create_table "payees", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -146,6 +160,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_060000) do
   add_foreign_key "categories", "category_groups"
   add_foreign_key "category_groups", "budgets"
   add_foreign_key "month_categories", "categories"
+  add_foreign_key "payee_locations", "payees"
   add_foreign_key "payees", "accounts", column: "transfer_account_id"
   add_foreign_key "payees", "budgets"
   add_foreign_key "sessions", "users"

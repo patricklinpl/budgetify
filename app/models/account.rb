@@ -19,6 +19,7 @@ class Account < ApplicationRecord
   before_validation :assign_public_id, on: :create
   before_save :assign_knowledge
   after_create :create_transfer_payee
+  after_update :sync_transfer_payee_name, if: :saved_change_to_name?
 
   validates :name, presence: true
   validates :type, inclusion: { in: TYPES }
@@ -39,5 +40,11 @@ class Account < ApplicationRecord
     # account use that payee's id (spec: Account.transfer_payee_id).
     def create_transfer_payee
       budget.payees.create!(name: "Transfer : #{name}", transfer_account: self)
+    end
+
+    # Keeps the auto-created transfer payee's name in sync when the account
+    # is renamed (issue #30: transfer payees track their account's name).
+    def sync_transfer_payee_name
+      transfer_payee&.update!(name: "Transfer : #{name}")
     end
 end
