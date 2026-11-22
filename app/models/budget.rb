@@ -2,6 +2,8 @@ require "securerandom"
 
 class Budget < ApplicationRecord
   belongs_to :user
+  has_many :accounts, dependent: :destroy
+  has_many :payees, dependent: :destroy
 
   scope :not_deleted, -> { where(deleted: false) }
 
@@ -15,6 +17,16 @@ class Budget < ApplicationRecord
   def next_knowledge!
     increment!(:server_knowledge)
     server_knowledge
+  end
+
+  # The plan's persisted currency format (spec: CurrencyFormat schema).
+  # Falls back to the USD default when none is stored; settings become
+  # user-editable with a later issue.
+  def currency_format
+    stored = self[:currency_format]
+    return CurrencyFormat.default if stored.blank?
+
+    CurrencyFormat.new(**stored.symbolize_keys)
   end
 
   private
