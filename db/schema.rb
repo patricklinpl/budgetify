@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_080000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -90,6 +90,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_070000) do
     t.index ["public_id"], name: "index_category_groups_on_public_id", unique: true
   end
 
+  create_table "money_movement_groups", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.string "public_id", null: false
+    t.datetime "group_created_at", null: false
+    t.date "month", null: false
+    t.text "note"
+    t.integer "performed_by_user_id"
+    t.bigint "knowledge", default: 0, null: false
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["budget_id", "knowledge"], name: "index_money_movement_groups_on_budget_id_and_knowledge"
+    t.index ["budget_id", "month"], name: "index_money_movement_groups_on_budget_id_and_month"
+    t.index ["budget_id"], name: "index_money_movement_groups_on_budget_id"
+    t.index ["performed_by_user_id"], name: "index_money_movement_groups_on_performed_by_user_id"
+    t.index ["public_id"], name: "index_money_movement_groups_on_public_id", unique: true
+  end
+
+  create_table "money_movements", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.string "public_id", null: false
+    t.integer "money_movement_group_id"
+    t.date "month", null: false
+    t.datetime "moved_at"
+    t.text "note"
+    t.integer "performed_by_user_id"
+    t.integer "from_category_id"
+    t.integer "to_category_id"
+    t.bigint "amount", null: false
+    t.bigint "knowledge", default: 0, null: false
+    t.boolean "deleted", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["budget_id", "knowledge"], name: "index_money_movements_on_budget_id_and_knowledge"
+    t.index ["budget_id", "month"], name: "index_money_movements_on_budget_id_and_month"
+    t.index ["budget_id"], name: "index_money_movements_on_budget_id"
+    t.index ["from_category_id"], name: "index_money_movements_on_from_category_id"
+    t.index ["money_movement_group_id"], name: "index_money_movements_on_money_movement_group_id"
+    t.index ["performed_by_user_id"], name: "index_money_movements_on_performed_by_user_id"
+    t.index ["public_id"], name: "index_money_movements_on_public_id", unique: true
+    t.index ["to_category_id"], name: "index_money_movements_on_to_category_id"
+  end
+
   create_table "month_categories", force: :cascade do |t|
     t.integer "category_id", null: false
     t.date "month", null: false
@@ -159,6 +202,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_070000) do
   add_foreign_key "categories", "budgets"
   add_foreign_key "categories", "category_groups"
   add_foreign_key "category_groups", "budgets"
+  add_foreign_key "money_movement_groups", "budgets"
+  add_foreign_key "money_movement_groups", "users", column: "performed_by_user_id"
+  add_foreign_key "money_movements", "budgets"
+  add_foreign_key "money_movements", "categories", column: "from_category_id"
+  add_foreign_key "money_movements", "categories", column: "to_category_id"
+  add_foreign_key "money_movements", "money_movement_groups"
+  add_foreign_key "money_movements", "users", column: "performed_by_user_id"
   add_foreign_key "month_categories", "categories"
   add_foreign_key "payee_locations", "payees"
   add_foreign_key "payees", "accounts", column: "transfer_account_id"
