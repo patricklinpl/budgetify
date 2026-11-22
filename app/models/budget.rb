@@ -2,6 +2,8 @@ require "securerandom"
 
 class Budget < ApplicationRecord
   belongs_to :user
+  has_many :accounts, dependent: :destroy
+  has_many :payees, dependent: :destroy
 
   scope :not_deleted, -> { where(deleted: false) }
 
