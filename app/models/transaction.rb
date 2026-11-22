@@ -46,6 +46,13 @@ class Transaction < ApplicationRecord
     end
     account.save!
 
+    # Credit-account activity (spending or a payment transfer in) changes
+    # the card's derived Credit Card Payment category, so its knowledge is
+    # stamped for delta requests on category lists.
+    budget.categories.not_deleted.where.not(payment_account_id: nil).find_each do |payment_category|
+      payment_category.update_column(:knowledge, budget.next_knowledge!)
+    end
+
     return if category.nil? || sub_transactions.exists?
 
     month_category = category.month_categories.find_or_initialize_by(month: month)
