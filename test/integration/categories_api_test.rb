@@ -226,6 +226,83 @@ class CategoriesApiTest < ActionDispatch::IntegrationTest
     assert_response :bad_request
   end
 
+  test "category write responses include server_knowledge (spec: SaveCategoryResponse)" do
+    post "/v1/plans/#{@plan.public_id}/categories",
+      params: { category: { category_group_id: @group.public_id, name: "Groceries" } },
+      headers: auth_headers, as: :json
+
+    assert_response :created
+    assert_equal @plan.reload.server_knowledge, response.parsed_body.fetch("data").fetch("server_knowledge")
+    category_id = response.parsed_body.fetch("data").fetch("category").fetch("id")
+
+    patch "/v1/plans/#{@plan.public_id}/categories/#{category_id}",
+      params: { category: { name: "Food" } },
+      headers: auth_headers, as: :json
+
+    assert_response :ok
+    assert_equal @plan.reload.server_knowledge, response.parsed_body.fetch("data").fetch("server_knowledge")
+
+    patch "/v1/plans/#{@plan.public_id}/months/current/categories/#{category_id}",
+      params: { category: { budgeted: 350_000 } },
+      headers: auth_headers, as: :json
+
+    assert_response :ok
+    assert_equal @plan.reload.server_knowledge, response.parsed_body.fetch("data").fetch("server_knowledge")
+  end
+
+  test "POST categories accepts goal_frequency and configures a recurring NEED target" do
+    post "/v1/plans/#{@plan.public_id}/categories",
+      params: { category: { category_group_id: @group.public_id, name: "Groceries", goal_target: 400_000, goal_frequency: "monthly" } },
+      headers: auth_headers, as: :json
+
+    assert_response :created
+    category = response.parsed_body.fetch("data").fetch("category")
+    assert_equal "NEED", category.fetch("goal_type")
+    assert_equal 1, category.fetch("goal_cadence")
+    assert_equal 1, category.fetch("goal_cadence_frequency")
+    assert_equal 400_000, category.fetch("goal_target")
+    assert_nil category.fetch("goal_target_date")
+  end
+
+  test "POST categories rejects goal_frequency without a goal_target or combined with a goal_target_date" do
+    post "/v1/plans/#{@plan.public_id}/categories",
+      params: { category: { category_group_id: @group.public_id, name: "Groceries", goal_frequency: "monthly" } },
+      headers: auth_headers, as: :json
+
+    assert_response :bad_request
+
+    post "/v1/plans/#{@plan.public_id}/categories",
+      params: { category: { category_group_id: @group.public_id, name: "Groceries", goal_target: 400_000, goal_target_date: "2027-06-01", goal_frequency: "yearly" } },
+      headers: auth_headers, as: :json
+
+    assert_response :bad_request
+
+    post "/v1/plans/#{@plan.public_id}/categories",
+      params: { category: { category_group_id: @group.public_id, name: "Groceries", goal_target: 400_000, goal_frequency: "fortnightly" } },
+      headers: auth_headers, as: :json
+
+    assert_response :bad_request
+  end
+
+  test "PATCH category clearing the goal target clears the remaining goal fields" do
+    category = @group.categories.create!(budget: @plan, name: "Groceries", goal_type: "NEED",
+      goal_target: 400_000, goal_cadence: 1, goal_cadence_frequency: 1, goal_needs_whole_amount: false,
+      goal_creation_month: Date.current.beginning_of_month)
+
+    patch "/v1/plans/#{@plan.public_id}/categories/#{category.public_id}",
+      params: { category: { goal_target: nil } },
+      headers: auth_headers, as: :json
+
+    assert_response :ok
+    serialized = response.parsed_body.fetch("data").fetch("category")
+    assert_nil serialized.fetch("goal_target")
+    assert_nil serialized.fetch("goal_type")
+    assert_nil serialized.fetch("goal_cadence")
+    assert_nil serialized.fetch("goal_cadence_frequency")
+    assert_nil serialized.fetch("goal_needs_whole_amount")
+    assert_nil serialized.fetch("goal_day")
+  end
+
   test "GET categories supports last_knowledge_of_server delta requests" do
     category = @group.categories.create!(budget: @plan, name: "Groceries")
     knowledge = @plan.reload.server_knowledge
