@@ -9,6 +9,10 @@ class Account < ApplicationRecord
   TYPES = %w[checking savings cash creditCard lineOfCredit otherAsset otherLiability mortgage autoLoan studentLoan personalLoan medicalDebt otherDebt].freeze
   # Types accepted when creating an account (spec: SaveAccountType enum).
   SAVE_TYPES = %w[checking savings cash creditCard otherAsset otherLiability].freeze
+  # Types whose spending is credit-backed: overspending from these accounts
+  # carries as category debt instead of reducing next month's Ready to
+  # Assign (spec: AccountType).
+  CREDIT_TYPES = %w[creditCard lineOfCredit].freeze
 
   belongs_to :budget
   has_many :transactions, dependent: :destroy
@@ -23,6 +27,10 @@ class Account < ApplicationRecord
   after_update :sync_transfer_payee_name, if: :saved_change_to_name?
 
   validates :name, presence: true
+
+  def credit?
+    CREDIT_TYPES.include?(type)
+  end
   validates :type, inclusion: { in: TYPES }
 
   private
