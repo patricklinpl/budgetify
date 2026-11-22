@@ -57,6 +57,9 @@ module Api
 
         attributes = permitted_category_params
         return if attributes.nil?
+        if category.payment? && (attributes["goal_frequency"].present? || !attributes["goal_needs_whole_amount"].nil?)
+          return render_bad_request("These goal fields are not supported for Credit Card Payment categories.")
+        end
         return unless apply_goal_frequency(attributes)
 
         if attributes.key?("category_group_id")
@@ -127,7 +130,7 @@ module Api
         def apply_goal_defaults(category, attributes = nil)
           if attributes.nil?
             if category.goal_target.present?
-              category.goal_type ||= "NEED"
+              category.goal_type ||= category.payment? ? "MF" : "NEED"
               category.goal_creation_month ||= Date.current.beginning_of_month
             end
           elsif attributes.key?("goal_target")
@@ -139,7 +142,7 @@ module Api
               attributes["goal_needs_whole_amount"] = nil
               attributes["goal_day"] = nil
             elsif attributes["goal_target"].present?
-              attributes["goal_type"] ||= "NEED"
+              attributes["goal_type"] ||= category.payment? ? "MF" : "NEED"
               attributes["goal_creation_month"] ||= Date.current.beginning_of_month
             end
           end
