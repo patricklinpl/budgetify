@@ -8,16 +8,34 @@ class CategorySerializer
     month ||= Date.current.beginning_of_month
     month_category = category.month_category_for(month)
     currency_format = category.budget.currency_format
-    # The month's available balance carries forward while positive. Any
-    # overspent month resets Available to zero for the next month: the
-    # cash part of the shortfall is deducted from next month's Ready to
-    # Assign, the credit part becomes credit-card payment underfunding
-    # (YNAB docs: cash vs credit overspending; spec: Category.balance).
-    # A month's own overspend stays visible in that month.
-    balance = 0
-    category.month_categories.where("month <= ?", month).order(:month).each do |entry|
-      balance += entry.budgeted.to_i + entry.activity.to_i
-      balance = 0 if entry.month < month && balance.negative?
+    if category.payment?
+      # Credit Card Payment category: activity is derived (funded credit
+      # spending in, payments out); stored rows carry only direct
+      # assignments. Positive balances carry forward; a red month is cash
+      # overspending and resets to zero for the next month (YNAB docs:
+      # When Your Credit Card Payment Category is Red).
+      funding = CreditCardFunding.new(category.budget)
+      budgeted_by_month = category.month_categories.where("month <= ?", month).order(:month).to_h { |entry| [ entry.month, entry.budgeted.to_i ] }
+      months = (budgeted_by_month.keys + funding.active_months(category.payment_account_id, upto: month)).uniq.sort
+      balance = 0
+      months.each do |entry_month|
+        balance += budgeted_by_month.fetch(entry_month, 0) + funding.payment_activity(category.payment_account_id, entry_month)
+        balance = 0 if entry_month < month && balance.negative?
+      end
+      activity = funding.payment_activity(category.payment_account_id, month)
+    else
+      # The month's available balance carries forward while positive. Any
+      # overspent month resets Available to zero for the next month: the
+      # cash part of the shortfall is deducted from next month's Ready to
+      # Assign, the credit part becomes credit-card payment underfunding
+      # (YNAB docs: cash vs credit overspending; spec: Category.balance).
+      # A month's own overspend stays visible in that month.
+      balance = 0
+      category.month_categories.where("month <= ?", month).order(:month).each do |entry|
+        balance += entry.budgeted.to_i + entry.activity.to_i
+        balance = 0 if entry.month < month && balance.negative?
+      end
+      activity = month_category.activity
     end
     {
       id: category.public_id,
@@ -45,7 +63,7 @@ class CategorySerializer
       deleted: category.deleted
     }.merge!(
       Milliunits.fields(:budgeted, month_category.budgeted, currency_format),
-      Milliunits.fields(:activity, month_category.activity, currency_format),
+      Milliunits.fields(:activity, activity, currency_format),
       Milliunits.fields(:balance, balance, currency_format),
       goal_target_fields(category, currency_format)
     )

@@ -348,7 +348,10 @@ module Api
             category = plan.categories.not_deleted.find_by(public_id: attributes["category_id"])
             return render_bad_request("The category_id is not valid.") if category.nil?
 
-            transaction.category = category
+            # Credit Card Payment categories are system-managed; a
+            # supplied one is ignored, leaving the category unchanged
+            # (spec: SaveTransaction.category_id).
+            transaction.category = category unless category.payment?
           elsif attributes.key?("category_id")
             transaction.category = nil
           end
@@ -366,7 +369,12 @@ module Api
             elsif entry["payee_name"].present?
               sub.payee = plan.payees.not_deleted.find_or_create_by!(name: entry["payee_name"], budget: plan)
             end
-            sub.category = plan.categories.not_deleted.find_by(public_id: entry["category_id"]) if entry["category_id"].present?
+            if entry["category_id"].present?
+              # Credit Card Payment categories are ignored if supplied
+              # (spec: SaveSubTransaction.category_id).
+              sub_category = plan.categories.not_deleted.find_by(public_id: entry["category_id"])
+              sub.category = sub_category unless sub_category&.payment?
+            end
           end
         end
 

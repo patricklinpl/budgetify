@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_120000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -69,9 +69,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_110000) do
     t.bigint "knowledge", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "payment_account_id"
     t.index ["budget_id", "knowledge"], name: "index_categories_on_budget_id_and_knowledge"
     t.index ["budget_id"], name: "index_categories_on_budget_id"
     t.index ["category_group_id"], name: "index_categories_on_category_group_id"
+    t.index ["payment_account_id"], name: "index_categories_on_payment_account_id"
     t.index ["public_id"], name: "index_categories_on_public_id", unique: true
   end
 

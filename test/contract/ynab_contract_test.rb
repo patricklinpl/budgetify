@@ -11,6 +11,25 @@ require "test_helper"
 class YnabContractTest < ActionDispatch::IntegrationTest
   SPEC_PATH = Rails.root.join("test/fixtures/files/ynab_open_api_spec_v1.88.0.yaml")
 
+  test "credit payment categories and funded month responses conform to vendored schemas" do
+    user = User.create!(email_address: "contract-cc@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+    card = plan.accounts.create!(name: "Visa", type: "creditCard")
+    headers = { "Authorization" => "Bearer #{token}" }
+    patch "/v1/plans/#{plan.public_id}/months/current/categories/#{card.payment_category.public_id}",
+      params: { category: { budgeted: 25_000 } }, headers: headers, as: :json
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "CategoryResponse"
+    get "/v1/plans/#{plan.public_id}/categories", headers: headers
+    assert_json_conforms_to_schema response.parsed_body, "CategoriesResponse"
+    get "/v1/plans/#{plan.public_id}/months/current", headers: headers
+    assert_json_conforms_to_schema response.parsed_body, "MonthDetailResponse"
+    description = resolve_schema(spec.dig("components", "schemas", "SaveTransactionWithOptionalFields")).dig("properties", "category_id", "description")
+    assert_includes description, "Credit Card Payment categories"
+    assert_includes description, "ignored if supplied"
+  end
+
   setup { Rails.cache.clear }
   teardown { Rails.cache.clear }
 

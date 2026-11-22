@@ -25,5 +25,12 @@ class MonthCategory < ApplicationRecord
   private
     def stamp_category_knowledge
       category.update_column(:knowledge, category.budget.next_knowledge!)
+      # Cash activity and assignments can change how much credit spending
+      # was funded, including on a different card or a later month.
+      if Category.column_names.include?("payment_account_id")
+        category.budget.categories.not_deleted.where.not(payment_account_id: nil).find_each do |payment|
+          payment.update_column(:knowledge, category.budget.next_knowledge!)
+        end
+      end
     end
 end

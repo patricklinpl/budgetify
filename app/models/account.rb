@@ -18,6 +18,9 @@ class Account < ApplicationRecord
   has_many :transactions, dependent: :destroy
   has_one :transfer_payee, -> { where(deleted: false) }, class_name: "Payee",
     foreign_key: :transfer_account_id, inverse_of: :transfer_account, dependent: :destroy
+  # The system-managed Credit Card Payment category funding this card's
+  # payments (credit accounts only; YNAB docs: Credit Card Payments guide).
+  has_one :payment_category, class_name: "Category", foreign_key: :payment_account_id, inverse_of: :payment_account
 
   scope :not_deleted, -> { where(deleted: false) }
 
@@ -25,15 +28,37 @@ class Account < ApplicationRecord
   before_save :assign_knowledge
   after_create :create_transfer_payee
   after_update :sync_transfer_payee_name, if: :saved_change_to_name?
+  after_create :create_payment_category, if: :credit?
+  after_update :sync_payment_category_name, if: -> { credit? && saved_change_to_name? }
 
   validates :name, presence: true
 
   def credit?
     CREDIT_TYPES.include?(type)
   end
+
+  # Creates (or returns) this credit account's Credit Card Payment
+  # category under the plan's "Credit Card Payments" group. YNAB names
+  # the category after the account and keeps them paired (YNAB docs:
+  # Credit Card Payments guide).
+  def ensure_payment_category!
+    existing = Category.not_deleted.find_by(payment_account_id: id)
+    return existing if existing
+
+    group = budget.category_groups.not_deleted.where(name: Budget::CREDIT_CARD_PAYMENTS_GROUP_NAME).first_or_create!
+    group.categories.create!(budget: budget, name: name, payment_account_id: id)
+  end
   validates :type, inclusion: { in: TYPES }
 
   private
+    def create_payment_category
+      ensure_payment_category!
+    end
+
+    def sync_payment_category_name
+      Category.not_deleted.where(payment_account_id: id).each { |category| category.update!(name: name) }
+    end
+
     def assign_public_id
       self.public_id ||= SecureRandom.uuid
     end
