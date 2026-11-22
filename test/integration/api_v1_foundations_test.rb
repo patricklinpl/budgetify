@@ -40,7 +40,7 @@ class ApiV1FoundationsTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
     error = response.parsed_body.fetch("error")
     assert_equal "401", error.fetch("id")
-    assert_equal "unauthorized", error.fetch("name")
+    assert_equal "not_authorized", error.fetch("name")
     assert error.fetch("detail").present?
   end
 
@@ -68,8 +68,8 @@ class ApiV1FoundationsTest < ActionDispatch::IntegrationTest
 
       get "/v1/plans/does-not-exist", headers: auth_headers
       assert_response :not_found
-      assert_equal "404", response.parsed_body.dig("error", "id")
-      assert_equal "not_found", response.parsed_body.dig("error", "name")
+      assert_equal "404.2", response.parsed_body.dig("error", "id")
+      assert_equal "resource_not_found", response.parsed_body.dig("error", "name")
 
       plan.update!(deleted: true)
       get "/v1/plans/#{plan.public_id}", headers: auth_headers
