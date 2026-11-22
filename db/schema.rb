@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_110000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -138,9 +138,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
     t.date "month", null: false
     t.bigint "budgeted", default: 0, null: false
     t.bigint "activity", default: 0, null: false
-    t.bigint "balance", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "credit_activity", default: 0, null: false
     t.index ["category_id", "month"], name: "index_month_categories_on_category_id_and_month", unique: true
     t.index ["category_id"], name: "index_month_categories_on_category_id"
   end
@@ -197,7 +197,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_090000) do
     t.boolean "deleted", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "knowledge", default: 0, null: false
     t.index ["category_id"], name: "index_sub_transactions_on_category_id"
+    t.index ["knowledge"], name: "index_sub_transactions_on_knowledge"
     t.index ["payee_id"], name: "index_sub_transactions_on_payee_id"
     t.index ["public_id"], name: "index_sub_transactions_on_public_id", unique: true
     t.index ["transaction_id"], name: "index_sub_transactions_on_transaction_id"
