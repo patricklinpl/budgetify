@@ -30,7 +30,6 @@ module Api
         month_category = @category.month_category_for(@month)
         previous_budgeted = month_category.budgeted.to_i
         month_category.budgeted = attributes["budgeted"]
-        month_category.balance = month_category.budgeted.to_i + month_category.activity.to_i
         return render_bad_request(month_category.errors.full_messages.to_sentence) unless month_category.save
 
         record_money_movement(@month, month_category.budgeted.to_i - previous_budgeted)
