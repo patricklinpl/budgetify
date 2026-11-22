@@ -14,6 +14,9 @@ Rails.application.routes.draw do
   end
   get "api/v1/catalog", to: "api/v1/catalogs#index", as: :api_v1_catalog, defaults: { format: :json }
   get "v1/user", to: "api/v1/users#show", as: :api_v1_user, defaults: { format: :json }
+  get "v1/plans", to: "api/v1/plans#index", as: :api_v1_plans, defaults: { format: :json }
+  get "v1/plans/:plan_id", to: "api/v1/plans#show", as: :api_v1_plan, defaults: { format: :json }
+  get "v1/plans/:plan_id/settings", to: "api/v1/plan_settings#show", as: :api_v1_plan_settings, defaults: { format: :json }
   get "v1/plans/:plan_id/accounts", to: "api/v1/accounts#index", defaults: { format: :json }
   post "v1/plans/:plan_id/accounts", to: "api/v1/accounts#create", defaults: { format: :json }
   get "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#show", defaults: { format: :json }
@@ -21,7 +24,12 @@ Rails.application.routes.draw do
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to check the state of their deployed instances.
+  # Can be used by load balancers and uptime monitors to verify that the app is live.
+  get "up" => "rails/health#show", as: :rails_health_check
+
+  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
+  # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
+  # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
   # root "posts#index"
