@@ -15,6 +15,9 @@ class Budget < ApplicationRecord
   # internal flag; issue #29).
   INTERNAL_GROUP_NAME = "Internal Master Category"
   INFLOW_CATEGORY_NAME = "Inflow: Ready to Assign"
+  # YNAB's system-managed group holding one Credit Card Payment category
+  # per credit account (YNAB docs: Credit Card Payments guide).
+  CREDIT_CARD_PAYMENTS_GROUP_NAME = "Credit Card Payments"
 
   scope :not_deleted, -> { where(deleted: false) }
 
