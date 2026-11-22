@@ -2,6 +2,20 @@ module Api
   module V1
     class BaseController < ActionController::API
       include ActionController::Cookies
+      include ApiRendering
+      include PlanLookup
+
+      # All API endpoints require a bearer token (spec: bearer security
+      # scheme). SessionsController skips this for login.
+      before_action :authenticate_bearer_session!
+
+      # YNAB rate limit: 200 requests per hour per access token, answered
+      # with the standard error envelope. Runs after authentication so the
+      # limit is keyed on the token's session.
+      rate_limit to: 200, within: 1.hour,
+                 by: -> { Current.session&.id || request.remote_ip },
+                 with: -> { render_api_error(:too_many_requests, "API rate limit exceeded: 200 requests per hour per access token.") }
+
       private
 
       def authenticate_bearer_session!
@@ -11,17 +25,6 @@ module Api
 
         render_api_error(:unauthorized, "A valid bearer token is required.")
         false
-      end
-
-      def render_api_error(status, detail)
-        status_code = Rack::Utils.status_code(status)
-        render json: {
-          error: {
-            id: status_code.to_s,
-            name: Rack::Utils::HTTP_STATUS_CODES.fetch(status_code),
-            detail: detail
-          }
-        }, status: status
       end
     end
   end
