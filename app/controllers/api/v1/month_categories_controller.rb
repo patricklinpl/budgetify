@@ -32,7 +32,7 @@ module Api
         month_category.balance = month_category.budgeted.to_i + month_category.activity.to_i
         return render_bad_request(month_category.errors.full_messages.to_sentence) unless month_category.save
 
-        render_data({ category: CategorySerializer.as_json(@category, month: @month) })
+        render_data({ category: CategorySerializer.as_json(@category, month: @month) }, server_knowledge: plan.reload.server_knowledge)
       end
 
       private
