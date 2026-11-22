@@ -8,6 +8,17 @@ class CategorySerializer
     month ||= Date.current.beginning_of_month
     month_category = category.month_category_for(month)
     currency_format = category.budget.currency_format
+    # The month's available balance carries forward while positive. Any
+    # overspent month resets Available to zero for the next month: the
+    # cash part of the shortfall is deducted from next month's Ready to
+    # Assign, the credit part becomes credit-card payment underfunding
+    # (YNAB docs: cash vs credit overspending; spec: Category.balance).
+    # A month's own overspend stays visible in that month.
+    balance = 0
+    category.month_categories.where("month <= ?", month).order(:month).each do |entry|
+      balance += entry.budgeted.to_i + entry.activity.to_i
+      balance = 0 if entry.month < month && balance.negative?
+    end
     {
       id: category.public_id,
       category_group_id: category.category_group.public_id,
@@ -35,7 +46,7 @@ class CategorySerializer
     }.merge!(
       Milliunits.fields(:budgeted, month_category.budgeted, currency_format),
       Milliunits.fields(:activity, month_category.activity, currency_format),
-      Milliunits.fields(:balance, month_category.balance, currency_format),
+      Milliunits.fields(:balance, balance, currency_format),
       goal_target_fields(category, currency_format)
     )
   end
