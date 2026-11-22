@@ -11,6 +11,7 @@ class Account < ApplicationRecord
   SAVE_TYPES = %w[checking savings cash creditCard otherAsset otherLiability].freeze
 
   belongs_to :budget
+  has_many :transactions, dependent: :destroy
   has_one :transfer_payee, -> { where(deleted: false) }, class_name: "Payee",
     foreign_key: :transfer_account_id, inverse_of: :transfer_account, dependent: :destroy
 
