@@ -94,6 +94,7 @@ class MonthsApiTest < ActionDispatch::IntegrationTest
   end
 
   test "GET months/:month returns a MonthDetail with month-specific categories" do
+    @plan.update_column(:created_at, 2.months.ago)
     groceries = @group.categories.create!(budget: @plan, name: "Groceries")
     current = Date.current.beginning_of_month
     previous = current.prev_month
@@ -118,6 +119,16 @@ class MonthsApiTest < ActionDispatch::IntegrationTest
     assert_response :ok
     detail = response.parsed_body.fetch("data").fetch("month")
     assert_equal Date.current.beginning_of_month.iso8601, detail.fetch("month")
+  end
+
+  test "GET months/:month returns a 404.2 for months before the plan's first month" do
+    before_plan = @plan.created_at.to_date.beginning_of_month.prev_month
+    get "/v1/plans/#{@plan.public_id}/months/#{before_plan.iso8601}", headers: auth_headers
+
+    assert_response :not_found
+    error = response.parsed_body.fetch("error")
+    assert_equal "404.2", error.fetch("id")
+    assert_equal "resource_not_found", error.fetch("name")
   end
 
   test "GET months/:month rejects future months with a 400" do
