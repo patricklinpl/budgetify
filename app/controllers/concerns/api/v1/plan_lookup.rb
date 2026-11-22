@@ -15,10 +15,11 @@ module Api
 
         # Resolves params[:plan_id] to the current user's Budget. "last-used"
         # resolves to the most recently used plan. Unknown or soft-deleted
-        # ids get a 404 in the standard error envelope (spec: ErrorResponse).
+        # ids get YNAB's documented 404.2 "resource_not_found" error (docs:
+        # https://api.ynab.com/ - 404.1 "not_found" is for unknown URIs).
         def set_plan
           @plan = find_plan
-          return render_api_error(:not_found, "No plan was found with the given id.") if @plan.nil?
+          return render_api_error(:not_found, "No plan was found with the given id.", id: "404.2", name: "resource_not_found") if @plan.nil?
 
           @plan.touch(:last_used_at)
         end
