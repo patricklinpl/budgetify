@@ -3,12 +3,29 @@ require "securerandom"
 class Budget < ApplicationRecord
   belongs_to :user
 
+  scope :not_deleted, -> { where(deleted: false) }
+
   before_validation :assign_public_id, on: :create
+  before_save :assign_knowledge
   validates :name, presence: true
 
-  private
-
-  def assign_public_id
-    self.public_id ||= SecureRandom.uuid
+  # The next knowledge value for this plan's resources. YNAB delta requests
+  # under /v1/plans/{plan_id}/... are evaluated against this counter;
+  # child entities stamp their knowledge from it.
+  def next_knowledge!
+    increment!(:server_knowledge)
+    server_knowledge
   end
+
+  private
+    def assign_public_id
+      self.public_id ||= SecureRandom.uuid
+    end
+
+    # Stamps this record with the user's next global knowledge value so
+    # delta requests on the plans list return it (including tombstones)
+    # for later last_knowledge_of_server values.
+    def assign_knowledge
+      self.knowledge = user.next_server_knowledge!
+    end
 end
