@@ -30,6 +30,10 @@ class UserApiTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "application/json", response.media_type
     assert_equal({ "data" => { "user" => { "id" => @user.public_id } } }, response.parsed_body)
+
+    # spec: User.id is a uuid
+    assert_match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/,
+      response.parsed_body.dig("data", "user", "id"))
   end
 
   test "POST /loginUser returns a YNAB-style response and usable session token" do
