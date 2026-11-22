@@ -33,6 +33,28 @@ class Account < ApplicationRecord
 
   validates :name, presence: true
 
+  # Account POST records starting funds in the ledger atomically. Model
+  # fixtures/imports can still create raw accounts without inventing
+  # historical transactions. Existing records are not backfilled here.
+  def self.open!(budget:, attributes:)
+    transaction do
+      amount = attributes.fetch("balance")
+      account = budget.accounts.create!(
+        name: attributes["name"], type: attributes["type"],
+        on_budget: !%w[otherAsset otherLiability].include?(attributes["type"])
+      )
+      payee = budget.payees.not_deleted.where("LOWER(name) = ?", "starting balance").first ||
+        budget.payees.create!(name: "Starting Balance")
+      # The marked transaction selects its category on every validation,
+      # including later amount edits across zero.
+      opening = budget.transactions.create!(account: account, payee: payee,
+        date: Date.current, amount: amount,
+        cleared: "cleared", approved: true, opening_balance: true)
+      opening.apply_amounts!(+1)
+      account.reload
+    end
+  end
+
   def credit?
     CREDIT_TYPES.include?(type)
   end
