@@ -64,6 +64,19 @@ class PlansApiTest < ActionDispatch::IntegrationTest
     assert_equal true, tombstone.fetch("deleted")
   end
 
+  test "GET /v1/plans/:plan_id does not change last_modified_on or knowledge on read" do
+    get "/v1/plans/#{@plan.public_id}", headers: auth_headers
+    assert_response :ok
+    first_modified = response.parsed_body.dig("data", "plan", "last_modified_on")
+    knowledge_before = @plan.reload.knowledge
+
+    get "/v1/plans/#{@plan.public_id}", headers: auth_headers
+    assert_response :ok
+    assert_equal first_modified, response.parsed_body.dig("data", "plan", "last_modified_on")
+    assert_equal knowledge_before, @plan.reload.knowledge
+    assert @plan.last_used_at.present?
+  end
+
   test "GET /v1/plans/:plan_id returns one plan by UUID" do
     get "/v1/plans/#{@plan.public_id}", headers: auth_headers
 
