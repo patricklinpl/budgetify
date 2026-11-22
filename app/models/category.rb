@@ -6,6 +6,10 @@ class Category < ApplicationRecord
 
   belongs_to :budget
   belongs_to :category_group
+  # Set on system-managed Credit Card Payment categories: the credit
+  # account whose payments this category funds (YNAB docs: Credit Card
+  # Payments guide). Nil on ordinary categories.
+  belongs_to :payment_account, class_name: "Account", optional: true, inverse_of: :payment_category
   has_many :month_categories, dependent: :destroy
 
   scope :not_deleted, -> { where(deleted: false) }
@@ -15,6 +19,13 @@ class Category < ApplicationRecord
 
   validates :name, presence: true
   validates :goal_type, inclusion: { in: GOAL_TYPES }, allow_nil: true
+
+  # Credit Card Payment categories hold no categorized transactions
+  # (spec: SaveTransaction.category_id); their activity is derived from
+  # funded credit spending and payments (CreditCardFunding).
+  def payment?
+    payment_account_id.present?
+  end
 
   # The per-month amounts record for a plan month (unsaved when the month
   # has no explicit assignment yet; spec: amounts are per plan month).
