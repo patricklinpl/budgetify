@@ -5,7 +5,7 @@ module Api
         render_api_error(:too_many_requests, "Too many login attempts. Try again later.")
       }
 
-      before_action :authenticate_bearer_session!, only: :destroy
+      skip_before_action :authenticate_bearer_session!, only: :create
 
       def create
         email = params[:email]
