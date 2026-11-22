@@ -69,7 +69,21 @@ class YnabContractTest < ActionDispatch::IntegrationTest
         schema = spec.dig("components", "schemas", ref.delete_prefix("#/components/schemas/"))
         raise "missing schema: #{ref}" if schema.nil?
       end
-      schema
+
+      return schema unless schema.is_a?(Hash) && schema.key?("allOf")
+
+      # Flatten allOf composition (e.g. Account = AccountBase + inline
+      # extension) so property lookups see the merged property set.
+      merged = schema.reject { |key, _| key == "allOf" }
+      schema.fetch("allOf").each do |subschema|
+        resolved = resolve_schema(subschema)
+        merged["properties"] = (merged["properties"] || {}).merge(resolved["properties"] || {})
+        merged["required"] = (merged["required"] || []) | (resolved["required"] || [])
+        resolved.each do |key, value|
+          merged[key] = value unless %w[properties required].include?(key) || merged.key?(key)
+        end
+      end
+      merged
     end
 
     def assert_json_conforms_to_schema(json, schema_name)
