@@ -172,7 +172,7 @@ class CategoriesApiTest < ActionDispatch::IntegrationTest
   test "GET month category returns amounts for the given month" do
     category = @group.categories.create!(budget: @plan, name: "Groceries")
     month = Date.current.beginning_of_month
-    category.month_categories.create!(month: month, budgeted: 400000, balance: 400000)
+    category.month_categories.create!(month: month, budgeted: 400000)
 
     get "/v1/plans/#{@plan.public_id}/months/#{month.iso8601}/categories/#{category.public_id}", headers: auth_headers
 
