@@ -25,7 +25,7 @@ module Api
           render json: {
             error: {
               id: id.presence || status_code.to_s,
-              name: Rack::Utils::HTTP_STATUS_CODES.fetch(status_code).underscore,
+              name: Rack::Utils::HTTP_STATUS_CODES.fetch(status_code).downcase.tr(" ", "_"),
               detail: detail
             }
           }, status: status
