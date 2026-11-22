@@ -1,9 +1,9 @@
 # Serializes an Account (spec: Account schema = AccountBase + currency
 # triples). Balances are integer milliunits with *_currency and *_formatted
-# companions (spec: CurrencyFormat); per-plan currency settings land with
-# issue #27, so the USD default is used for now.
+# companions rendered with the owning plan's persisted CurrencyFormat.
 class AccountSerializer
   def self.as_json(account)
+    currency_format = account.budget.currency_format
     {
       id: account.public_id,
       name: account.name,
@@ -21,9 +21,9 @@ class AccountSerializer
       debt_escrow_amounts: {},
       deleted: account.deleted
     }.merge!(
-      Milliunits.fields(:balance, account.balance),
-      Milliunits.fields(:cleared_balance, account.cleared_balance),
-      Milliunits.fields(:uncleared_balance, account.uncleared_balance)
+      Milliunits.fields(:balance, account.balance, currency_format),
+      Milliunits.fields(:cleared_balance, account.cleared_balance, currency_format),
+      Milliunits.fields(:uncleared_balance, account.uncleared_balance, currency_format)
     )
   end
 end
