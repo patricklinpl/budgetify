@@ -39,6 +39,39 @@ class YnabContractTest < ActionDispatch::IntegrationTest
     assert_json_conforms_to_schema response.parsed_body, "UserResponse"
   end
 
+  test "GET /v1/plans conforms to the spec's PlanSummaryResponse schema" do
+    user = User.create!(email_address: "contract-plans@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    user.budgets.create!(name: "Everyday")
+
+    get "/v1/plans", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PlanSummaryResponse"
+  end
+
+  test "GET /v1/plans/:plan_id conforms to the spec's PlanDetailResponse schema" do
+    user = User.create!(email_address: "contract-plan@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+
+    get "/v1/plans/#{plan.public_id}", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PlanDetailResponse"
+  end
+
+  test "GET /v1/plans/:plan_id/settings conforms to the spec's PlanSettingsResponse schema" do
+    user = User.create!(email_address: "contract-settings@example.com", password: "password123")
+    token = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "test").generate_api_token!
+    plan = user.budgets.create!(name: "Everyday")
+
+    get "/v1/plans/#{plan.public_id}/settings", headers: { "Authorization" => "Bearer #{token}" }
+
+    assert_response :ok
+    assert_json_conforms_to_schema response.parsed_body, "PlanSettingsResponse"
+  end
+
   test "the spec keeps the delta-request contract the foundations implement" do
     # Locks the convention target: plan-scoped list endpoints take
     # last_knowledge_of_server and their responses carry server_knowledge.
