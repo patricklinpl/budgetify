@@ -10,28 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_040000) do
-  create_table "accounts", force: :cascade do |t|
-    t.integer "budget_id", null: false
-    t.string "public_id", null: false
-    t.string "type", null: false
-    t.string "name", null: false
-    t.boolean "on_budget", default: true, null: false
-    t.boolean "closed", default: false, null: false
-    t.text "note"
-    t.bigint "balance", default: 0, null: false
-    t.bigint "cleared_balance", default: 0, null: false
-    t.bigint "uncleared_balance", default: 0, null: false
-    t.datetime "last_reconciled_at"
-    t.integer "knowledge", default: 0, null: false
-    t.boolean "deleted", default: false, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["budget_id", "knowledge"], name: "index_accounts_on_budget_id_and_knowledge"
-    t.index ["budget_id"], name: "index_accounts_on_budget_id"
-    t.index ["public_id"], name: "index_accounts_on_public_id", unique: true
-  end
-
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_200000) do
   create_table "budgets", force: :cascade do |t|
     t.integer "user_id", null: false
     t.string "public_id", null: false
@@ -42,6 +21,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_040000) do
     t.integer "server_knowledge", default: 0, null: false
     t.integer "knowledge", default: 0, null: false
     t.boolean "deleted", default: false, null: false
+    t.string "date_format", default: "MM/DD/YYYY", null: false
+    t.json "currency_format"
     t.index ["public_id"], name: "index_budgets_on_public_id", unique: true
     t.index ["user_id", "name"], name: "index_budgets_on_user_id_and_name"
     t.index ["user_id"], name: "index_budgets_on_user_id"

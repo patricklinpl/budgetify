@@ -21,7 +21,11 @@ module Api
           @plan = find_plan
           return render_api_error(:not_found, "No plan was found with the given id.", id: "404.2", name: "resource_not_found") if @plan.nil?
 
-          @plan.touch(:last_used_at)
+          # update_column on purpose: a read must not change the plan's data.
+        # touch(:last_used_at) would also bump updated_at (the spec's
+        # last_modified_on) and stamp a new knowledge value via
+        # before_save, making plain GETs look like data changes.
+        @plan.update_column(:last_used_at, Time.current)
         end
 
         # Applies a YNAB delta request to a list scope: when
