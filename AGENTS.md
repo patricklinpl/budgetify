@@ -18,4 +18,4 @@ One agent implements; a separate, independent agent verifies. The writer never v
 - The verifier posts its per-requirement verdict as a review on the pull request itself, so another agent can pick up the findings and work on them.
 - A PR is not considered done until the independent verifier confirms every requirement in the spec.
 
-No PR is complete until this evidence is on the PR and CI is green. Agents never merge PRs; the user reviews and merges.
+No PR is complete until this evidence is on the PR and CI is green. A PR may then be merged without asking the user once the independent verifier's verdict on its exact head is VERIFIED, CI is green on that same head, and the required proof is posted on the PR. A push after the verdict, any unresolved finding, or a verdict other than VERIFIED blocks the merge until it is resolved and the new head is re-verified.
