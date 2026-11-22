@@ -24,6 +24,7 @@ module Api
       def create
         attributes = permitted_category_params
         return if attributes.nil?
+        return unless apply_goal_frequency(attributes)
         return render_bad_request("The category name is required.") if attributes["name"].blank?
 
         group = find_group_for_write(attributes["category_group_id"])
@@ -33,7 +34,7 @@ module Api
         apply_goal_defaults(category)
         return render_bad_request(category.errors.full_messages.to_sentence) unless category.save
 
-        render json: { data: { category: CategorySerializer.as_json(category) } }, status: :created
+        render json: { data: { category: CategorySerializer.as_json(category), server_knowledge: plan.reload.server_knowledge } }, status: :created
       end
 
       # GET /v1/plans/:plan_id/categories/:category_id -
@@ -56,6 +57,7 @@ module Api
 
         attributes = permitted_category_params
         return if attributes.nil?
+        return unless apply_goal_frequency(attributes)
 
         if attributes.key?("category_group_id")
           group = find_group_for_write(attributes["category_group_id"])
@@ -66,12 +68,12 @@ module Api
         apply_goal_defaults(category, attributes)
         return render_bad_request(category.errors.full_messages.to_sentence) unless category.update(attributes)
 
-        render_data({ category: CategorySerializer.as_json(category) })
+        render_data({ category: CategorySerializer.as_json(category) }, server_knowledge: plan.reload.server_knowledge)
       end
 
       private
         def permitted_category_params
-          params.require(:category).permit(:name, :note, :category_group_id, :goal_target, :goal_target_date, :goal_needs_whole_amount).to_h
+          params.require(:category).permit(:name, :note, :category_group_id, :goal_target, :goal_target_date, :goal_frequency, :goal_needs_whole_amount).to_h
         rescue ActionController::ParameterMissing
           render_bad_request("Request body must include a category object.")
           nil
@@ -91,6 +93,34 @@ module Api
           category
         end
 
+        # spec: SaveCategory.goal_frequency (monthly/weekly/yearly) configures
+        # a recurring NEED target of goal_target, replacing any existing
+        # target. It requires goal_target and cannot be combined with
+        # goal_target_date; a null or omitted frequency leaves cadence alone.
+        # Cadence mapping per spec Category.goal_cadence (1 = Monthly,
+        # 2 = Weekly, 13 = Yearly).
+        GOAL_FREQUENCIES = { "monthly" => 1, "weekly" => 2, "yearly" => 13 }.freeze
+
+        def apply_goal_frequency(attributes)
+          return true unless attributes.key?("goal_frequency")
+
+          frequency = attributes.delete("goal_frequency")
+          return true if frequency.nil?
+
+          cadence = GOAL_FREQUENCIES[frequency]
+          return render_bad_request("The goal_frequency is not valid.") if cadence.nil?
+          return render_bad_request("The goal_frequency requires a goal_target.") if attributes["goal_target"].blank?
+          return render_bad_request("The goal_frequency cannot be combined with a goal_target_date.") unless attributes["goal_target_date"].nil?
+
+          attributes["goal_type"] = "NEED"
+          attributes["goal_cadence"] = cadence
+          attributes["goal_cadence_frequency"] = 1
+          attributes["goal_target_date"] = nil
+          attributes["goal_day"] = nil
+          attributes["goal_creation_month"] = Date.current.beginning_of_month
+          true
+        end
+
         # A specified goal target without a type defaults to a monthly NEED
         # goal created this month; an explicit null removes the target
         # (spec: SaveCategory.goal_target).
@@ -104,6 +134,10 @@ module Api
             if attributes["goal_target"].nil?
               attributes["goal_type"] = nil
               attributes["goal_target_date"] = nil
+              attributes["goal_cadence"] = nil
+              attributes["goal_cadence_frequency"] = nil
+              attributes["goal_needs_whole_amount"] = nil
+              attributes["goal_day"] = nil
             elsif attributes["goal_target"].present?
               attributes["goal_type"] ||= "NEED"
               attributes["goal_creation_month"] ||= Date.current.beginning_of_month
