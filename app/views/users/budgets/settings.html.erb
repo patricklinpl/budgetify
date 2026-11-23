@@ -103,8 +103,11 @@
         <p class="dialog__survives">Survives Cancel: nothing is created and this plan is unchanged.</p>
       </div>
       <div class="dialog__footer">
+        <%# Cancel is a native method="dialog" form: it closes the dialog and submits nothing, even before Stimulus connects. %>
+        <form method="dialog" class="plan-settings__cancel-form">
+          <button type="submit" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
+        </form>
         <%= form_with url: fresh_start_users_budget_path(@budget.public_id), method: :post, class: "plan-settings__fresh-form" do %>
-          <button type="button" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
           <button type="submit" class="btn btn--destructive">Create fresh plan</button>
         <% end %>
       </div>
