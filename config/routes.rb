@@ -29,7 +29,12 @@ Rails.application.routes.draw do
   end
   root "landing_pages#show"
   namespace :users do
-    resources :budgets, only: %i[index show], param: :public_id
+    resources :budgets, only: %i[index show create update], param: :public_id do
+      member do
+        get :settings
+        post :fresh_start
+      end
+    end
   end
   get "api/v1/catalog", to: "api/v1/catalogs#index", as: :api_v1_catalog, defaults: { format: :json }
   get "v1/user", to: "api/v1/users#show", as: :api_v1_user, defaults: { format: :json }

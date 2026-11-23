@@ -9,6 +9,10 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [ "confirm" ]
 
+  // Marks the controller as live so tests (and failure logs) can tell a
+  // click before JS connected from a click that was ignored afterwards.
+  connect() { this.element.dataset.dialogReady = "true" }
+
   open(event) {
     const dialog = document.getElementById(event.currentTarget.dataset.dialogId)
     if (!dialog) return

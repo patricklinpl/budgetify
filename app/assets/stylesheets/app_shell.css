@@ -442,3 +442,78 @@ body.app-shell-body {
 }
 
 /* end of app shell styles */
+
+.app-shell-phone-accounts {
+  display: none;
+}
+
+/* Phones (600px and below): the sidebar is always the 56px rail, whatever
+   was stored on a wider screen, so it never covers or squeezes the page and
+   no overlay or focus trap is needed. The expand toggle is hidden there. */
+@media (max-width: 600px) {
+  .app-shell-collapse {
+    display: none;
+  }
+
+  .app-shell-phone-accounts {
+    display: block;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-surface-raised);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .app-shell-phone-accounts summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+
+  .app-shell-phone-accounts ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .app-shell-phone-accounts__group {
+    margin: var(--space-2) 0 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.08em;
+  }
+
+  .app-shell-phone-accounts__link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    color: var(--color-text-primary);
+    text-decoration: none;
+  }
+
+  .app-shell-phone-accounts__link[aria-current="page"] {
+    font-weight: var(--font-weight-bold);
+    box-shadow: inset 3px 0 0 var(--color-accent-active);
+    padding-left: var(--space-2);
+  }
+
+  /* The inspector stacks under the content instead of taking a third column. */
+  .app-shell,
+  .app-shell--collapsed {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .app-shell-sidebar {
+    grid-row: 1 / span 2;
+  }
+
+  .app-shell-inspector {
+    grid-column: 2;
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
