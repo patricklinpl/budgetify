@@ -145,4 +145,45 @@ class AccountLifecycleApiTest < ActionDispatch::IntegrationTest
       get "#{@path}/months/current", headers: @headers
       response.parsed_body.dig("data", "month")
     end
+
+  test "balance change on a closed account is refused until it is reopened" do
+    id = create("otherAsset", 100_000)
+    patch_account(id, closed: true)
+    assert_response :ok
+    account = @plan.accounts.find_by!(public_id: id)
+    count = account.transactions.not_deleted.count
+    patch_account(id, balance: 70_000)
+    assert_response :unprocessable_entity
+    assert_match(/Reopen/, response.parsed_body.dig("error", "detail"))
+    assert_equal [ 0, count ], [ account.reload.balance, account.transactions.not_deleted.count ]
+    patch_account(id, closed: false, balance: 70_000)
+    assert_response :ok
+    assert_equal [ false, 70_000 ], [ account.reload.closed, account.balance ]
+  end
+
+  test "deleting an opening-only card is refused while its payment category holds assigned money" do
+    id = create("creditCard", 0)
+    account = @plan.accounts.find_by!(public_id: id)
+    category = account.payment_category
+    category.month_categories.create!(month: Date.current.beginning_of_month, budgeted: 25_000)
+    delete "#{@path}/accounts/#{id}", headers: @headers
+    assert_response :unprocessable_entity
+    assert_match(/assigned/, response.parsed_body.dig("error", "detail"))
+    assert_equal [ false, false ], [ account.reload.deleted, category.reload.deleted ]
+    category.month_categories.update_all(budgeted: 0)
+    delete "#{@path}/accounts/#{id}", headers: @headers
+    assert_response :ok
+  end
+
+  test "unknown or immutable fields are rejected with 400 and nothing changes" do
+    id = create("checking", 0)
+    [ { type: "savings" }, { on_budget: false }, { name: "Renamed", deleted: true }, { transfer_payee_id: "x" } ].each do |bad|
+      patch_account(id, **bad)
+      assert_response :bad_request, bad.inspect
+      assert_match(/Unsupported account fields/, response.parsed_body.dig("error", "detail"))
+    end
+    account = @plan.accounts.find_by!(public_id: id)
+    assert_equal [ "checking", true ], [ account.type, account.on_budget ]
+    assert_not_equal "Renamed", account.name
+  end
 end
