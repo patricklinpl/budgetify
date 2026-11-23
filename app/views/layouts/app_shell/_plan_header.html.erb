@@ -1,0 +1,29 @@
+<%# Plan header shell (LAY-04). Styling and structure only: controls are disabled
+    until the plan feature issues wire them. Expects @budget. %>
+<div class="shell-header shell-header--plan">
+  <div class="shell-header-row">
+    <div class="shell-header-title">
+      <p class="shell-eyebrow">Selected budget</p>
+      <h1 class="app-shell-page-title"><%= @budget.name %></h1>
+    </div>
+    <div class="shell-month" role="group" aria-label="Month">
+      <button type="button" class="shell-icon-button" disabled aria-label="Previous month"><span aria-hidden="true">&lsaquo;</span></button>
+      <span class="shell-month-label"><%= Date.current.strftime("%B %Y") %> <span aria-hidden="true">&#9662;</span></span>
+      <button type="button" class="shell-icon-button" disabled aria-label="Next month"><span aria-hidden="true">&rsaquo;</span></button>
+    </div>
+    <div class="shell-pill" aria-label="Ready to Assign">
+      <span class="shell-pill-amount money">&mdash;</span>
+      <span class="shell-pill-label">Ready to Assign</span>
+    </div>
+  </div>
+  <ul class="shell-chips" aria-label="Filters">
+    <% ["All", "Overspent", "Underfunded", "Overfunded", "Money Available", "Snoozed"].each_with_index do |chip, i| %>
+      <li><button type="button" class="shell-chip<%= ' shell-chip--active' if i.zero? %>" disabled><%= chip %></button></li>
+    <% end %>
+  </ul>
+  <div class="shell-toolbar" role="toolbar" aria-label="Plan actions">
+    <% ["Add Category Group", "Undo", "Redo", "Recent Moves"].each do |action| %>
+      <button type="button" class="shell-button" disabled><%= action %></button>
+    <% end %>
+  </div>
+</div>

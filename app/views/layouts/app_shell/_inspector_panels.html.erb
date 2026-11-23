@@ -1,0 +1,18 @@
+<%# Inspector panel shells (LAY-05): Summary and Auto-Assign. Styling and
+    structure only; values and actions are wired by the plan feature issues. %>
+<section class="shell-panel" aria-labelledby="shell-summary-title">
+  <h2 id="shell-summary-title" class="shell-panel-title"><%= Date.current.strftime("%B") %>'s Summary</h2>
+  <dl class="shell-panel-list">
+    <% ["Left Over from Last Month", "Assigned in #{Date.current.strftime('%B')}", "Activity", "Available"].each do |row| %>
+      <div class="shell-panel-row"><dt><%= row %></dt><dd class="money">&mdash;</dd></div>
+    <% end %>
+  </dl>
+</section>
+<section class="shell-panel" aria-labelledby="shell-auto-title">
+  <h2 id="shell-auto-title" class="shell-panel-title">Auto-Assign</h2>
+  <ul class="shell-panel-list">
+    <% ["Underfunded", "Assigned Last Month", "Spent Last Month", "Reset Available Amounts", "Reset Assigned Amounts"].each do |row| %>
+      <li class="shell-panel-row"><span><%= row %></span><span class="money">&mdash;</span></li>
+    <% end %>
+  </ul>
+</section>

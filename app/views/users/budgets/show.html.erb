@@ -1,15 +1,21 @@
 <% content_for :title, @budget.name %>
 
-<main class="app-home">
-  <header class="app-home-header">
-    <%= link_to "Budgetify", app_root_path, class: "app-home-brand" %>
-    <%= button_to "Sign out", session_path, method: :delete, class: "app-home-signout" %>
-  </header>
+<% content_for :shell_header do %>
+  <% if @selected_account %>
+    <%= render "layouts/app_shell/register_header", account: @selected_account %>
+  <% else %>
+    <%= render "layouts/app_shell/plan_header" %>
+  <% end %>
+<% end %>
 
-  <section class="app-home-content">
-    <p class="app-home-eyebrow">Selected budget</p>
-    <h1><%= @budget.name %></h1>
-    <p>This budget belongs to <strong><%= Current.user.email_address %></strong>.</p>
-    <%= link_to "Choose another budget", users_budgets_path, class: "budget-back-link" %>
-  </section>
-</main>
+<% unless @selected_account %>
+  <% content_for :shell_inspector do %>
+    <%= render "layouts/app_shell/inspector_panels" %>
+  <% end %>
+<% end %>
+
+<section class="shell-card">
+  <p class="shell-eyebrow">Budget owner</p>
+  <p>This budget belongs to <strong><%= Current.user.email_address %></strong>.</p>
+  <p><%= link_to "Choose another budget", users_budgets_path, class: "budget-back-link" %></p>
+</section>
