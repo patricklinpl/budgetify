@@ -1,0 +1,146 @@
+/* Authenticated app shell (#68). Tokens only; no hard-coded hex colors. */
+body.app-shell-body {
+  margin: 0;
+  background: var(--color-surface-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) auto;
+}
+
+.app-shell--collapsed {
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+}
+
+.app-shell-sidebar {
+  box-sizing: border-box;
+  padding: var(--space-3);
+  background: var(--color-surface-inverse);
+  color: var(--color-text-on-inverse);
+  overflow-y: auto;
+}
+
+.app-shell-sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.app-shell-plan-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell-collapse {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.app-shell-nav,
+.app-shell-accounts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-shell-nav-item {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.app-shell-nav-item[aria-current="page"] {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.app-shell-nav-item--inactive {
+  color: var(--color-text-on-inverse-muted);
+}
+
+.app-shell-account-group {
+  margin-top: var(--space-4);
+}
+
+.app-shell-account-group-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-text-on-inverse-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.app-shell-account {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.app-shell-sidebar .money--negative {
+  color: var(--color-status-negative-subtle);
+}
+
+.app-shell-empty {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-on-inverse-muted);
+  font-size: var(--font-size-sm);
+}
+
+.app-shell-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.app-shell-content {
+  flex: 1;
+  padding: var(--space-5);
+}
+
+.app-shell-inspector {
+  box-sizing: border-box;
+  width: 320px;
+  padding: var(--space-4);
+  border-left: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+/* Collapsed rail: names and group chrome hide; the toggle stays reachable. */
+.app-shell--collapsed .app-shell-plan-name,
+.app-shell--collapsed .app-shell-nav,
+.app-shell--collapsed .app-shell-account-group,
+.app-shell--collapsed .app-shell-empty {
+  display: none;
+}
+
+.app-shell--collapsed .app-shell-sidebar-top {
+  justify-content: center;
+}
