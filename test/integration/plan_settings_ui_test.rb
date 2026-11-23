@@ -122,6 +122,10 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     end
     assert_response :unprocessable_entity
     assert_select ".plan-settings__errors", /nothing changed/
+    assert_select ".app-shell .app-shell-sidebar"
+    assert_select "header.app-shell-header h1.app-shell-page-title", "Household"
+    assert_select "title", "Plan settings"
+    assert_select ".plan-settings__errors[tabindex='-1'][data-controller='focus'][role='alert']"
     assert_equal "Household", @plan.reload.name
   end
 
