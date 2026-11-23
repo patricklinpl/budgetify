@@ -15,7 +15,7 @@
     </div>
     <div class="shell-toolbar">
       <button type="button" class="shell-button shell-button--primary" disabled>Reconcile</button>
-      <button type="button" class="shell-button" disabled>Edit</button>
+      <%= link_to "Edit", edit_users_budget_account_path(@budget.public_id, account.public_id), class: "shell-button" %>
     </div>
   </div>
   <p class="shell-balance-summary" aria-label="Balance summary">
