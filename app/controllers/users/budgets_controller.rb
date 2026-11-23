@@ -49,7 +49,7 @@ module Users
       @errors.concat(format_errors)
 
       if @errors.empty?
-        @budget.update!(name: PlanLifecycle.clean_name(@form[:name]), date_format: @form[:date_format], currency_format: format.as_json)
+        @budget.update!(name: PlanLifecycle.clean_name(@form[:name]), date_format: @form[:date_format], currency_format: format.storage_json)
         redirect_to settings_users_budget_path(@budget.public_id), notice: "Plan settings saved."
       else
         render :settings, status: :unprocessable_entity
@@ -81,7 +81,7 @@ module Users
       end
 
       def form_from_budget
-        { name: @budget.name, date_format: @budget.date_format, currency_format: @budget.currency_format.as_json.except("example_format") }
+        { name: @budget.name, date_format: @budget.date_format, currency_format: @budget.currency_format.storage_json.except("example_format") }
       end
 
       def form_from_params(attrs)
