@@ -62,7 +62,7 @@ module Users
         notice: "Fresh Start created a new plan. The original is kept as #{@budget.reload.name}."
     rescue PlanLifecycle::UnsupportedCarry => e
       @form = form_from_budget
-      @errors = [ "Fresh Start was not run, and nothing changed. #{e.blockers.size} scheduled transaction(s) use a deleted account or a deleted or card-payment category and cannot carry over unchanged. Fix or delete them first." ]
+      @errors = [ "Fresh Start was not run, and nothing changed. #{e.blockers.size} scheduled transaction(s) use a deleted account or a deleted category and cannot carry over unchanged. Fix or delete them first." ]
       render :settings, status: :unprocessable_entity
     end
 
