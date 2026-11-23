@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <title><%= content_for(:title) || "Budgetify" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Budgetify">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag "00_tokens", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="app-shell-body">
+    <%# Authenticated shell (#68). Regions: sidebar, main (header + content), optional inspector. %>
+    <div class="app-shell" data-controller="app-shell" data-app-shell-collapsed-class="app-shell--collapsed">
+      <%= render "layouts/app_shell/sidebar" %>
+
+      <div class="app-shell-main">
+        <% if content_for?(:shell_header) %>
+          <header class="app-shell-header"><%= yield :shell_header %></header>
+        <% end %>
+        <main class="app-shell-content"><%= yield %></main>
+      </div>
+
+      <% if content_for?(:shell_inspector) %>
+        <aside class="app-shell-inspector" aria-label="Inspector"><%= yield :shell_inspector %></aside>
+      <% end %>
+    </div>
+  </body>
+</html>
