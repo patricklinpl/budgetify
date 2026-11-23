@@ -33,7 +33,7 @@
       <h2>New plan</h2>
       <div class="field<%= ' field--invalid' if @new_plan_error %>">
         <label class="field__label" for="new_plan_name">Plan name</label>
-        <input class="field__input" id="new_plan_name" name="budget[name]" value="<%= @new_plan_name %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>"<%= ' aria-invalid="true" aria-describedby="new_plan_error"'.html_safe if @new_plan_error %>>
+        <input class="field__input" id="new_plan_name" name="budget[name]" value="<%= @new_plan_name %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>"<%= ' aria-invalid="true" aria-describedby="new_plan_error" data-controller="focus"'.html_safe if @new_plan_error %>>
         <% if @new_plan_error %><span class="field__error" id="new_plan_error" role="alert"><%= @new_plan_error %></span><% end %>
       </div>
       <button type="submit" class="btn btn--primary">Create plan</button>
