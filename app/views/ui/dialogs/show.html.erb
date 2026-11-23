@@ -1,0 +1,106 @@
+<% content_for :title, "Dialog primitives" %>
+
+<div class="ui-preview" data-controller="dialog">
+  <h1>Dialogs, menus and confirmation primitives</h1>
+  <p>Presentation and dismissal conventions only (#71). Theme: <%= link_to "light", ui_dialogs_path %> | <%= link_to "dark", ui_dialogs_path(theme: "dark") %></p>
+  <p class="form-affordances">Contract: Escape and Cancel close the top-most dialog with no side effect. Each dialog says what survives dismissal. Transient undo or toast notifications are not included: a product decision is still open.</p>
+  <p id="dialog-status" class="field__status" aria-live="polite"></p>
+
+  <h2>Modal dialogs</h2>
+  <div class="dialog-demo__row">
+    <button type="button" class="btn btn--secondary" data-dialog-id="dlg-basic" data-action="dialog#open">Basic dialog</button>
+    <button type="button" class="btn btn--secondary" data-dialog-id="dlg-editor" data-action="dialog#open">Editor with warning</button>
+    <button type="button" class="btn btn--destructive" data-dialog-id="dlg-migrate" data-action="dialog#open">Delete with consequences</button>
+    <button type="button" class="btn btn--secondary" data-dialog-id="dlg-error" data-action="dialog#open">Error dialog</button>
+    <button type="button" class="btn btn--secondary" data-dialog-id="dlg-wizard" data-action="dialog#open">Wizard</button>
+  </div>
+
+  <h2>Menu</h2>
+  <div class="menu" data-controller="menu">
+    <button type="button" class="btn btn--secondary" aria-haspopup="menu" aria-expanded="false" data-menu-target="trigger" data-action="menu#toggle keydown->menu#triggerKey">View options</button>
+    <ul class="menu__list" role="menu" aria-label="View options" data-menu-target="list" data-action="keydown->menu#keydown" hidden>
+      <li role="none"><button type="button" role="menuitemcheckbox" aria-checked="true" class="menu__item" data-item="bars" data-action="menu#choose">Show progress bars</button></li>
+      <li role="none"><button type="button" role="menuitemcheckbox" aria-checked="false" class="menu__item" data-item="hidden" data-action="menu#choose">Show hidden categories</button></li>
+      <li role="none"><button type="button" role="menuitem" class="menu__item" data-item="rename" data-action="menu#choose">Rename view</button></li>
+      <li role="none"><button type="button" role="menuitem" class="menu__item menu__item--destructive" data-item="delete" data-action="menu#choose">Delete view</button></li>
+    </ul>
+  </div>
+
+  <h2>Inline confirmation</h2>
+  <div class="data-table-wrap" style="max-width: 460px">
+    <div class="inline-confirm" data-controller="inline-confirm">
+      <span>Weekend trips</span>
+      <span data-inline-confirm-target="actions"><button type="button" class="btn btn--secondary" data-inline-confirm-target="ask" data-action="inline-confirm#ask">Delete</button></span>
+      <span data-inline-confirm-target="confirm" hidden>
+        <span class="inline-confirm__question" role="alert">Delete this view?</span>
+        <button type="button" class="btn btn--secondary" data-cancel data-action="inline-confirm#cancel">Cancel</button>
+        <button type="button" class="btn btn--destructive" data-action="inline-confirm#confirm">Delete</button>
+      </span>
+    </div>
+  </div>
+
+  <h2>Non-modal overlay</h2>
+  <div data-controller="panel" data-action="keydown->panel#keydown">
+    <button type="button" class="btn btn--secondary" aria-expanded="false" aria-controls="shortcuts" data-panel-target="trigger" data-action="panel#toggle">Keyboard shortcuts</button>
+    <aside id="shortcuts" class="panel" role="complementary" aria-label="Keyboard shortcuts" data-panel-target="panel" hidden>
+      <strong>Keyboard shortcuts</strong>
+      <p>Enter commits, Escape cancels. This panel does not block the page. Press Escape or the button to close it.</p>
+      <button type="button" class="btn btn--secondary" data-action="panel#close">Close</button>
+    </aside>
+  </div>
+
+  <dialog id="dlg-basic" class="dialog" aria-labelledby="dlg-basic-t" data-dialog-name="Basic dialog" data-dialog-backdrop="dismiss" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="dialog__header"><h2 class="dialog__title" id="dlg-basic-t">Basic dialog</h2></div>
+    <div class="dialog__body"><p>Labelled title, body and actions. Backdrop click closes this one.</p><p class="dialog__survives">Survives dismissal: everything. Nothing was changed.</p></div>
+    <div class="dialog__footer"><button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Cancel</button><button type="button" class="btn btn--primary" data-action="dialog#confirm">OK</button></div>
+  </dialog>
+
+  <dialog id="dlg-editor" class="dialog" aria-labelledby="dlg-editor-t" data-dialog-name="Transaction editor" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="dialog__header"><h2 class="dialog__title" id="dlg-editor-t">Edit transaction</h2></div>
+    <div class="dialog__body">
+      <div class="field"><label class="field__label" for="ed-memo">Memo</label><input class="field__input" id="ed-memo" value="Weekly shop"></div>
+      <p class="dialog__survives">Backdrop clicks are ignored here so an edit is never lost by accident.</p>
+    </div>
+    <div class="dialog__footer"><button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Cancel</button><button type="button" class="btn btn--primary" data-dialog-id="dlg-warn" data-action="dialog#open">Save (reconciled)</button></div>
+  </dialog>
+
+  <dialog id="dlg-warn" class="dialog dialog--warning" role="alertdialog" aria-labelledby="dlg-warn-t" data-dialog-name="Reconciled warning" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="dialog__header"><h2 class="dialog__title" id="dlg-warn-t">Edit a reconciled transaction?</h2></div>
+    <div class="dialog__body"><p>This transaction is reconciled. Changing it can unbalance the account.</p><p class="dialog__survives">Survives Cancel: the editor stays open with your typed text. Only this warning closes.</p></div>
+    <div class="dialog__footer"><button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Cancel</button><button type="button" class="btn btn--primary" data-action="dialog#confirm">Edit anyway</button></div>
+  </dialog>
+
+  <dialog id="dlg-migrate" class="dialog dialog--destructive" aria-labelledby="dlg-mig-t" data-dialog-name="Delete category" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop change->dialog#gate input->dialog#gate">
+    <div class="dialog__header"><h2 class="dialog__title" id="dlg-mig-t">Delete "Dining Out"?</h2></div>
+    <div class="dialog__body">
+      <ul class="dialog__facts"><li>42 transactions use this category</li><li>$1,240.00 assigned across 6 months</li></ul>
+      <div class="field"><label class="field__label" for="mig-dest">Move them to</label>
+        <select id="mig-dest" required><option value="">Choose a category</option><option value="groceries">Groceries</option><option value="fun">Fun</option></select></div>
+      <p class="dialog__survives">Survives Cancel: the category and all its history are unchanged.</p>
+    </div>
+    <div class="dialog__footer"><button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Cancel</button><button type="button" class="btn btn--destructive" disabled data-dialog-confirm data-action="dialog#confirm">Delete and move</button></div>
+  </dialog>
+
+  <dialog id="dlg-error" class="dialog dialog--error" role="alertdialog" aria-labelledby="dlg-err-t" data-dialog-name="Error" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="dialog__header"><h2 class="dialog__title" id="dlg-err-t">Could not choose the image</h2></div>
+    <div class="dialog__body"><p>The file could not be read. Try again or pick a different file.</p><p class="dialog__survives">Survives OK: the transaction is unchanged.</p></div>
+    <div class="dialog__footer"><button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">OK</button><button type="button" class="btn btn--primary" data-action="dialog#confirm" data-retry>Try again</button></div>
+  </dialog>
+
+  <dialog id="dlg-wizard" class="dialog" aria-labelledby="dlg-wiz-t" data-dialog-name="Add account" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="wizard" data-controller="wizard" data-action="input->wizard#validate change->wizard#validate">
+      <div class="dialog__header"><h2 class="dialog__title" id="dlg-wiz-t">Add account</h2><span class="wizard__progress" data-wizard-target="progress" aria-live="polite"></span></div>
+      <div class="dialog__body">
+        <div data-wizard-target="step"><div class="field"><label class="field__label" for="wz-name">Account name</label><input class="field__input" id="wz-name" required></div></div>
+        <div data-wizard-target="step"><div class="field"><label class="field__label" for="wz-bal">Current balance</label><input class="field__input field__input--money" id="wz-bal" required></div></div>
+        <p class="dialog__survives">Survives Cancel: nothing is created. Back keeps what you typed.</p>
+      </div>
+      <div class="dialog__footer">
+        <button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Cancel</button>
+        <button type="button" class="btn btn--secondary" data-wizard-target="back" data-action="wizard#back">Back</button>
+        <button type="button" class="btn btn--primary" data-wizard-target="next" data-action="wizard#next">Next</button>
+        <button type="button" class="btn btn--primary" data-wizard-target="finish" data-action="dialog#confirm" hidden>Finish</button>
+      </div>
+    </div>
+  </dialog>
+</div>
