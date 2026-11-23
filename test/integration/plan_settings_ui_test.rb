@@ -123,6 +123,20 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_equal "Household", @plan.reload.name
   end
 
+  test "a hostile currency symbol is saved as text and rendered escaped" do
+    patch users_budget_path(@plan.public_id), params: { budget: { name: "Household", date_format: "MM/DD/YYYY",
+      currency_format: { iso_code: "USD", currency_symbol: "<b>\"", symbol_first: "true", display_symbol: "true",
+                         decimal_separator: ".", group_separator: ",", decimal_digits: "2" } } }
+    assert_redirected_to settings_users_budget_path(@plan.public_id)
+    assert_equal "<b>\"", @plan.reload.currency_format.currency_symbol
+
+    get settings_users_budget_path(@plan.public_id)
+    assert_response :success
+    assert_not_includes response.body, "value=\"<b>"
+    assert_includes response.body, "value=\"&lt;b&gt;&quot;\""
+    assert_select "input#cf_symbol[value=?]", "<b>\""
+  end
+
   test "another user's plan is a 404 for settings, update and Fresh Start" do
     other = users(:two).budgets.create!(name: "Theirs")
 
