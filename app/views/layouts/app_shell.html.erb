@@ -27,7 +27,8 @@
       <div class="app-shell-main">
         <%# Phones only (CSS): the rail hides account names, so accounts stay reachable here as real links. %>
         <% phone_groups = shell_account_groups(@budget) %>
-        <% if phone_groups.any? %>
+        <% phone_closed = shell_closed_accounts(@budget) %>
+        <% if phone_groups.any? || phone_closed.any? %>
           <nav class="app-shell-phone-accounts" aria-label="Accounts">
             <details>
               <summary>Accounts<%= " (#{@selected_account.name})" if @selected_account %></summary>
@@ -41,6 +42,19 @@
                                   class: "app-shell-phone-accounts__link", aria: { current: (selected ? "page" : nil) } do %>
                         <span><%= account.name %></span>
                         <span class="<%= shell_money_class(account.balance) %>"><%= shell_money(account.balance) %></span>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+              <% if phone_closed.any? %>
+                <p class="app-shell-phone-accounts__group">Closed accounts</p>
+                <ul>
+                  <% phone_closed.each do |account| %>
+                    <li>
+                      <%= link_to users_budget_path(@budget.public_id, account: account.public_id),
+                                  class: "app-shell-phone-accounts__link", aria: { current: (@selected_account&.id == account.id ? "page" : nil) } do %>
+                        <span><%= account.name %> (closed)</span>
                       <% end %>
                     </li>
                   <% end %>
