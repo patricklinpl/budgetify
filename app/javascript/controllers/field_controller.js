@@ -31,7 +31,12 @@ export default class extends Controller {
       result = r.ok ? { ok: true, display: formatMilliunits(r.milliunits), raw: r.milliunits } : r
     } else if (this.kindValue === "date") {
       const iso = parseDate(text)
-      result = iso ? { ok: true, display: text.trim(), raw: iso } : { ok: false, error: "Use MM/DD/YYYY, for example 11/23/2026" }
+      // FRM-07: an invalid typed date reverts to the committed date with a visible cue.
+      if (!iso) {
+        this.inputTarget.value = this.committedValue
+        return this.showError(`"${text.trim()}" is not a valid date. Restored ${this.committedValue}. Use MM/DD/YYYY.`)
+      }
+      result = { ok: true, display: text.trim(), raw: iso }
     } else {
       result = text.trim() === "" && this.inputTarget.required ? { ok: false, error: "This field is required" } : { ok: true, display: text, raw: text }
     }
@@ -65,6 +70,9 @@ export default class extends Controller {
     this.errorTarget.textContent = ""
     this.errorTarget.hidden = true
   }
+
+  // Typing again clears a stale error.
+  typing() { if (this.element.classList.contains("field--invalid")) this.clearError() }
 
   say(text) { if (this.hasStatusTarget) this.statusTarget.textContent = text }
 
