@@ -26,8 +26,78 @@ class PlanLifecycle
     end
   end
 
+  ARCHIVED_SUFFIX = / \(archived \d{4}-\d{2}-\d{2}\)\z/
+
+  # Returns the stripped name, or nil when it is not a string, is blank,
+  # contains control characters (including NUL), or is too long.
+  def self.clean_name(raw)
+    return nil unless raw.is_a?(String)
+
+    name = raw.strip
+    return nil if name.empty? || name.length > MAX_NAME_LENGTH || name.match?(/[[:cntrl:]]/)
+
+    name
+  end
+
+  # Name for an archived plan: "<base> (archived YYYY-MM-DD)". An existing
+  # archive suffix is replaced, not nested, and the base is shortened if
+  # needed so the result always fits MAX_NAME_LENGTH and can be saved again.
+  # The date is the server's current date (Rails time zone), not the
+  # user's; per-user time zones are not modeled.
   def self.archived_name(name, on: Date.current)
-    "#{name} (archived #{on.iso8601})"
+    suffix = " (archived #{on.iso8601})"
+    base = name.sub(ARCHIVED_SUFFIX, "")
+    "#{base[0, MAX_NAME_LENGTH - suffix.length].rstrip}#{suffix}"
+  end
+
+  # Scheduled transactions that cannot be carried as they are because they
+  # point at an account or category the new plan will not contain (closed or
+  # deleted accounts, deleted, hidden-internal or card-payment categories,
+  # split lines that transfer to such an account). Fresh Start refuses to
+  # run while any exist, so meaning never changes silently.
+  # Returns [{ id: scheduled public_id, reasons: [...] }].
+  def self.carry_blockers(original)
+    open_accounts = original.accounts.not_deleted.where(closed: false).pluck(:id).to_set
+    carried_categories = original.categories.not_deleted.where(internal: false, payment_account_id: nil)
+      .joins(:category_group).merge(CategoryGroup.where(deleted: false, internal: false)
+      .where.not(name: Budget::CREDIT_CARD_PAYMENTS_GROUP_NAME)).pluck(:id).to_set
+    original.scheduled_transactions.not_deleted.order(:id).filter_map do |scheduled|
+      reasons = []
+      reasons << "its account is closed or deleted" unless open_accounts.include?(scheduled.account_id)
+      if scheduled.transfer_account_id && !open_accounts.include?(scheduled.transfer_account_id)
+        reasons << "it transfers to a closed or deleted account"
+      end
+      if scheduled.category_id && !carried_categories.include?(scheduled.category_id)
+        reasons << "its category is deleted or a card-payment category"
+      end
+      scheduled.scheduled_sub_transactions.where(deleted: false).each do |sub|
+        if sub.transfer_account_id && !open_accounts.include?(sub.transfer_account_id)
+          reasons << "a split line transfers to a closed or deleted account"
+        end
+        if sub.category_id && !carried_categories.include?(sub.category_id)
+          reasons << "a split line uses a deleted or card-payment category"
+        end
+      end
+      { id: scheduled.public_id, reasons: reasons.uniq } if reasons.any?
+    end
+  end
+
+  # What a Fresh Start of this plan carries and leaves behind.
+  def self.carry_report(original)
+    {
+      open_accounts_carried: original.accounts.not_deleted.where(closed: false).count,
+      closed_accounts_not_carried: original.accounts.not_deleted.where(closed: true).count,
+      scheduled_transactions_carried: original.scheduled_transactions.not_deleted.count
+    }
+  end
+
+  class UnsupportedCarry < StandardError
+    attr_reader :blockers
+
+    def initialize(blockers)
+      @blockers = blockers
+      super("Fresh Start cannot carry #{blockers.size} scheduled transaction(s) unchanged.")
+    end
   end
 
   # Fresh Start: the original plan keeps its identity, history and balances
@@ -37,7 +107,10 @@ class PlanLifecycle
   # transactions, assignments and balances do not carry.
   def self.fresh_start(original, name: nil)
     Budget.transaction do
-      new_name = name.presence || original.name
+      blockers = carry_blockers(original)
+      raise UnsupportedCarry, blockers if blockers.any?
+
+      new_name = name.presence || original.name.sub(ARCHIVED_SUFFIX, "")
       original.update!(name: archived_name(original.name))
       fresh = original.user.budgets.create!(name: new_name, date_format: original.date_format,
         currency_format: original[:currency_format])
@@ -81,10 +154,7 @@ class PlanLifecycle
         fresh.payees.create!(name: payee.name).id
     end
     original.scheduled_transactions.not_deleted.order(:id).each do |scheduled|
-      account_id = account_map[scheduled.account_id]
-      next if account_id.nil?
-      next if scheduled.transfer_account_id && account_map[scheduled.transfer_account_id].nil?
-
+      account_id = account_map.fetch(scheduled.account_id)
       copy = fresh.scheduled_transactions.create!(
         scheduled.attributes.slice("date_first", "date_next", "frequency", "amount", "memo", "flag_color", "flag_name").merge(
           account_id: account_id, payee_id: payee_for.call(scheduled.payee),
