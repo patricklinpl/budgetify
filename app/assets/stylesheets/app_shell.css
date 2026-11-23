@@ -442,3 +442,25 @@ body.app-shell-body {
 }
 
 /* end of app shell styles */
+
+/* Narrow screens: the sidebar never takes grid width from the content. The
+   collapsed rail keeps its column; an expanded sidebar overlays the page so
+   forms stay usable and nav stays reachable. */
+@media (max-width: 600px) {
+  .app-shell,
+  .app-shell--collapsed {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+  }
+
+  .app-shell-main {
+    grid-column: 2;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .app-shell-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    z-index: 30;
+    box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.35);
+  }
+}
