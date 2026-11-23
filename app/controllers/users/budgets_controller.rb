@@ -3,7 +3,7 @@ module Users
   # Plans are private to their owner: every lookup is scoped to the current
   # user, and nothing here shares a plan.
   class BudgetsController < ApplicationController
-    layout "app_shell", only: %i[show settings update]
+    layout "app_shell", only: %i[show settings update fresh_start]
 
     before_action :set_budget, only: %i[show settings update fresh_start]
 
