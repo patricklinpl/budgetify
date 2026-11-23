@@ -9,8 +9,8 @@
     <h2>Text input: default, disabled, error</h2>
     <div class="field" data-controller="field" data-field-kind-value="text">
       <label class="field__label" for="f-name">Account name</label>
-      <input class="field__input" id="f-name" data-field-target="input" data-action="keydown->field#keydown blur->field#blur" value="Checking" required>
-      <span class="field__error" data-field-target="error" role="alert" hidden></span>
+      <input class="field__input" id="f-name" aria-describedby="f-name-err" data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing" value="Checking" required>
+      <span class="field__error" id="f-name-err" data-field-target="error" role="alert" hidden></span>
       <span class="field__status" data-field-target="status" aria-live="polite"></span>
     </div>
     <div class="field">
@@ -26,22 +26,22 @@
     <h2>Currency input (expressions)</h2>
     <div class="field" data-controller="field" data-field-kind-value="currency">
       <label class="field__label" for="f-money">Assigned</label>
-      <input class="field__input field__input--money" id="f-money" data-field-target="input" data-action="keydown->field#keydown blur->field#blur" value="$100.00" inputmode="decimal" aria-describedby="money-hint">
+      <input class="field__input field__input--money" id="f-money" data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing" value="$100.00" inputmode="decimal" aria-describedby="money-hint money-err">
       <span class="field__hint" id="money-hint">Try 10+5*2 (commits $20.00). Invalid text like abc is rejected and kept.</span>
-      <span class="field__error" data-field-target="error" role="alert" hidden></span>
+      <span class="field__error" id="money-err" data-field-target="error" role="alert" hidden></span>
       <span class="field__status" data-field-target="status" aria-live="polite"></span>
     </div>
 
     <h2>Date field with picker</h2>
     <div class="field" data-controller="field" data-field-kind-value="date">
       <label class="field__label" for="f-date">Date</label>
-      <input class="field__input" id="f-date" data-field-target="input" data-action="keydown->field#keydown blur->field#blur" value="11/23/2026" placeholder="MM/DD/YYYY">
-      <span class="field__error" data-field-target="error" role="alert" hidden></span>
+      <input class="field__input" id="f-date" aria-describedby="date-err" data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing" value="11/23/2026" placeholder="MM/DD/YYYY">
+      <span class="field__error" id="date-err" data-field-target="error" role="alert" hidden></span>
       <span class="field__status" data-field-target="status" aria-live="polite"></span>
       <div class="date-picker" role="group" aria-label="Pick a date, November 2026">
         <div class="date-picker__head">November 2026</div>
         <% (1..30).each do |d| %>
-          <button type="button" class="date-picker__day" data-date="2026-11-<%= format("%02d", d) %>" data-action="field#pick"><%= d %></button>
+          <button type="button" class="date-picker__day" data-date="2026-11-<%= format("%02d", d) %>" aria-label="November <%= d %>, 2026" data-action="field#pick"><%= d %></button>
         <% end %>
       </div>
     </div>
