@@ -10,6 +10,7 @@
     <p class="app-home-eyebrow">Your Budgetify account</p>
     <h1>Choose a budget.</h1>
     <p>Select the budget you want to access.</p>
+    <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
 
     <% if @budgets.any? %>
       <div class="budget-list">
@@ -26,6 +27,16 @@
         <h2>No budgets are available yet.</h2>
         <p>This account has no budgets to select.</p>
       </div>
+    <% end %>
+
+    <%= form_with url: users_budgets_path, method: :post, class: "plan-settings__form" do %>
+      <h2>New plan</h2>
+      <div class="field<%= ' field--invalid' if @new_plan_error %>">
+        <label class="field__label" for="new_plan_name">Plan name</label>
+        <input class="field__input" id="new_plan_name" name="budget[name]" value="<%= @new_plan_name %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>"<%= ' aria-invalid="true" aria-describedby="new_plan_error"'.html_safe if @new_plan_error %>>
+        <% if @new_plan_error %><span class="field__error" id="new_plan_error" role="alert"><%= @new_plan_error %></span><% end %>
+      </div>
+      <button type="submit" class="btn btn--primary">Create plan</button>
     <% end %>
   </section>
 </main>
