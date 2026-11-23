@@ -25,6 +25,30 @@
       <%= render "layouts/app_shell/sidebar" %>
 
       <div class="app-shell-main">
+        <%# Phones only (CSS): the rail hides account names, so accounts stay reachable here as real links. %>
+        <% phone_groups = shell_account_groups(@budget) %>
+        <% if phone_groups.any? %>
+          <nav class="app-shell-phone-accounts" aria-label="Accounts">
+            <details>
+              <summary>Accounts<%= " (#{@selected_account.name})" if @selected_account %></summary>
+              <% phone_groups.each do |group| %>
+                <p class="app-shell-phone-accounts__group"><%= group[:label] %></p>
+                <ul>
+                  <% group[:accounts].each do |account| %>
+                    <% selected = @selected_account&.id == account.id %>
+                    <li>
+                      <%= link_to users_budget_path(@budget.public_id, account: account.public_id),
+                                  class: "app-shell-phone-accounts__link", aria: { current: (selected ? "page" : nil) } do %>
+                        <span><%= account.name %></span>
+                        <span class="<%= shell_money_class(account.balance) %>"><%= shell_money(account.balance) %></span>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </details>
+          </nav>
+        <% end %>
         <% if content_for?(:shell_header) %>
           <header class="app-shell-header"><%= yield :shell_header %></header>
         <% end %>
