@@ -11,6 +11,16 @@ export default class extends Controller {
   connect() {
     const stored = window.localStorage.getItem(BARS_KEY)
     if (stored) document.documentElement.setAttribute("data-table-bars", stored)
+    const on = document.documentElement.getAttribute("data-table-bars") !== "off"
+    this.element.querySelectorAll("[data-action~='data-table#toggleBars']").forEach((box) => { box.checked = on })
+    this.syncEditorSpan()
+  }
+
+  // The editor row spans every visible column, including after columns hide.
+  syncEditorSpan() {
+    if (!this.hasTableTarget) return
+    const visible = [ ...this.tableTarget.querySelectorAll("thead th") ].filter((th) => getComputedStyle(th).display !== "none").length
+    this.tableTarget.querySelectorAll(".data-table__editor td").forEach((td) => { td.colSpan = visible })
   }
 
   // TAB-02: collapse hides member rows only; the group row and its totals stay.
@@ -35,11 +45,12 @@ export default class extends Controller {
     const hidden = new Set((this.tableTarget.dataset.hide || "").split(" ").filter(Boolean))
     if (event.currentTarget.checked) hidden.delete(column); else hidden.add(column)
     this.tableTarget.dataset.hide = [ ...hidden ].join(" ")
+    this.syncEditorSpan()
   }
 
   // TAB-01: selected state mirrors the checkbox.
   select(event) {
-    event.currentTarget.closest("tr").setAttribute("aria-selected", String(event.currentTarget.checked))
+    event.currentTarget.closest("tr").classList.toggle("data-table__row--selected", event.currentTarget.checked)
   }
 
   // TAB-06: expand a row into its editor host and move focus into it.
@@ -49,6 +60,8 @@ export default class extends Controller {
     if (!editor) return
     row.classList.add("data-table__row--editing")
     editor.hidden = false
+    event.currentTarget.setAttribute("aria-expanded", "true")
+    this.syncEditorSpan()
     const focusable = editor.querySelector("input, select, textarea, button")
     if (focusable) focusable.focus()
     editor.dataset.returnTo = event.currentTarget.id
@@ -59,7 +72,7 @@ export default class extends Controller {
     editor.hidden = true
     editor.previousElementSibling.classList.remove("data-table__row--editing")
     const trigger = document.getElementById(editor.dataset.returnTo)
-    if (trigger) trigger.focus()
+    if (trigger) { trigger.setAttribute("aria-expanded", "false"); trigger.focus() }
   }
 
   keydown(event) {
