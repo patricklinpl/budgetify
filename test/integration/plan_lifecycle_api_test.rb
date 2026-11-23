@@ -201,6 +201,92 @@ class PlanLifecycleApiTest < ActionDispatch::IntegrationTest
     assert_equal "Theirs", other.reload.name
   end
 
+  test "malformed plan payloads are 400 and never 500, including Fresh Start shapes" do
+    bad_plans = [ "text", [ "x" ], [ { name: "x" } ], 7, { name: [ "x" ] }, { name: { a: 1 } }, { name: 5 }, { name: "bad\u0000name" }, { name: "tab\tname" } ]
+    assert_no_difference -> { Budget.count } do
+      bad_plans.each do |plan|
+        post "/v1/plans", params: { plan: plan }, headers: auth_headers, as: :json
+        assert_response :bad_request, "create #{plan.inspect}"
+        post "/v1/plans/#{@plan.public_id}/fresh_start", params: { plan: plan }, headers: auth_headers, as: :json
+        assert_response :bad_request, "fresh_start #{plan.inspect}"
+        patch "/v1/plans/#{@plan.public_id}", params: { plan: plan }, headers: auth_headers, as: :json
+        assert_response :bad_request, "rename #{plan.inspect}"
+      end
+    end
+    assert_equal "Everyday", @plan.reload.name
+  end
+
+  test "malformed settings payloads are 400 and save nothing" do
+    [ "text", [ 1 ], { date_format: "YYYY-MM-DD" }, { date_format: [ "x" ] }, { date_format: { format: [ "YYYY-MM-DD" ] } },
+      { currency_format: "USD" }, { currency_format: [ 1 ] }, { currency_format: { iso_code: { a: 1 } } },
+      { currency_format: { currency_symbol: [ "$" ] } }, { currency_format: { decimal_digits: "2" } } ].each do |settings|
+      patch "/v1/plans/#{@plan.public_id}/settings", params: { settings: settings }, headers: auth_headers, as: :json
+      assert_response :bad_request, settings.inspect
+    end
+    assert_equal "MM/DD/YYYY", @plan.reload.date_format
+    assert_equal CurrencyFormat.default.as_json, @plan.currency_format.as_json
+  end
+
+  test "archived names stay within the limit, do not nest, and can be saved again" do
+    @plan.update!(name: "n" * 100)
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    archived = @plan.reload.name
+    assert_operator archived.length, :<=, 100
+    patch "/v1/plans/#{@plan.public_id}", params: { plan: { name: archived } }, headers: auth_headers, as: :json
+    assert_response :ok
+
+    fresh_id = response.parsed_body.dig("data", "plan", "id") && Budget.find_by!(name: "n" * 100).public_id
+    post "/v1/plans/#{fresh_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    assert_equal 1, Budget.find_by!(public_id: fresh_id).name.scan("(archived").size
+
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    assert_equal 1, response.parsed_body.dig("data", "archived_plan", "name").scan("(archived").size
+    # The archived name was shortened to fit, so a Fresh Start from it starts from the shortened base.
+    assert_equal archived.sub(PlanLifecycle::ARCHIVED_SUFFIX, ""), response.parsed_body.dig("data", "plan", "name")
+  end
+
+  test "Fresh Start is blocked, with nothing changed, when a scheduled transaction cannot carry unchanged" do
+    open_account = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
+    closed = Account.open!(budget: @plan, attributes: { "name" => "Old", "type" => "checking", "balance" => 0 })
+    closed.update!(closed: true)
+    @plan.scheduled_transactions.create!(account: closed, date_first: Date.current, date_next: Date.current,
+      frequency: "monthly", amount: -5_000)
+    ok = @plan.scheduled_transactions.create!(account: open_account, date_first: Date.current, date_next: Date.current,
+      frequency: "monthly", amount: -1_000)
+    blocked_id = @plan.scheduled_transactions.find_by!(account: closed).public_id
+
+    assert_no_difference -> { Budget.count } do
+      post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    end
+    assert_response :unprocessable_entity
+    blockers = response.parsed_body.fetch("blocking_scheduled_transactions")
+    assert_equal [ blocked_id ], blockers.map { |b| b["id"] }
+    assert_equal "Everyday", @plan.reload.name
+
+    @plan.scheduled_transactions.find_by!(account: closed).update!(deleted: true)
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    report = response.parsed_body.dig("data", "carry_report")
+    assert_equal({ "open_accounts_carried" => 1, "closed_accounts_not_carried" => 1, "scheduled_transactions_carried" => 1 }, report)
+    assert_equal ok.amount, Budget.find_by!(public_id: response.parsed_body.dig("data", "plan", "id")).scheduled_transactions.sole.amount
+  end
+
+  test "Fresh Start keeps payee, flag and memo metadata on carried scheduled transactions" do
+    account = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
+    payee = @plan.payees.create!(name: "Landlord")
+    @plan.scheduled_transactions.create!(account: account, payee: payee, date_first: Date.current, date_next: Date.current,
+      frequency: "monthly", amount: -1_000, memo: "rent", flag_color: "red", flag_name: "Rent")
+
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    carried = Budget.find_by!(public_id: response.parsed_body.dig("data", "plan", "id")).scheduled_transactions.sole
+    assert_equal [ "Landlord", "rent", "red", "Rent" ], [ carried.payee.name, carried.memo, carried.flag_color, carried.flag_name ]
+    assert_not_equal payee.id, carried.payee_id
+  end
+
   test "unauthenticated writes are rejected" do
     post "/v1/plans", params: { plan: { name: "Nope" } }, as: :json
     assert_response :unauthorized
