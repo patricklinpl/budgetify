@@ -36,9 +36,28 @@ module Api
         }, server_knowledge: plan.server_knowledge)
       end
 
+      # DELETE /v1/plans/:plan_id/category_groups/:category_group_id
+      # (Budgetify extension, CAT-06). Same replacement / return_assigned
+      # rules as category delete; every category in the group moves to the
+      # one replacement category, which must be outside the group.
+      def destroy
+        group = plan.category_groups.not_deleted.find_by(public_id: params[:category_group_id])
+        return render_api_error(:not_found, "No category group was found with the given id.", id: "404.2", name: "resource_not_found") if group.nil?
+
+        replacement = nil
+        if params[:replacement_category_id].present?
+          replacement = plan.categories.find_by(public_id: params[:replacement_category_id])
+          return render_bad_request("The replacement_category_id is not valid.") if replacement.nil? || replacement.deleted?
+        end
+        report = CategoryRemoval.delete_group!(group, replacement: replacement, return_assigned: params[:return_assigned] == "true")
+        render_data({ category_group: CategoryGroupSerializer.as_json(group.reload), migration: report }, server_knowledge: plan.reload.server_knowledge)
+      rescue CategoryRemoval::Blocked => error
+        render json: { error: { id: "422", name: "unprocessable_entity", detail: error.message }, impact: error.impact }, status: :unprocessable_entity
+      end
+
       private
         def permitted_group_params
-          params.require(:category_group).permit(:name).to_h
+          params.require(:category_group).permit(:name, :hidden).to_h
         rescue ActionController::ParameterMissing
           render_bad_request("Request body must include a category_group object.")
           nil
