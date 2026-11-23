@@ -68,6 +68,14 @@
   content: var(--glyph-status-negative);
 }
 
+.field__error--notice {
+  color: var(--color-text-muted);
+}
+
+.field__error--notice::before {
+  content: "\2139";
+}
+
 .field__error[hidden] {
   display: none;
 }
