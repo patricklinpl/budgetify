@@ -70,6 +70,7 @@ class Account < ApplicationRecord
   # balance equals target without rewriting history.
   def adjust_balance!(target)
     raise Blocked, "Only tracking accounts can have their balance adjusted here." unless tracking?
+    raise Blocked, "This account is closed. Reopen it before changing its balance." if closed?
     delta = target - balance
     return nil if delta.zero?
 
@@ -99,16 +100,31 @@ class Account < ApplicationRecord
     self
   end
 
-  # Deletable only when its sole activity is its opening balance.
-  def deletable?
+  # Why this account cannot be deleted, or nil when it can. Deletable only
+  # when its sole activity is its opening balance and no budget money sits on
+  # its payment category (deleting would otherwise drop assignments silently).
+  def delete_blocker
     live = transactions.not_deleted.to_a
-    live.size == 1 && live.first.opening_balance? && live.first.transfer_account_id.nil? &&
-      !Transaction.not_deleted.where(transfer_account_id: id).exists? &&
-      !ScheduledTransaction.where(deleted: false).where("account_id = ? OR transfer_account_id = ?", id, id).exists?
+    unless live.size == 1 && live.first.opening_balance? && live.first.transfer_account_id.nil? &&
+        !Transaction.not_deleted.where(transfer_account_id: id).exists? &&
+        !ScheduledTransaction.where(deleted: false).where("account_id = ? OR transfer_account_id = ?", id, id).exists?
+      return "This account has transactions, transfers or scheduled items. Remove them before deleting it."
+    end
+
+    category = Category.not_deleted.find_by(payment_account_id: id)
+    if category && category.month_categories.where("budgeted <> 0 OR activity <> 0 OR credit_activity <> 0").exists?
+      return "Its payment category has money assigned or activity. Move or remove that first so no budget money is lost."
+    end
+    nil
+  end
+
+  def deletable?
+    delete_blocker.nil?
   end
 
   def delete_opening_only!
-    raise Blocked, "This account has transactions, transfers or scheduled items. Remove them before deleting it." unless deletable?
+    reason = delete_blocker
+    raise Blocked, reason if reason
     transaction do
       opening = transactions.not_deleted.sole
       opening.apply_amounts!(-1)
