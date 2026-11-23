@@ -156,7 +156,9 @@ class PlanLifecycleApiTest < ActionDispatch::IntegrationTest
     assert_equal PlanLifecycle.archived_name("Everyday"), archived.fetch("name")
 
     new_plan = @user.budgets.find_by!(public_id: fresh.fetch("id"))
-    assert_equal 0, new_plan.transactions.count
+    # No history carries; each account has only its zero Starting Balance row dated today.
+    assert_equal [ [ "Starting Balance", 0, Date.current ] ] * 4,
+      new_plan.transactions.includes(:payee).map { |t| [ t.payee.name, t.amount, t.date ] }
     assert_equal accounts.map(&:name) + [ "Visa" ], new_plan.accounts.order(:id).pluck(:name)
     assert_equal [ 0 ], new_plan.accounts.pluck(:balance).uniq
     assert_empty new_plan.accounts.pluck(:id) & @plan.accounts.pluck(:id)
