@@ -94,6 +94,34 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_equal [ "Checking" ], fresh.accounts.pluck(:name)
   end
 
+  test "malformed or control-character names are rejected without a 500" do
+    assert_no_difference -> { Budget.count } do
+      post users_budgets_path, params: { budget: "text" }
+      assert_response :unprocessable_entity
+      post users_budgets_path, params: { budget: { name: "bad\u0000name" } }
+      assert_response :unprocessable_entity
+      post users_budgets_path, params: { budget: { name: [ "x" ] } }
+      assert_response :unprocessable_entity
+    end
+    patch users_budget_path(@plan.public_id), params: { budget: { name: "tab\tname" } }
+    assert_response :unprocessable_entity
+    patch users_budget_path(@plan.public_id), params: { budget: "text" }
+    assert_response :unprocessable_entity
+    assert_equal "Household", @plan.reload.name
+  end
+
+  test "Fresh Start that cannot carry a scheduled transaction shows why and changes nothing" do
+    closed = @plan.accounts.create!(name: "Old", type: "checking", closed: true)
+    @plan.scheduled_transactions.create!(account: closed, date_first: Date.current, date_next: Date.current, frequency: "monthly", amount: -1000)
+
+    assert_no_difference -> { Budget.count } do
+      post fresh_start_users_budget_path(@plan.public_id)
+    end
+    assert_response :unprocessable_entity
+    assert_select ".plan-settings__errors", /nothing changed/
+    assert_equal "Household", @plan.reload.name
+  end
+
   test "another user's plan is a 404 for settings, update and Fresh Start" do
     other = users(:two).budgets.create!(name: "Theirs")
 
