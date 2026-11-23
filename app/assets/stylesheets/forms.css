@@ -1,0 +1,260 @@
+/* Form controls and editor primitives (#70). Tokens only. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  max-width: 360px;
+}
+
+.field__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.field__input,
+.field select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.field__input:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+/* FRM-01: focus/active is the accent border plus ring */
+.field__input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--color-border-input-active);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.field__input:disabled,
+.field select:disabled {
+  color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.field__input--money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Error state: border, subtle fill and a glyph-led message, not color alone */
+.field--invalid .field__input {
+  border-color: var(--color-status-negative);
+  background: var(--color-status-negative-subtle);
+}
+
+.field__error {
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-status-negative-text);
+}
+
+.field__error::before {
+  content: var(--glyph-status-negative);
+}
+
+.field__error--notice {
+  color: var(--color-text-muted);
+}
+
+.field__error--notice::before {
+  content: "\2139";
+}
+
+.field__error[hidden] {
+  display: none;
+}
+
+.field__hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.field__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Autocomplete */
+.field--autocomplete {
+  position: relative;
+}
+
+.autocomplete__list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 2px 0 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.autocomplete__list[hidden] {
+  display: none;
+}
+
+.autocomplete__list [role="option"] {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.autocomplete__list [role="option"][hidden] {
+  display: none;
+}
+
+.autocomplete__list [role="option"]:hover,
+.autocomplete__list [role="option"][aria-selected="true"] {
+  background: var(--color-accent-active);
+  color: var(--color-text-on-accent, #fff);
+}
+
+/* Date picker */
+.date-picker {
+  display: inline-grid;
+  grid-template-columns: repeat(7, 32px);
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.date-picker__head {
+  grid-column: 1 / -1;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+.date-picker__day {
+  height: 32px;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.date-picker__day:hover,
+.date-picker__day:focus-visible {
+  border-color: var(--color-border-input-active);
+  outline: none;
+}
+
+/* Checkbox and radio */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.choice input {
+  accent-color: var(--color-accent);
+  width: 16px;
+  height: 16px;
+}
+
+.choice input:focus-visible {
+  outline: 2px solid var(--color-border-input-active);
+  outline-offset: 2px;
+}
+
+.choice input:disabled + span {
+  color: var(--color-text-muted);
+}
+
+fieldset.field {
+  border: 0;
+  padding: 0;
+}
+
+/* FRM-04 buttons */
+.btn {
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.btn--primary {
+  background: var(--color-accent-active);
+  color: var(--color-text-on-accent, #fff);
+}
+
+.btn--secondary {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.btn--destructive {
+  background: var(--color-status-negative-text);
+  color: var(--color-surface-raised);
+}
+
+.btn:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.form-affordances {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* Dark theme: accent-active is a light tint there, so solid fills with white
+   text use accent-subtle (a deep indigo in dark). Measured >= 4.5:1. */
+:root[data-theme="dark"] .btn--primary,
+:root[data-theme="dark"] .autocomplete__list [role="option"]:hover,
+:root[data-theme="dark"] .autocomplete__list [role="option"][aria-selected="true"] {
+  background: var(--color-accent-subtle);
+}
+
+:root[data-theme="dark"] .btn--destructive {
+  background: var(--color-status-negative-subtle);
+  color: var(--color-status-negative-text);
+  border-color: var(--color-status-negative-border);
+}
