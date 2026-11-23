@@ -53,4 +53,6 @@ export default class extends Controller {
     }
     this.element.dispatchEvent(new CustomEvent("menu:choose", { bubbles: true, detail: { item: item.dataset.item } }))
   }
-  }
+}
+
+// end of menu controller
