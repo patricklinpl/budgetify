@@ -62,6 +62,11 @@
             <option value="<%= sep %>" <%= "selected" if cf["group_separator"] == sep %>><%= label %></option>
           <% end %>
         </select></div>
+      <div class="field"><label class="field__label" for="cf_style">Digit grouping</label>
+        <select class="field__input" id="cf_style" name="budget[currency_format][group_style]">
+          <option value="western" <%= "selected" if cf["group_style"].to_s != "indian" %>>Three digits (123,456,789)</option>
+          <option value="indian" <%= "selected" if cf["group_style"].to_s == "indian" %>>Three then two (12,34,56,789)</option>
+        </select></div>
       <div class="field"><label class="field__label" for="cf_digits">Decimal digits</label>
         <input class="field__input" id="cf_digits" name="budget[currency_format][decimal_digits]" value="<%= cf['decimal_digits'] %>" inputmode="numeric"></div>
     </fieldset>
