@@ -1,0 +1,35 @@
+/* Plan settings page (#54). Layout only; controls come from forms.css and dialogs.css. */
+.plan-settings {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 40rem;
+}
+
+.plan-settings__form,
+.plan-settings__currency {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.plan-settings__currency {
+  border: 1px solid var(--color-border);
+  padding: var(--space-3);
+}
+
+.plan-settings__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.plan-settings__errors {
+  border: 1px solid var(--color-status-negative-text);
+  color: var(--color-status-negative-text);
+  padding: var(--space-3);
+}
+
+.plan-settings__fresh-form {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  width: 100%;
+}
