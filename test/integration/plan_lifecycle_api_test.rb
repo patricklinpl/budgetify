@@ -283,6 +283,29 @@ class PlanLifecycleApiTest < ActionDispatch::IntegrationTest
     assert_equal "Everyday", @plan.reload.name
   end
 
+  test "Fresh Start carries a schedule that pays a credit card to the new card's payment category" do
+    checking = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
+    visa = Account.open!(budget: @plan, attributes: { "name" => "Visa", "type" => "creditCard", "balance" => 0 })
+    old_payment = @plan.categories.find_by!(payment_account_id: visa.id)
+    payee = @plan.payees.create!(name: "Payment: Visa", transfer_account_id: visa.id)
+    @plan.scheduled_transactions.create!(account: checking, payee: payee, category: old_payment, transfer_account: visa,
+      date_first: Date.current, date_next: Date.current, frequency: "monthly", amount: -15_000, memo: "ccpay")
+    @plan.scheduled_transactions.create!(account: visa, transfer_account: checking, date_first: Date.current,
+      date_next: Date.current, frequency: "monthly", amount: 15_000, memo: "ccpay")
+
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    fresh = Budget.find_by!(public_id: response.parsed_body.dig("data", "plan", "id"))
+    new_visa = fresh.accounts.find_by!(name: "Visa")
+    new_payment = fresh.categories.find_by!(payment_account_id: new_visa.id)
+    assert_not_equal old_payment.id, new_payment.id
+    carried = fresh.scheduled_transactions.order(:id).to_a
+    assert_equal [ -15_000, 15_000 ], carried.map(&:amount)
+    assert_equal new_payment.id, carried.first.category_id
+    assert_equal new_visa.id, carried.first.transfer_account_id
+    assert_equal "ccpay", carried.last.memo
+  end
+
   test "Fresh Start keeps payee, flag and memo metadata on carried scheduled transactions" do
     account = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
     payee = @plan.payees.create!(name: "Landlord")
