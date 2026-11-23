@@ -2,13 +2,14 @@
 # categories, and Fresh Start. Reuses the existing plan, account, category
 # and scheduled transaction models; nothing here changes money arithmetic.
 class PlanLifecycle
-  # Initial categories for a new plan. This is a product choice recorded on
-  # the PR: the audit says "initial default categories exist" without
-  # listing them.
+  # Initial categories for a new plan, from the reference's default plan as
+  # observed by the verifier (names and group order; Entertainment's emoji
+  # and its relative order are unverified, so no emoji is stored). They are
+  # ordinary categories and can be renamed, hidden or deleted.
   DEFAULT_CATEGORY_GROUPS = {
-    "Bills" => [ "Rent/Mortgage", "Electric", "Water", "Internet" ],
-    "Needs" => [ "Groceries", "Transportation" ],
-    "Wants" => [ "Dining Out", "Fun Money" ]
+    "Bills" => [ "Rent/Mortgage", "Phone & Internet", "Utilities" ],
+    "Needs" => [ "Groceries", "Transportation", "Health & Personal Care", "Emergency fund" ],
+    "Wants" => [ "Dining out", "Entertainment", "Vacation", "Stuff I forgot to plan for" ]
   }.freeze
 
   # Plans accept names up to this length so the archived name fits.
@@ -62,6 +63,9 @@ class PlanLifecycle
     carried_categories = original.categories.not_deleted.where(internal: false, payment_account_id: nil)
       .joins(:category_group).merge(CategoryGroup.where(deleted: false, internal: false)
       .where.not(name: Budget::CREDIT_CARD_PAYMENTS_GROUP_NAME)).pluck(:id).to_set
+    # Credit card payment categories of carried accounts are remapped to the
+    # new plan's own payment categories.
+    carried_categories.merge(original.categories.not_deleted.where(payment_account_id: open_accounts.to_a).pluck(:id))
     original.scheduled_transactions.not_deleted.order(:id).filter_map do |scheduled|
       reasons = []
       reasons << "its account is deleted" unless open_accounts.include?(scheduled.account_id)
@@ -69,14 +73,14 @@ class PlanLifecycle
         reasons << "it transfers to a deleted account"
       end
       if scheduled.category_id && !carried_categories.include?(scheduled.category_id)
-        reasons << "its category is deleted or a card-payment category"
+        reasons << "its category is deleted or internal"
       end
       scheduled.scheduled_sub_transactions.where(deleted: false).each do |sub|
         if sub.transfer_account_id && !open_accounts.include?(sub.transfer_account_id)
           reasons << "a split line transfers to a deleted account"
         end
         if sub.category_id && !carried_categories.include?(sub.category_id)
-          reasons << "a split line uses a deleted or card-payment category"
+          reasons << "a split line uses a deleted category"
         end
       end
       { id: scheduled.public_id, reasons: reasons.uniq } if reasons.any?
@@ -118,6 +122,7 @@ class PlanLifecycle
         currency_format: original[:currency_format])
       account_map = copy_accounts(original, fresh)
       category_map = copy_categories(original, fresh)
+      map_payment_categories(original, fresh, account_map, category_map)
       copy_scheduled_transactions(original, fresh, account_map, category_map)
       fresh
     end
@@ -130,6 +135,16 @@ class PlanLifecycle
       copy = Account.open!(budget: fresh, attributes: { "name" => account.name, "type" => account.type, "balance" => 0 })
       copy.update!(on_budget: account.on_budget, note: account.note, closed: account.closed)
       map[account.id] = copy.id
+    end
+  end
+
+  # A card's Credit Card Payment category is created with the card account in
+  # the new plan; schedules that pay the card point at that new category.
+  def self.map_payment_categories(original, fresh, account_map, category_map)
+    original.categories.not_deleted.where.not(payment_account_id: nil).each do |old|
+      new_account_id = account_map[old.payment_account_id]
+      new_category = new_account_id && fresh.categories.not_deleted.find_by(payment_account_id: new_account_id)
+      category_map[old.id] = new_category.id if new_category
     end
   end
 
@@ -175,5 +190,5 @@ class PlanLifecycle
       end
     end
   end
-  private_class_method :copy_accounts, :copy_categories, :copy_scheduled_transactions
+  private_class_method :copy_accounts, :copy_categories, :map_payment_categories, :copy_scheduled_transactions
 end
