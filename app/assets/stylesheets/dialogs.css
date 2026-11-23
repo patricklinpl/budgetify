@@ -1,0 +1,195 @@
+/* Dialogs, menus and confirmation primitives (#71). Tokens only. */
+.dialog {
+  max-width: 460px;
+  width: calc(100% - var(--space-6, 24px));
+  padding: 0;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-surface-sunken) 60%, #000);
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, #000 55%, transparent);
+}
+
+.dialog__header,
+.dialog__body,
+.dialog__footer {
+  padding: var(--space-4) var(--space-5, 20px);
+}
+
+.dialog__header {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.dialog__title::before {
+  margin-right: var(--space-2);
+}
+
+.dialog--warning .dialog__title::before {
+  content: var(--glyph-status-warning);
+  color: var(--color-status-warning-text);
+}
+
+.dialog--destructive .dialog__title::before,
+.dialog--error .dialog__title::before {
+  content: var(--glyph-status-negative);
+  color: var(--color-status-negative-text);
+}
+
+.dialog--destructive,
+.dialog--error {
+  border-color: var(--color-status-negative);
+}
+
+.dialog--warning {
+  border-color: var(--color-status-warning-strong);
+}
+
+.dialog__body p {
+  margin: 0 0 var(--space-3);
+}
+
+.dialog__facts {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  list-style: none;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.dialog__survives {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Inline confirmation (DLG-03) */
+.inline-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.inline-confirm__question {
+  color: var(--color-status-negative-text);
+  font-size: var(--font-size-sm);
+}
+
+.inline-confirm--done {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+/* Menu (DLG-04) */
+.menu {
+  position: relative;
+  display: inline-block;
+}
+
+.menu__list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 200px;
+  margin: 2px 0 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.menu__list[hidden] {
+  display: none;
+}
+
+.menu__item {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  text-align: left;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  outline: none;
+  background: var(--color-accent-subtle);
+}
+
+.menu__item[aria-checked="true"]::before {
+  content: var(--glyph-status-positive);
+}
+
+.menu__item--destructive {
+  color: var(--color-status-negative-text);
+}
+
+.menu__item--destructive::before {
+  content: var(--glyph-status-negative) " ";
+}
+
+/* Wizard (DLG-05) */
+.wizard__progress {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.wizard [hidden] {
+  display: none;
+}
+
+/* Non-modal overlay (DLG-06) */
+.panel {
+  position: fixed;
+  right: var(--space-5, 20px);
+  bottom: var(--space-5, 20px);
+  width: 300px;
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  z-index: 15;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.dialog-demo__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Dark theme: solid primary fills use accent-subtle (see forms.css) */
+:root[data-theme="dark"] .menu__item:hover,
+:root[data-theme="dark"] .menu__item:focus-visible {
+  background: var(--color-accent-subtle);
+}
+
+/* end of dialog primitives */
