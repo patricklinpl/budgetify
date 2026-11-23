@@ -74,9 +74,29 @@ module Api
         render_data({ category: CategorySerializer.as_json(category) }, server_knowledge: plan.reload.server_knowledge)
       end
 
+      # DELETE /v1/plans/:plan_id/categories/:category_id (Budgetify
+      # extension, CAT-03/CAT-04). Optional replacement_category_id moves
+      # transactions, scheduled items, assignments and availability;
+      # return_assigned=true confirms returning assignments to Ready to
+      # Assign. Refused with 422 and the impact when neither fits.
+      def destroy
+        category = find_category
+        return if category.nil?
+
+        replacement = nil
+        if params[:replacement_category_id].present?
+          replacement = plan.categories.find_by(public_id: params[:replacement_category_id])
+          return render_bad_request("The replacement_category_id is not valid.") if replacement.nil? || replacement.deleted?
+        end
+        report = CategoryRemoval.delete_category!(category, replacement: replacement, return_assigned: params[:return_assigned] == "true")
+        render_data({ category: CategorySerializer.as_json(category.reload), migration: report }, server_knowledge: plan.reload.server_knowledge)
+      rescue CategoryRemoval::Blocked => error
+        render json: { error: { id: "422", name: "unprocessable_entity", detail: error.message }, impact: error.impact }, status: :unprocessable_entity
+      end
+
       private
         def permitted_category_params
-          params.require(:category).permit(:name, :note, :category_group_id, :goal_target, :goal_target_date, :goal_frequency, :goal_needs_whole_amount).to_h
+          params.require(:category).permit(:name, :note, :hidden, :category_group_id, :goal_target, :goal_target_date, :goal_frequency, :goal_needs_whole_amount).to_h
         rescue ActionController::ParameterMissing
           render_bad_request("Request body must include a category object.")
           nil
