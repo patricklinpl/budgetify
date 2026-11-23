@@ -1,5 +1,7 @@
 module Users
   class BudgetsController < ApplicationController
+    layout "app_shell", only: :show
+
     def index
       @budgets = Current.user.budgets.order(:name)
     end
