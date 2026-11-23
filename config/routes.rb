@@ -34,8 +34,12 @@ Rails.application.routes.draw do
   get "api/v1/catalog", to: "api/v1/catalogs#index", as: :api_v1_catalog, defaults: { format: :json }
   get "v1/user", to: "api/v1/users#show", as: :api_v1_user, defaults: { format: :json }
   get "v1/plans", to: "api/v1/plans#index", as: :api_v1_plans, defaults: { format: :json }
+  post "v1/plans", to: "api/v1/plans#create", defaults: { format: :json }
   get "v1/plans/:plan_id", to: "api/v1/plans#show", as: :api_v1_plan, defaults: { format: :json }
+  patch "v1/plans/:plan_id", to: "api/v1/plans#update", defaults: { format: :json }
+  post "v1/plans/:plan_id/fresh_start", to: "api/v1/plans#fresh_start", defaults: { format: :json }
   get "v1/plans/:plan_id/settings", to: "api/v1/plan_settings#show", as: :api_v1_plan_settings, defaults: { format: :json }
+  patch "v1/plans/:plan_id/settings", to: "api/v1/plan_settings#update", defaults: { format: :json }
   get "v1/plans/:plan_id/accounts", to: "api/v1/accounts#index", defaults: { format: :json }
   post "v1/plans/:plan_id/accounts", to: "api/v1/accounts#create", defaults: { format: :json }
   get "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#show", defaults: { format: :json }
