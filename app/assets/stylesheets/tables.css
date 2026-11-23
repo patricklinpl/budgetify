@@ -307,4 +307,6 @@ th[aria-sort="descending"] .data-table__sort::after {
 .data-table__chevron:focus-visible {
   outline: 2px solid var(--color-border-input-active);
   outline-offset: 2px;
-   }
+}
+
+/* end of table primitives */
