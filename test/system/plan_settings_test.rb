@@ -68,9 +68,10 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
       document.getElementById("dlg-fresh-start").showModal();
     JS
     assert_selector "dialog[open]"
+    page.execute_script(EVENT_LOG_JS)
     assert_no_difference -> { @user.budgets.count } do
       within("dialog[open]") { click_button "Cancel" }
-      assert_no_selector "dialog[open]"
+      assert page.has_no_selector?("dialog[open]"), "Cancel left the dialog open with no script connected. Event log: #{page.evaluate_script('window.__dialogLog').inspect}"
       sleep 0.3
     end
     assert_current_path settings_users_budget_path(@plan.public_id)
