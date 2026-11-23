@@ -9,10 +9,10 @@
   </div>
 
   <ul class="app-shell-nav">
-    <li><%= link_to "Plan", users_budget_path(@budget.public_id), class: "app-shell-nav-item", aria: { current: "page" } %></li>
+    <li><%= link_to "Plan", users_budget_path(@budget.public_id), class: "app-shell-nav-item", title: "Plan", data: { initial: "P" }, aria: { current: "page" } %></li>
     <%# Reflect and All Accounts have no routes yet (#64, #62). Shown as inactive placeholders. %>
-    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" aria-disabled="true">Reflect</span></li>
-    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" aria-disabled="true">All Accounts</span></li>
+    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="Reflect" data-initial="R" aria-disabled="true">Reflect</span></li>
+    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="All Accounts" data-initial="A" aria-disabled="true">All Accounts</span></li>
   </ul>
 
   <% groups = shell_account_groups(@budget) %>
