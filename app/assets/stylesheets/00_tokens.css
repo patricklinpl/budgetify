@@ -54,6 +54,7 @@
   --color-border-input-active: var(--color-accent);
   --color-focus-ring: rgba(84, 91, 254, 0.18);
   --color-overlay: rgba(41, 43, 61, 0.45);
+  --color-border-subtle: color-mix(in srgb, var(--color-surface-inverse) 8%, transparent);
 }
 
 :root[data-theme="dark"] {
@@ -96,12 +97,15 @@
   --color-border-input-active: var(--color-accent);
   --color-focus-ring: rgba(122, 128, 255, 0.3);
   --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-border-subtle: color-mix(in srgb, #fff 8%, transparent);
 }
 
 :root {
-  /* Typography. Figtree is the reference face but is not bundled yet (open
-     product decision on #67), so the stack falls back to Inter and system fonts. */
-  --font-family-base: Inter, Figtree, "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  /* Typography. The stack is the one the app already shipped, so existing
+     rendering is unchanged. The reference face is Figtree; adopting it needs a
+     bundled open-licensed font file and a product decision (open on #67), so it
+     is not in the stack yet. */
+  --font-family-base: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-md: 14px;
@@ -120,6 +124,17 @@
   /* Money/number style: tabular figures, format-agnostic. */
   --font-feature-money: "tnum" 1;
   --font-variant-money: tabular-nums;
+
+  /* Decorative hues used by brand backgrounds (login). Not status colors. */
+  --color-decor-teal: #5ddec1;
+  --color-decor-glow: #6970c6;
+  --color-decor-white: #fff;
+
+  /* Status glyphs: every status color is paired with a shape so meaning does
+     not depend on hue alone (TOK-03, #59 VIEW-04). */
+  --glyph-status-positive: "\2713";
+  --glyph-status-warning: "!";
+  --glyph-status-negative: "\2715";
 
   /* Spacing scale (4px base) */
   --space-0: 0;
@@ -152,4 +167,35 @@
 
 .money--negative {
   color: var(--color-status-negative-text);
+}
+
+/* Status indicator: color plus glyph. Components add a text label too. */
+.status-indicator::before {
+  display: inline-block;
+  margin-right: var(--space-1);
+  font-weight: var(--font-weight-bold);
+}
+
+.status-indicator--positive {
+  color: var(--color-status-positive-text);
+}
+
+.status-indicator--positive::before {
+  content: var(--glyph-status-positive);
+}
+
+.status-indicator--warning {
+  color: var(--color-status-warning-text);
+}
+
+.status-indicator--warning::before {
+  content: var(--glyph-status-warning);
+}
+
+.status-indicator--negative {
+  color: var(--color-status-negative-text);
+}
+
+.status-indicator--negative::before {
+  content: var(--glyph-status-negative);
 }
