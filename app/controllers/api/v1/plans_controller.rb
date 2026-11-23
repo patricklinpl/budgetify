@@ -52,28 +52,41 @@ module Api
       # PLAN-05). The optional name is for the new plan; by default it takes
       # the original name and the original is archived under a dated name.
       def fresh_start
-        named = params[:plan].respond_to?(:key?) && params[:plan].key?(:name)
-        name = named ? plan_name_param : nil
-        return if named && name.nil?
+        name = nil
+        if params.key?(:plan)
+          return render_bad_plan unless params[:plan].is_a?(ActionController::Parameters)
 
+          if params[:plan].key?(:name)
+            name = PlanLifecycle.clean_name(params[:plan][:name])
+            return render_bad_plan if name.nil?
+          end
+        end
+
+        report = PlanLifecycle.carry_report(plan)
         fresh = PlanLifecycle.fresh_start(plan, name: name)
-        render_data({ plan: PlanSummary.as_json(fresh), archived_plan: PlanSummary.as_json(plan.reload) },
+        render_data({ plan: PlanSummary.as_json(fresh), archived_plan: PlanSummary.as_json(plan.reload), carry_report: report },
           server_knowledge: fresh.server_knowledge, status: :created)
+      rescue PlanLifecycle::UnsupportedCarry => e
+        render json: { error: { id: "422", name: "unprocessable_entity",
+          detail: "#{e.message} Close or fix these scheduled transactions first; nothing was changed." },
+          blocking_scheduled_transactions: e.blockers }, status: :unprocessable_entity
       end
 
       private
+        def render_bad_plan
+          render_api_error(:bad_request, "Plan name is required, at most #{PlanLifecycle::MAX_NAME_LENGTH} characters, with no control characters.", id: "400", name: "bad_request")
+        end
+
         # Returns the stripped name, or renders a 400 and returns nil.
         def plan_name_param
-          raw = params.require(:plan).permit(:name)[:name]
-          name = raw.is_a?(String) ? raw.strip : ""
-          if name.empty? || name.length > PlanLifecycle::MAX_NAME_LENGTH
-            render_api_error(:bad_request, "Plan name is required and must be at most #{PlanLifecycle::MAX_NAME_LENGTH} characters.", id: "400", name: "bad_request")
+          plan_params = params[:plan]
+          unless plan_params.is_a?(ActionController::Parameters)
+            render_api_error(:bad_request, "Request body must include a plan object.", id: "400", name: "bad_request")
             return nil
           end
+          name = PlanLifecycle.clean_name(plan_params[:name])
+          render_bad_plan if name.nil?
           name
-        rescue ActionController::ParameterMissing
-          render_api_error(:bad_request, "Request body must include a plan object.", id: "400", name: "bad_request")
-          nil
         end
     end
   end
