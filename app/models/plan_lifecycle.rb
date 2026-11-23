@@ -13,7 +13,7 @@ class PlanLifecycle
 
   # Plans accept names up to this length so the archived name fits.
   MAX_NAME_LENGTH = 100
-  DATE_FORMATS = %w[MM/DD/YYYY DD/MM/YYYY YYYY-MM-DD DD.MM.YYYY].freeze
+  DATE_FORMATS = %w[MM/DD/YYYY DD/MM/YYYY YYYY/MM/DD YYYY-MM-DD DD-MM-YYYY YYYY.MM.DD DD.MM.YYYY].freeze
 
   def self.create_plan(user, name:)
     Budget.transaction do
@@ -125,8 +125,11 @@ class PlanLifecycle
 
   def self.copy_accounts(original, fresh)
     original.accounts.not_deleted.order(:id).each_with_object({}) do |account, map|
-      map[account.id] = fresh.accounts.create!(name: account.name, type: account.type,
-        on_budget: account.on_budget, note: account.note, closed: account.closed).id
+      # Account.open! gives each account its zero Starting Balance row dated
+      # today (as the reference does); no other history carries.
+      copy = Account.open!(budget: fresh, attributes: { "name" => account.name, "type" => account.type, "balance" => 0 })
+      copy.update!(on_budget: account.on_budget, note: account.note, closed: account.closed)
+      map[account.id] = copy.id
     end
   end
 
