@@ -8,7 +8,7 @@ class Account < ApplicationRecord
   # YNAB account types (spec: AccountType enum in responses).
   TYPES = %w[checking savings cash creditCard lineOfCredit otherAsset otherLiability mortgage autoLoan studentLoan personalLoan medicalDebt otherDebt].freeze
   # Types accepted when creating an account (spec: SaveAccountType enum).
-  SAVE_TYPES = %w[checking savings cash creditCard otherAsset otherLiability].freeze
+  SAVE_TYPES = %w[checking savings cash creditCard lineOfCredit otherAsset otherLiability].freeze
   # Types whose spending is credit-backed: overspending from these accounts
   # carries as category debt instead of reducing next month's Ready to
   # Assign (spec: AccountType).
@@ -53,6 +53,71 @@ class Account < ApplicationRecord
       opening.apply_amounts!(+1)
       account.reload
     end
+  end
+
+  ADJUSTMENT_PAYEE_NAME = "Manual Balance Adjustment".freeze
+
+  class Blocked < StandardError; end
+
+  # Tracking (off-budget) accounts are the only ones with a tested
+  # adjustment/close reference (TRACK-01, TRACK-02). On-budget behavior
+  # for these actions is untested, so it is refused rather than guessed.
+  def tracking?
+    !on_budget?
+  end
+
+  # Records an auditable, category-less Manual Balance Adjustment so the
+  # balance equals target without rewriting history.
+  def adjust_balance!(target)
+    raise Blocked, "Only tracking accounts can have their balance adjusted here." unless tracking?
+    delta = target - balance
+    return nil if delta.zero?
+
+    transaction do
+      payee = budget.payees.not_deleted.where("LOWER(name) = ?", ADJUSTMENT_PAYEE_NAME.downcase).first ||
+        budget.payees.create!(name: ADJUSTMENT_PAYEE_NAME)
+      entry = budget.transactions.create!(account: self, payee: payee, date: Date.current,
+        amount: delta, cleared: "cleared", approved: true, memo: ADJUSTMENT_PAYEE_NAME)
+      entry.apply_amounts!(+1)
+      entry
+    end
+  end
+
+  # Close zeroes a tracking balance with an adjustment and keeps history.
+  def close!
+    raise Blocked, "Only tracking accounts with a nonzero balance can be closed with a zeroing adjustment; this account is on budget." if !tracking? && !balance.zero?
+    transaction do
+      adjust_balance!(0) if tracking?
+      update!(closed: true)
+    end
+    self
+  end
+
+  # Reopening returns the account at 0, not its pre-close balance.
+  def reopen!
+    update!(closed: false)
+    self
+  end
+
+  # Deletable only when its sole activity is its opening balance.
+  def deletable?
+    live = transactions.not_deleted.to_a
+    live.size == 1 && live.first.opening_balance? && live.first.transfer_account_id.nil? &&
+      !Transaction.not_deleted.where(transfer_account_id: id).exists? &&
+      !ScheduledTransaction.where(deleted: false).where("account_id = ? OR transfer_account_id = ?", id, id).exists?
+  end
+
+  def delete_opening_only!
+    raise Blocked, "This account has transactions, transfers or scheduled items. Remove them before deleting it." unless deletable?
+    transaction do
+      opening = transactions.not_deleted.sole
+      opening.apply_amounts!(-1)
+      opening.update!(deleted: true)
+      Category.not_deleted.where(payment_account_id: id).find_each { |c| c.update!(deleted: true) }
+      Payee.not_deleted.where(transfer_account_id: id).find_each { |p| p.update!(deleted: true) }
+      update!(deleted: true)
+    end
+    self
   end
 
   def credit?
