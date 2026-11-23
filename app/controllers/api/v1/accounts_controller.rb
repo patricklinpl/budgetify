@@ -57,6 +57,9 @@ module Api
 
         attrs = params[:account]
         return bad_request("Request body must include an account object.") unless attrs.is_a?(ActionController::Parameters)
+        unknown = attrs.keys - %w[name note closed balance]
+        return bad_request("Unsupported account fields: #{unknown.sort.join(', ')}. Only name, note, closed and balance can be changed.") if unknown.any?
+
         attrs = attrs.permit(:name, :note, :closed, :balance)
         return bad_request("account must include name, note, closed or balance.") if attrs.keys.empty?
         return bad_request("name must be a non-blank string.") if attrs.key?(:name) && (!attrs[:name].is_a?(String) || attrs[:name].strip.empty?)
@@ -67,10 +70,9 @@ module Api
         Account.transaction do
           account.update!(name: attrs[:name].strip) if attrs.key?(:name)
           account.update!(note: attrs[:note]) if attrs.key?(:note)
+          account.reopen! if attrs[:closed] == false && account.closed
           account.adjust_balance!(attrs[:balance]) if attrs.key?(:balance)
-          if attrs.key?(:closed) && attrs[:closed] != account.closed
-            attrs[:closed] ? account.close! : account.reopen!
-          end
+          account.close! if attrs[:closed] == true && !account.closed
         end
         render json: { data: { account: AccountSerializer.as_json(account.reload) } }
       rescue Account::Blocked => error
