@@ -33,8 +33,9 @@ export default class extends Controller {
       const iso = parseDate(text)
       // FRM-07: an invalid typed date reverts to the committed date with a visible cue.
       if (!iso) {
+        // The restored value is valid, so the field is valid again and Save stays enabled.
         this.inputTarget.value = this.committedValue
-        return this.showError(`"${text.trim()}" is not a valid date. Restored ${this.committedValue}. Use MM/DD/YYYY.`)
+        return this.showRestoreNotice(`"${text.trim()}" is not a valid date. Restored ${this.committedValue}. Use MM/DD/YYYY.`)
       }
       result = { ok: true, display: text.trim(), raw: iso }
     } else {
@@ -64,7 +65,17 @@ export default class extends Controller {
     this.element.dispatchEvent(new CustomEvent("field:invalid", { bubbles: true }))
   }
 
+  showRestoreNotice(message) {
+    this.clearError()
+    this.errorTarget.classList.add("field__error--notice")
+    this.errorTarget.textContent = message
+    this.errorTarget.hidden = false
+    this.say(message)
+    this.element.dispatchEvent(new CustomEvent("field:restored", { bubbles: true }))
+  }
+
   clearError() {
+    this.errorTarget.classList.remove("field__error--notice")
     this.element.classList.remove("field--invalid")
     this.inputTarget.removeAttribute("aria-invalid")
     this.errorTarget.textContent = ""
