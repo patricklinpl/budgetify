@@ -16,6 +16,9 @@ Rails.application.routes.draw do
   delete "v1/session", to: "api/v1/sessions#destroy", defaults: { format: :json }
   get "users/sign_in", to: "sessions#new", as: :users_sign_in
 
+  # Component preview for UI primitives (#69); not routed in production.
+  get "ui/tables", to: "ui/tables#show", as: :ui_tables unless Rails.env.production?
+
   constraints(lambda { |request| request.host.start_with?("app.") }) do
     root "app_homes#show", as: :app_root
   end

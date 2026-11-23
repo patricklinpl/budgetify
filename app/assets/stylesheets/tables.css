@@ -1,0 +1,312 @@
+/* Table and register grid primitives (#69). Tokens only; no hard-coded colors.
+   Presentation only: sorting, filtering and editing logic belong to features. */
+
+.data-table-wrap {
+  overflow-x: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+}
+
+/* TAB-01: base table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.data-table thead th {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-table__row:hover {
+  background: var(--color-accent-faint);
+}
+
+.data-table__row--selected {
+  background: var(--color-accent-subtle);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.data-table__select {
+  width: 1%;
+  padding-right: 0;
+}
+
+.data-table td.data-table__money,
+.data-table th.data-table__money {
+  text-align: right;
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: var(--font-variant-money);
+  white-space: nowrap;
+}
+
+.data-table__cell--empty {
+  color: var(--color-text-muted);
+}
+
+/* TAB-02: group header row */
+.data-table__group td {
+  background: var(--color-surface-sunken);
+  font-weight: var(--font-weight-bold);
+}
+
+.data-table__chevron {
+  padding: var(--space-1);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.data-table__chevron::before {
+  content: "\25BE";
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.data-table__chevron[aria-expanded="false"]::before {
+  transform: rotate(-90deg);
+}
+
+/* TAB-03: status pill, color plus a glyph so meaning does not rely on hue */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-pill);
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: var(--font-variant-money);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.status-pill::before {
+  font-weight: var(--font-weight-bold);
+}
+
+.status-pill--positive {
+  background: var(--color-status-positive-subtle);
+  border-color: var(--color-status-positive);
+  color: var(--color-text-primary);
+}
+
+.status-pill--positive::before {
+  content: var(--glyph-status-positive);
+  color: var(--color-status-positive-text);
+}
+
+.status-pill--underfunded {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-status-warning-strong);
+  color: var(--color-status-warning-text);
+}
+
+.status-pill--underfunded::before {
+  content: var(--glyph-status-warning);
+}
+
+.status-pill--negative {
+  background: var(--color-status-negative-subtle);
+  border-color: var(--color-status-negative-border);
+  color: var(--color-status-negative-text);
+}
+
+.status-pill--negative::before {
+  content: var(--glyph-status-negative);
+}
+
+.status-pill--zero {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.data-table__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* TAB-04: inline progress row; hidden document-wide with data-table-bars="off" */
+.data-table__bar-row td {
+  padding-top: 0;
+  padding-bottom: var(--space-2);
+}
+
+.data-table__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.data-table__bar-track {
+  flex: 1;
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.data-table__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-status-positive);
+}
+
+.data-table__bar-fill--over {
+  background: var(--color-status-negative);
+}
+
+html[data-table-bars="off"] .data-table__bar-row {
+  display: none;
+}
+
+/* TAB-05: register columns */
+.data-table__sort,
+.data-table__edit-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+th[aria-sort="ascending"] .data-table__sort::after {
+  content: " \25B4";
+}
+
+th[aria-sort="descending"] .data-table__sort::after {
+  content: " \25BE";
+}
+
+.data-table[data-hide~="flag"] .data-table__col--flag,
+.data-table[data-hide~="image"] .data-table__col--image {
+  display: none;
+}
+
+.data-table__row--scheduled {
+  color: var(--color-text-secondary);
+  font-style: italic;
+  background: var(--color-surface-sunken);
+}
+
+.data-table__row--transfer .data-table__payee {
+  color: var(--color-text-primary);
+  text-decoration: underline dotted;
+}
+
+.data-table__row--transfer .data-table__payee::before {
+  content: "\21C4  ";
+}
+
+.data-table__row--split .data-table__category {
+  color: var(--color-text-secondary);
+}
+
+.data-table__status-icon {
+  color: var(--color-text-secondary);
+}
+
+/* TAB-06: inline row editor host */
+.data-table__row--editing {
+  background: var(--color-accent-faint);
+}
+
+.data-table__editor td {
+  padding: var(--space-4);
+  background: var(--color-accent-faint);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.data-table__editor[hidden] {
+  display: none;
+}
+
+.data-table__editor:focus-within {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* TAB-07: empty states */
+.data-table-empty {
+  padding: var(--space-6) var(--space-4);
+  border: var(--border-width) dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.data-table-empty__title {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.data-table-empty p {
+  margin: 0;
+}
+
+/* Component preview page */
+.ui-preview {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5);
+  background: var(--color-surface-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+}
+
+.ui-preview h1,
+.ui-preview h2 {
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.ui-preview__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* Editing a row is not sorting: the trigger is a distinct, underlined control. */
+.data-table__edit-trigger {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.data-table__edit-trigger:focus-visible,
+.data-table__sort:focus-visible,
+.data-table__chevron:focus-visible {
+  outline: 2px solid var(--color-border-input-active);
+  outline-offset: 2px;
+}
+
+/* end of table primitives */

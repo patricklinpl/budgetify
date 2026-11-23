@@ -1,0 +1,173 @@
+<% content_for :title, "Table primitives" %>
+
+<div class="ui-preview" data-controller="data-table">
+  <h1>Table and register grid primitives</h1>
+  <p>Presentation only (#69). Theme: <%= link_to "light", ui_tables_path, class: "budget-back-link" %> | <%= link_to "dark", ui_tables_path(theme: "dark"), class: "budget-back-link" %></p>
+
+  <div class="ui-preview__controls">
+    <label><input type="checkbox" checked data-action="data-table#toggleBars"> Progress bars</label>
+    <label><input type="checkbox" checked data-column="flag" data-action="data-table#toggleColumn"> Flag column</label>
+    <label><input type="checkbox" checked data-column="image" data-action="data-table#toggleColumn"> Image column</label>
+  </div>
+
+  <h2>Budget grid: group header, rows, pills, bars</h2>
+  <div class="data-table-wrap">
+    <table class="data-table" aria-label="Budget grid example">
+      <thead>
+        <tr>
+          <th class="data-table__select"><input type="checkbox" aria-label="Select all"></th>
+          <th>Category</th>
+          <th class="data-table__money">Assigned</th>
+          <th class="data-table__money">Activity</th>
+          <th class="data-table__money">Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="data-table__group" data-group-id="bills">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select group Bills"></td>
+          <td><button type="button" class="data-table__chevron" aria-expanded="true" aria-label="Toggle group Bills" data-action="data-table#toggleGroup"></button> Bills</td>
+          <td class="data-table__money"><%= data_table_money(1_200_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-950_000) %></td>
+          <td class="data-table__money"><%= data_table_money(250_000) %></td>
+        </tr>
+        <tr class="data-table__row" data-group="bills">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select Rent" data-action="data-table#select"></td>
+          <td>Rent</td>
+          <td class="data-table__money"><%= data_table_money(900_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-900_000) %></td>
+          <td class="data-table__money"><%= status_pill(:zero, 0) %></td>
+        </tr>
+        <tr class="data-table__row data-table__row--selected" data-group="bills">
+          <td class="data-table__select"><input type="checkbox" checked aria-label="Select Electric" data-action="data-table#select"></td>
+          <td>Electric (selected)</td>
+          <td class="data-table__money"><%= data_table_money(150_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-50_000) %></td>
+          <td class="data-table__money"><%= status_pill(:positive, 100_000) %></td>
+        </tr>
+        <tr class="data-table__bar-row" data-group="bills">
+          <td></td>
+          <td colspan="4"><div class="data-table__bar"><span class="data-table__bar-track"><span class="data-table__bar-fill" style="width: 33%"></span></span><span>Spent <%= data_table_money(50_000) %> of <%= data_table_money(150_000) %></span></div></td>
+        </tr>
+        <tr class="data-table__row" data-group="bills">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select Internet" data-action="data-table#select"></td>
+          <td>Internet</td>
+          <td class="data-table__money"><%= data_table_money(150_000) %></td>
+          <td class="data-table__money"><%= data_table_money(0) %></td>
+          <td class="data-table__money"><%= status_pill(:underfunded, 40_000) %></td>
+        </tr>
+        <tr class="data-table__group" data-group-id="fun">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select group Fun"></td>
+          <td><button type="button" class="data-table__chevron" aria-expanded="true" aria-label="Toggle group Fun" data-action="data-table#toggleGroup"></button> Fun</td>
+          <td class="data-table__money"><%= data_table_money(100_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-130_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-30_000) %></td>
+        </tr>
+        <tr class="data-table__row" data-group="fun">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select Dining Out" data-action="data-table#select"></td>
+          <td>Dining Out</td>
+          <td class="data-table__money"><%= data_table_money(100_000) %></td>
+          <td class="data-table__money"><%= data_table_money(-130_000) %></td>
+          <td class="data-table__money"><%= status_pill(:negative, -30_000) %></td>
+        </tr>
+        <tr class="data-table__bar-row" data-group="fun">
+          <td></td>
+          <td colspan="4"><div class="data-table__bar"><span class="data-table__bar-track"><span class="data-table__bar-fill data-table__bar-fill--over" style="width: 100%"></span></span><span>Spent <%= data_table_money(130_000) %> of <%= data_table_money(100_000) %></span></div></td>
+        </tr>
+        <tr class="data-table__row" data-group="fun">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select Hobbies" data-action="data-table#select"></td>
+          <td>Hobbies</td>
+          <td class="data-table__money data-table__cell--empty">&mdash;</td>
+          <td class="data-table__money data-table__cell--empty">&mdash;</td>
+          <td class="data-table__money"><%= status_pill(:zero, 0) %></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Register: columns, sortable date, scheduled row, editor host</h2>
+  <div class="data-table-wrap">
+    <table class="data-table" id="register-example" aria-label="Register example" data-data-table-target="table">
+      <thead>
+        <tr>
+          <th class="data-table__select"><input type="checkbox" aria-label="Select all"></th>
+          <th class="data-table__col--flag" scope="col">Flag</th>
+          <th class="data-table__col--image">Image</th>
+          <th aria-sort="descending"><button type="button" class="data-table__sort">Date</button></th>
+          <th>Payee</th>
+          <th>Category</th>
+          <th>Memo</th>
+          <th class="data-table__money">Outflow</th>
+          <th class="data-table__money">Inflow</th>
+          <th><span class="data-table__sr">Status</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="data-table__row" data-editor-id="editor-1">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
+          <td class="data-table__col--flag"><span role="img" aria-label="Flagged">&#9873;</span></td>
+          <td class="data-table__col--image"><span role="img" aria-label="Has attachment">&#9112;</span></td>
+          <td><button type="button" id="edit-1" class="data-table__edit-trigger" aria-expanded="false" aria-controls="editor-1" aria-label="Edit transaction, Corner Market, 11/20/2026" data-action="data-table#edit">11/20/2026</button></td>
+          <td class="data-table__payee">Corner Market</td>
+          <td class="data-table__category">Groceries</td>
+          <td>Weekly shop</td>
+          <td class="data-table__money"><%= data_table_money(84_500) %></td>
+          <td class="data-table__money data-table__cell--empty"></td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Cleared">&#10003;</span></td>
+        </tr>
+        <tr class="data-table__editor" id="editor-1" hidden tabindex="-1" data-action="keydown->data-table#keydown">
+          <td colspan="10">
+            <label>Memo <input type="text" value="Weekly shop"></label>
+            <button type="button" data-action="data-table#cancel">Cancel</button>
+          </td>
+        </tr>
+        <tr class="data-table__row data-table__row--split">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
+          <td class="data-table__col--flag"></td>
+          <td class="data-table__col--image"></td>
+          <td>11/18/2026</td>
+          <td class="data-table__payee">Home Supply</td>
+          <td class="data-table__category">Split (Multiple Categories)</td>
+          <td></td>
+          <td class="data-table__money"><%= data_table_money(120_000) %></td>
+          <td class="data-table__money data-table__cell--empty"></td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Uncleared">&#9675;</span></td>
+        </tr>
+        <tr class="data-table__row data-table__row--transfer">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
+          <td class="data-table__col--flag"></td>
+          <td class="data-table__col--image"></td>
+          <td>11/15/2026</td>
+          <td class="data-table__payee">Transfer : Savings</td>
+          <td class="data-table__category">&mdash;</td>
+          <td></td>
+          <td class="data-table__money"><%= data_table_money(200_000) %></td>
+          <td class="data-table__money data-table__cell--empty"></td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Cleared">&#10003;</span></td>
+        </tr>
+        <tr class="data-table__row data-table__row--scheduled">
+          <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
+          <td class="data-table__col--flag"></td>
+          <td class="data-table__col--image"></td>
+          <td>12/01/2026 (scheduled)</td>
+          <td class="data-table__payee">Landlord</td>
+          <td class="data-table__category">Rent</td>
+          <td>Upcoming</td>
+          <td class="data-table__money"><%= data_table_money(900_000) %></td>
+          <td class="data-table__money data-table__cell--empty"></td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Scheduled">&#9719;</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Empty states</h2>
+  <div class="data-table-empty" role="status">
+    <p class="data-table-empty__title">No transactions yet</p>
+    <p>Add a transaction to see it here.</p>
+  </div>
+  <br>
+  <div class="data-table-empty data-table-empty--filtered" role="status">
+    <p class="data-table-empty__title">Nothing matches the current filters</p>
+    <p>Clear a filter to show hidden rows.</p>
+  </div>
+</div>
