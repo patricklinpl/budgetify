@@ -18,6 +18,8 @@ Rails.application.routes.draw do
 
   # Component preview for UI primitives (#69); not routed in production.
   get "ui/tables", to: "ui/tables#show", as: :ui_tables unless Rails.env.production?
+  # Component preview for form primitives (#70); not routed in production.
+  get "ui/forms", to: "ui/forms#show", as: :ui_forms unless Rails.env.production?
 
   constraints(lambda { |request| request.host.start_with?("app.") }) do
     root "app_homes#show", as: :app_root
