@@ -16,6 +16,9 @@ Rails.application.routes.draw do
   delete "v1/session", to: "api/v1/sessions#destroy", defaults: { format: :json }
   get "users/sign_in", to: "sessions#new", as: :users_sign_in
 
+  # Component preview for dialog primitives (#71); not routed in production.
+  get "ui/dialogs", to: "ui/dialogs#show", as: :ui_dialogs unless Rails.env.production?
+
   # Component preview for UI primitives (#69); not routed in production.
   get "ui/tables", to: "ui/tables#show", as: :ui_tables unless Rails.env.production?
   # Component preview for form primitives (#70); not routed in production.
