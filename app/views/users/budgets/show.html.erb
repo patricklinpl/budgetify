@@ -1,9 +1,21 @@
 <% content_for :title, @budget.name %>
 
 <% content_for :shell_header do %>
-  <h1 class="app-shell-page-title"><%= @budget.name %></h1>
+  <% if @selected_account %>
+    <%= render "layouts/app_shell/register_header", account: @selected_account %>
+  <% else %>
+    <%= render "layouts/app_shell/plan_header" %>
+  <% end %>
 <% end %>
 
-<p>This budget belongs to <strong><%= Current.user.email_address %></strong>.</p>
-<%= link_to "Choose another budget", users_budgets_path, class: "budget-back-link" %>
-<%= button_to "Sign out", session_path, method: :delete, class: "app-home-signout" %>
+<% unless @selected_account %>
+  <% content_for :shell_inspector do %>
+    <%= render "layouts/app_shell/inspector_panels" %>
+  <% end %>
+<% end %>
+
+<section class="shell-card">
+  <p class="shell-eyebrow">Budget owner</p>
+  <p>This budget belongs to <strong><%= Current.user.email_address %></strong>.</p>
+  <p><%= link_to "Choose another budget", users_budgets_path, class: "budget-back-link" %></p>
+</section>
