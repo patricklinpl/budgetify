@@ -7,7 +7,8 @@ class CurrencyFormat
   include ActiveModel::Model
   include ActiveModel::Attributes
 
-  DECIMAL_SEPARATORS = [ ".", "," ].freeze
+  DECIMAL_SEPARATORS = [ ".", ",", "-", "/" ].freeze
+  GROUP_STYLES = %w[western indian].freeze # western 123,456 ; indian 1,23,456 (extension field)
   GROUP_SEPARATORS = [ ".", ",", " ", "'", "" ].freeze
   MAX_DECIMAL_DIGITS = 3 # milliunits carry three decimals
 
@@ -19,6 +20,7 @@ class CurrencyFormat
   attribute :group_separator, :string, default: ","
   attribute :currency_symbol, :string, default: "$"
   attribute :display_symbol, :boolean, default: true
+  attribute :group_style, :string, default: "western"
 
   # USD, matching YNAB's default currency format.
   def self.default
@@ -38,7 +40,7 @@ class CurrencyFormat
   # Returns [format, errors]; errors is empty when the format is valid.
   def self.build(values, base: default)
     values = values.to_h.stringify_keys
-    merged = base.as_json.merge(values.slice(*base.as_json.keys))
+    merged = base.storage_json.merge(values.slice(*base.storage_json.keys))
     format = new(merged.except("example_format"))
     errors = format.validation_errors(values)
     format.example_format = format.format_number(123_456_780) if errors.empty?
@@ -51,8 +53,9 @@ class CurrencyFormat
     unless raw.fetch("decimal_digits", 0).is_a?(Integer) && (0..MAX_DECIMAL_DIGITS).cover?(decimal_digits.to_i)
       errors << "decimal_digits must be a whole number from 0 to #{MAX_DECIMAL_DIGITS}"
     end
-    errors << "decimal_separator must be . or ," unless DECIMAL_SEPARATORS.include?(decimal_separator)
+    errors << "decimal_separator must be one of . , - /" unless DECIMAL_SEPARATORS.include?(decimal_separator)
     errors << "group_separator must be ., a comma, a space, ' or empty" unless GROUP_SEPARATORS.include?(group_separator)
+    errors << "group_style must be western or indian" unless GROUP_STYLES.include?(group_style)
     if group_separator.present? && group_separator == decimal_separator
       errors << "group_separator and decimal_separator must differ"
     end
@@ -77,8 +80,19 @@ class CurrencyFormat
     scale = 10**(MAX_DECIMAL_DIGITS - digits)
     rounded = (abs_milliunits.abs + scale / 2) / scale
     whole, fraction = rounded.divmod(10**digits)
-    grouped = whole.to_s.reverse.scan(/\d{1,3}/).join(group_separator.to_s).reverse
+    grouped = group_whole(whole.to_s)
     digits.zero? ? grouped : "#{grouped}#{decimal_separator}#{fraction.to_s.rjust(digits, '0')}"
+  end
+
+  # Inserts the group separator into a string of whole-number digits.
+  # western: 123,456,789. indian: three digits then pairs, 12,34,56,789.
+  def group_whole(digits)
+    sep = group_separator.to_s
+    return digits.gsub(/(\d)(?=(\d{3})+(?!\d))/, "\\1#{sep}") unless group_style == "indian"
+
+    head, tail = digits.length > 3 ? [ digits[0...-3], digits[-3..] ] : [ "", digits ]
+    pairs = head.reverse.scan(/\d{1,2}/).join(sep).reverse
+    pairs.empty? ? tail : "#{pairs}#{sep}#{tail}"
   end
 
   def as_json(*)
@@ -92,5 +106,12 @@ class CurrencyFormat
       "currency_symbol" => currency_symbol,
       "display_symbol" => display_symbol
     }
+  end
+
+  # The YNAB schema plus the group_style extension. This is what a plan
+  # stores and what the plan settings endpoint returns; the YNAB-shaped
+  # plan summary keeps using as_json so its schema is unchanged.
+  def storage_json
+    as_json.merge("group_style" => group_style)
   end
 end
