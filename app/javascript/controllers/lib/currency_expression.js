@@ -13,9 +13,15 @@ export function evaluateCurrency(text) {
   function number() {
     // Commas are thousands separators only: 1,234.56 is valid, 1,5 and 12,34 are not.
     const m = /^((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)/.exec(src.slice(i))
-    if (!m) fail()
+    if (!m) {
+      if (src[i] === ",") throw new Error("Check commas: use 1,234.56 (commas only as thousands separators)")
+      if (src[i] === ".") throw new Error("Check the decimal point: use a number like 12.50")
+      fail()
+    }
     i += m[0].length
-    if (src[i] === "," || src[i] === "." || /\d/.test(src[i] || "")) throw new Error("Check commas: use 1,234.56 (commas only as thousands separators)")
+    if (src[i] === ",") throw new Error("Check commas: use 1,234.56 (commas only as thousands separators)")
+    if (src[i] === ".") throw new Error("Check the decimal point: use one decimal point with digits after it, like 12.50")
+    if (/\d/.test(src[i] || "")) throw new Error("Check commas: use 1,234.56 (commas only as thousands separators)")
     return parseFloat(m[0].replace(/,/g, ""))
   }
   function factor() {
@@ -59,7 +65,7 @@ export function evaluateCurrency(text) {
     if (Math.abs(value * 100 - cents) > 1e-6) throw new Error("Use at most 2 decimal places (whole cents)")
     return { ok: true, milliunits: cents * 10 }
   } catch (e) {
-    return { ok: false, error: src.includes(",") && e.message === "Not a valid amount" ? "Check commas: use 1,234.56 (commas only as thousands separators)" : e.message }
+    return { ok: false, error: e.message }
   }
 }
 
