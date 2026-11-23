@@ -319,6 +319,37 @@ class PlanLifecycleApiTest < ActionDispatch::IntegrationTest
     assert_not_equal payee.id, carried.payee_id
   end
 
+  test "the eight number formats render a six-digit integer with two decimals through settings and the API" do
+    formats = {
+      "123,456.78" => { group_separator: ",", decimal_separator: "." },
+      "123.456,78" => { group_separator: ".", decimal_separator: "," },
+      "123 456.78" => { group_separator: " ", decimal_separator: "." },
+      "123'456.78" => { group_separator: "'", decimal_separator: "." },
+      "123 456-78" => { group_separator: " ", decimal_separator: "-" },
+      "123 456,78" => { group_separator: " ", decimal_separator: "," },
+      "123,456/78" => { group_separator: ",", decimal_separator: "/" },
+      "1,23,456.78" => { group_separator: ",", decimal_separator: ".", group_style: "indian" }
+    }
+    account = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 123_456_780 })
+    formats.each do |expected, values|
+      patch "/v1/plans/#{@plan.public_id}/settings", params: { settings: { currency_format: values.merge(currency_symbol: "$", symbol_first: true, display_symbol: false) } },
+        headers: auth_headers, as: :json
+      assert_response :ok, expected
+      assert_equal expected, @plan.reload.currency_format.format_number(123_456_780)
+      get "/v1/plans/#{@plan.public_id}/accounts/#{account.public_id}", headers: auth_headers
+      assert_equal expected, response.parsed_body.dig("data", "account", "balance_formatted"), expected
+      assert_equal 123456.78, response.parsed_body.dig("data", "account", "balance_currency")
+      get "/v1/plans/#{@plan.public_id}/settings", headers: auth_headers
+      assert_equal values.fetch(:group_style, "western"), response.parsed_body.dig("data", "settings", "currency_format", "group_style")
+    end
+    assert_equal "-1,23,456.78", CurrencyFormat.new(group_style: "indian", display_symbol: false).format_milliunits(-123_456_780)
+    assert_equal "12,34,56,789.00", CurrencyFormat.new(group_style: "indian", display_symbol: false).format_milliunits(123_456_789_000)
+    assert_equal "999", CurrencyFormat.new(group_style: "indian", display_symbol: false, decimal_digits: 0).format_milliunits(999_000)
+
+    patch "/v1/plans/#{@plan.public_id}/settings", params: { settings: { currency_format: { group_style: "lakh" } } }, headers: auth_headers, as: :json
+    assert_response :bad_request
+  end
+
   test "unauthenticated writes are rejected" do
     post "/v1/plans", params: { plan: { name: "Nope" } }, as: :json
     assert_response :unauthorized
