@@ -1,0 +1,108 @@
+<% content_for :title, "Plan settings" %>
+<% cf = @form[:currency_format].stringify_keys %>
+
+<% content_for :shell_header do %>
+  <div class="shell-header">
+    <div class="shell-header-row">
+      <div class="shell-header-title">
+        <p class="shell-eyebrow">Plan settings</p>
+        <h1 class="app-shell-page-title"><%= @budget.name %></h1>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<section class="plan-settings">
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+  <% if @errors.any? %>
+    <div class="plan-settings__errors" role="alert">
+      <p>Plan settings were not saved.</p>
+      <ul><% @errors.each do |message| %><li><%= message %></li><% end %></ul>
+    </div>
+  <% end %>
+
+  <%= form_with url: users_budget_path(@budget.public_id), method: :patch, scope: :budget, class: "plan-settings__form" do |f| %>
+    <div class="field">
+      <label class="field__label" for="budget_name">Plan name</label>
+      <input class="field__input" id="budget_name" name="budget[name]" value="<%= @form[:name] %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>">
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="budget_date_format">Date format</label>
+      <select class="field__input" id="budget_date_format" name="budget[date_format]">
+        <% PlanLifecycle::DATE_FORMATS.each do |value| %>
+          <option value="<%= value %>" <%= "selected" if value == @form[:date_format] %>><%= value %></option>
+        <% end %>
+      </select>
+    </div>
+
+    <fieldset class="plan-settings__currency">
+      <legend>Currency format (display only, amounts never change)</legend>
+      <div class="field"><label class="field__label" for="cf_iso">Currency code</label>
+        <input class="field__input" id="cf_iso" name="budget[currency_format][iso_code]" value="<%= cf['iso_code'] %>" maxlength="3"></div>
+      <div class="field"><label class="field__label" for="cf_symbol">Currency symbol</label>
+        <input class="field__input" id="cf_symbol" name="budget[currency_format][currency_symbol]" value="<%= cf['currency_symbol'] %>" maxlength="4"></div>
+      <div class="field"><label class="field__label" for="cf_pos">Symbol position</label>
+        <select class="field__input" id="cf_pos" name="budget[currency_format][symbol_first]">
+          <option value="true" <%= "selected" if cf["symbol_first"].to_s == "true" %>>Before the amount ($123.45)</option>
+          <option value="false" <%= "selected" if cf["symbol_first"].to_s == "false" %>>After the amount (123,45$)</option>
+        </select></div>
+      <div class="field"><label class="field__label" for="cf_display">Show symbol</label>
+        <select class="field__input" id="cf_display" name="budget[currency_format][display_symbol]">
+          <option value="true" <%= "selected" if cf["display_symbol"].to_s == "true" %>>Yes</option>
+          <option value="false" <%= "selected" if cf["display_symbol"].to_s == "false" %>>No</option>
+        </select></div>
+      <div class="field"><label class="field__label" for="cf_dec">Decimal separator</label>
+        <select class="field__input" id="cf_dec" name="budget[currency_format][decimal_separator]">
+          <% CurrencyFormat::DECIMAL_SEPARATORS.each do |sep| %><option value="<%= sep %>" <%= "selected" if cf["decimal_separator"] == sep %>><%= sep %></option><% end %>
+        </select></div>
+      <div class="field"><label class="field__label" for="cf_group">Group separator</label>
+        <select class="field__input" id="cf_group" name="budget[currency_format][group_separator]">
+          <% { "." => ".", "," => ",", " " => "space", "'" => "apostrophe", "" => "none" }.each do |sep, label| %>
+            <option value="<%= sep %>" <%= "selected" if cf["group_separator"] == sep %>><%= label %></option>
+          <% end %>
+        </select></div>
+      <div class="field"><label class="field__label" for="cf_digits">Decimal digits</label>
+        <input class="field__input" id="cf_digits" name="budget[currency_format][decimal_digits]" value="<%= cf['decimal_digits'] %>" inputmode="numeric"></div>
+    </fieldset>
+
+    <div class="plan-settings__actions">
+      <button type="submit" class="btn btn--primary">Save settings</button>
+      <%= link_to "Cancel", users_budget_path(@budget.public_id), class: "btn btn--secondary" %>
+    </div>
+  <% end %>
+
+  <section class="plan-settings__fresh" data-controller="dialog">
+    <h2>Fresh Start</h2>
+    <p>Create a new plan from this one and keep the original as an archived plan.</p>
+    <button type="button" class="btn btn--destructive" data-dialog-id="dlg-fresh-start" data-action="dialog#open">Fresh Start&hellip;</button>
+
+    <dialog id="dlg-fresh-start" class="dialog dialog--destructive" aria-labelledby="dlg-fresh-t" data-dialog-name="Fresh Start" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+      <div class="dialog__header"><h2 class="dialog__title" id="dlg-fresh-t">Start fresh from "<%= @budget.name %>"?</h2></div>
+      <div class="dialog__body">
+        <p>A new plan takes this plan's name. This plan stays, unchanged, as "<%= PlanLifecycle.archived_name(@budget.name) %>".</p>
+        <p><strong>Carried to the new plan:</strong></p>
+        <ul class="dialog__facts">
+          <li>Date and currency formats</li>
+          <li>Category groups and categories, including their targets</li>
+          <li>Open accounts, each starting at zero and not linked to any bank</li>
+          <li>Scheduled and recurring transactions</li>
+        </ul>
+        <p><strong>Not carried:</strong></p>
+        <ul class="dialog__facts">
+          <li>Posted transactions and balances</li>
+          <li>Budget assignments</li>
+          <li>Closed accounts</li>
+        </ul>
+        <p>The new plan is private to you. Nothing is shared.</p>
+        <p class="dialog__survives">Survives Cancel: nothing is created and this plan is unchanged.</p>
+      </div>
+      <div class="dialog__footer">
+        <%= form_with url: fresh_start_users_budget_path(@budget.public_id), method: :post, class: "plan-settings__fresh-form" do %>
+          <button type="button" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
+          <button type="submit" class="btn btn--destructive">Create fresh plan</button>
+        <% end %>
+      </div>
+    </dialog>
+  </section>
+</section>
