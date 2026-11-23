@@ -40,9 +40,8 @@
   padding: var(--space-3);
 }
 
-.plan-settings__fresh-form {
+.plan-settings__fresh-form,
+.plan-settings__cancel-form {
   display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-  width: 100%;
+  margin: 0;
 }
