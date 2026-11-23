@@ -34,6 +34,13 @@ Rails.application.routes.draw do
         get :settings
         post :fresh_start
       end
+      resources :accounts, only: %i[new create edit update destroy], param: :public_id do
+        member do
+          post :close
+          post :reopen
+          post :adjust
+        end
+      end
     end
   end
   get "api/v1/catalog", to: "api/v1/catalogs#index", as: :api_v1_catalog, defaults: { format: :json }
