@@ -248,30 +248,37 @@ class PlanLifecycleApiTest < ActionDispatch::IntegrationTest
     assert_equal archived.sub(PlanLifecycle::ARCHIVED_SUFFIX, ""), response.parsed_body.dig("data", "plan", "name")
   end
 
-  test "Fresh Start is blocked, with nothing changed, when a scheduled transaction cannot carry unchanged" do
+  test "Fresh Start carries closed accounts as closed and schedules that use them unchanged" do
     open_account = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
     closed = Account.open!(budget: @plan, attributes: { "name" => "Old", "type" => "checking", "balance" => 0 })
     closed.update!(closed: true)
     @plan.scheduled_transactions.create!(account: closed, date_first: Date.current, date_next: Date.current,
       frequency: "monthly", amount: -5_000)
-    ok = @plan.scheduled_transactions.create!(account: open_account, date_first: Date.current, date_next: Date.current,
-      frequency: "monthly", amount: -1_000)
-    blocked_id = @plan.scheduled_transactions.find_by!(account: closed).public_id
+    @plan.scheduled_transactions.create!(account: open_account, transfer_account: closed, date_first: Date.current + 30,
+      date_next: Date.current + 30, frequency: "never", amount: -1_000)
+
+    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
+    assert_response :created
+    assert_equal({ "open_accounts_carried" => 1, "closed_accounts_carried_closed" => 1, "scheduled_transactions_carried" => 2 },
+      response.parsed_body.dig("data", "carry_report"))
+    fresh = Budget.find_by!(public_id: response.parsed_body.dig("data", "plan", "id"))
+    assert_equal [ [ "Checking", false ], [ "Old", true ] ], fresh.accounts.order(:id).pluck(:name, :closed)
+    assert_equal [ -5_000, -1_000 ], fresh.scheduled_transactions.order(:id).pluck(:amount)
+    assert_equal "Old", fresh.scheduled_transactions.order(:id).last.transfer_account.name
+  end
+
+  test "Fresh Start is blocked, with nothing changed, when a schedule uses a deleted account" do
+    gone = Account.open!(budget: @plan, attributes: { "name" => "Gone", "type" => "checking", "balance" => 0 })
+    scheduled = @plan.scheduled_transactions.create!(account: gone, date_first: Date.current, date_next: Date.current,
+      frequency: "monthly", amount: -5_000)
+    gone.update!(deleted: true)
 
     assert_no_difference -> { Budget.count } do
       post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
     end
     assert_response :unprocessable_entity
-    blockers = response.parsed_body.fetch("blocking_scheduled_transactions")
-    assert_equal [ blocked_id ], blockers.map { |b| b["id"] }
+    assert_equal [ scheduled.public_id ], response.parsed_body.fetch("blocking_scheduled_transactions").map { |b| b["id"] }
     assert_equal "Everyday", @plan.reload.name
-
-    @plan.scheduled_transactions.find_by!(account: closed).update!(deleted: true)
-    post "/v1/plans/#{@plan.public_id}/fresh_start", headers: auth_headers, as: :json
-    assert_response :created
-    report = response.parsed_body.dig("data", "carry_report")
-    assert_equal({ "open_accounts_carried" => 1, "closed_accounts_not_carried" => 1, "scheduled_transactions_carried" => 1 }, report)
-    assert_equal ok.amount, Budget.find_by!(public_id: response.parsed_body.dig("data", "plan", "id")).scheduled_transactions.sole.amount
   end
 
   test "Fresh Start keeps payee, flag and memo metadata on carried scheduled transactions" do
