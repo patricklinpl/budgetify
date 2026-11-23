@@ -27,7 +27,8 @@ class AppShellTest < ActionDispatch::IntegrationTest
     get users_budget_path(budget.public_id)
 
     assert_response :success
-    assert_select ".app-shell-account-group-name", %w[CASH CREDIT]
+    names = css_select(".app-shell-account-group-name").map { |n| n.text.strip }
+    assert_equal %w[CASH CREDIT], names
     assert_select ".app-shell-account-group-header", /\$2,000\.00/
     assert_select ".app-shell-account", /Checking/
     assert_select ".app-shell-account .money--negative", "-$25.00"
