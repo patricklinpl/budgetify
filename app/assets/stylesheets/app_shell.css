@@ -102,6 +102,11 @@ body.app-shell-body {
   color: var(--color-status-negative-subtle);
 }
 
+/* Dark theme: the subtle negative tint is a dark fill, so use the text token. */
+[data-theme="dark"] .app-shell-sidebar .money--negative {
+  color: var(--color-status-negative-text);
+}
+
 .app-shell-empty {
   margin: var(--space-4) 0 0;
   color: var(--color-text-on-inverse-muted);
@@ -135,7 +140,6 @@ body.app-shell-body {
 
 /* Collapsed rail: names and group chrome hide; the toggle stays reachable. */
 .app-shell--collapsed .app-shell-plan-name,
-.app-shell--collapsed .app-shell-nav,
 .app-shell--collapsed .app-shell-account-group,
 .app-shell--collapsed .app-shell-empty {
   display: none;
@@ -143,4 +147,17 @@ body.app-shell-body {
 
 .app-shell--collapsed .app-shell-sidebar-top {
   justify-content: center;
+}
+
+/* Collapsed rail keeps the nav as one-letter badges (full label stays in the
+   DOM and as the tooltip). */
+.app-shell--collapsed .app-shell-nav-item {
+  padding: var(--space-2) 0;
+  font-size: 0;
+  text-align: center;
+}
+
+.app-shell--collapsed .app-shell-nav-item::before {
+  content: attr(data-initial);
+  font-size: var(--font-size-md);
 }
