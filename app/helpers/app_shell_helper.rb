@@ -18,6 +18,12 @@ module AppShellHelper
     end
   end
 
+  # Closed accounts stay reachable as real links (issue #55); they are
+  # listed apart from the open groups and carry no balance total.
+  def shell_closed_accounts(budget)
+    budget.accounts.not_deleted.where(closed: true).order(:name).to_a
+  end
+
   # Account balances are stored in milliunits. Display format is a placeholder
   # until plan currency settings land (#54 PLAN-03).
   def shell_money(milliunits)
