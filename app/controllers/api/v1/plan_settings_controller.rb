@@ -34,11 +34,11 @@ module Api
             return bad_request("currency_format values must be strings, numbers or booleans.")
           end
 
-          values = currency.permit(*CurrencyFormat.new.as_json.keys).to_h
+          values = currency.permit(*CurrencyFormat.new.storage_json.keys).to_h
           format, errors = CurrencyFormat.build(values, base: plan.currency_format)
           return bad_request(errors.to_sentence) unless errors.empty?
 
-          updates[:currency_format] = format.as_json
+          updates[:currency_format] = format.storage_json
         end
 
         plan.update!(updates) if updates.any?
@@ -47,7 +47,7 @@ module Api
 
       private
         def settings_json
-          { date_format: { format: plan.date_format }, currency_format: plan.currency_format.as_json }
+          { date_format: { format: plan.date_format }, currency_format: plan.currency_format.storage_json }
         end
 
         def bad_request(detail)
