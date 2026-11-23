@@ -83,4 +83,15 @@ class AppShellTest < ActionDispatch::IntegrationTest
     get users_budget_path(budget.public_id, account: "missing")
     assert_response :not_found
   end
+
+  test "register summary shows dashes when cleared and uncleared do not add up to the balance" do
+    budget = @user.budgets.create!(name: "Household")
+    visa = budget.accounts.create!(name: "Visa", type: "creditCard", balance: -25_000)
+
+    get users_budget_path(budget.public_id, account: visa.public_id)
+
+    assert_response :success
+    summary = css_select(".shell-balance-summary").first.text.squish
+    assert_match(/Cleared — \+ Uncleared — = Working -\$25\.00/, summary)
+  end
 end
