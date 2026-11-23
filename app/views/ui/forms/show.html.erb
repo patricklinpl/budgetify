@@ -5,7 +5,7 @@
   <p>Presentation and interaction conventions only (#70). Theme: <%= link_to "light", ui_forms_path %> | <%= link_to "dark", ui_forms_path(theme: "dark") %></p>
   <p class="form-affordances">Editor convention: Enter commits, Escape cancels and restores the previous value, leaving the field commits with the same checks. Invalid input keeps your text and shows an error.</p>
 
-  <form data-controller="form" data-action="input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update" onsubmit="return false">
+  <form data-controller="form" data-action="input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" onsubmit="return false">
     <h2>Text input: default, disabled, error</h2>
     <div class="field" data-controller="field" data-field-kind-value="text">
       <label class="field__label" for="f-name">Account name</label>
