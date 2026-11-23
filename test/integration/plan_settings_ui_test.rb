@@ -48,7 +48,7 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_select "input#budget_name[value=?]", "Household"
     assert_select "select#budget_date_format option[selected]", "MM/DD/YYYY"
     assert_select "a.btn", text: "Cancel", href: users_budget_path(@plan.public_id)
-    assert_select "dialog#dlg-fresh-start .dialog__facts li", /Open accounts/
+    assert_select "dialog#dlg-fresh-start .dialog__facts li", /All accounts/
     assert_select "dialog#dlg-fresh-start", /private to you/
   end
 
@@ -111,8 +111,9 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
   end
 
   test "Fresh Start that cannot carry a scheduled transaction shows why and changes nothing" do
-    closed = @plan.accounts.create!(name: "Old", type: "checking", closed: true)
-    @plan.scheduled_transactions.create!(account: closed, date_first: Date.current, date_next: Date.current, frequency: "monthly", amount: -1000)
+    gone = @plan.accounts.create!(name: "Gone", type: "checking")
+    @plan.scheduled_transactions.create!(account: gone, date_first: Date.current, date_next: Date.current, frequency: "monthly", amount: -1000)
+    gone.update!(deleted: true)
 
     assert_no_difference -> { Budget.count } do
       post fresh_start_users_budget_path(@plan.public_id)
