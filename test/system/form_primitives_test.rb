@@ -49,6 +49,30 @@ class FormPrimitivesSystemTest < ApplicationSystemTestCase
     assert_text "Restored 11/23/2026"
     assert_selector "#date-err", text: "not a valid date"
     assert_equal "date-err", find_field("Date")["aria-describedby"]
+    assert_no_selector "#f-date[aria-invalid]"
+    assert_no_selector "#f-date.field--invalid, .field--invalid:has(#f-date)"
+    assert_selector "[data-form-target='submit']:not([disabled])"
+  end
+
+  test "an invalid date restored on blur is valid again and submit stays enabled" do
+    find_field("Date").set("13/45/2026")
+    find_field("Assigned").click
+
+    assert_field "Date", with: "11/23/2026"
+    assert_text "Restored 11/23/2026"
+    assert_no_selector "#f-date[aria-invalid]"
+    assert_selector "[data-form-target='submit']:not([disabled])"
+  end
+
+  test "decimal syntax errors are not reported as comma problems" do
+    [ "5.", "1.2.3", ".", "1..5" ].each do |text|
+      commit "Assigned", text
+      assert_text "Check the decimal point"
+      assert_no_text "Check commas"
+    end
+    commit "Assigned", "1,5"
+    assert_text "Check commas"
+    assert_no_text "Check the decimal point"
   end
 
   test "the calendar picker and typed entry agree and day buttons are fully labelled" do
