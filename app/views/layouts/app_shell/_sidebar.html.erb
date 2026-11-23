@@ -1,7 +1,10 @@
-<%# Sidebar region (LAY-02, LAY-03). Expects @budget. %>
+<%# Sidebar region (LAY-02, LAY-03, LAY-06). Expects @budget; @selected_account is optional. %>
 <nav class="app-shell-sidebar" aria-label="Plan navigation">
   <div class="app-shell-sidebar-top">
-    <span class="app-shell-plan-name"><%= @budget.name %></span>
+    <div class="app-shell-sidebar-title">
+      <%= link_to "Budgetify", app_root_path, class: "app-shell-brand" %>
+      <span class="app-shell-plan-name"><%= @budget.name %></span>
+    </div>
     <button type="button" class="app-shell-collapse" data-action="app-shell#toggle"
             data-app-shell-target="toggle" aria-expanded="true" aria-label="Collapse sidebar">
       <span aria-hidden="true">&laquo;</span>
@@ -9,10 +12,13 @@
   </div>
 
   <ul class="app-shell-nav">
-    <li><%= link_to "Plan", users_budget_path(@budget.public_id), class: "app-shell-nav-item", title: "Plan", data: { initial: "P" }, aria: { current: "page" } %></li>
-    <%# Reflect and All Accounts have no routes yet (#64, #62). Shown as inactive placeholders. %>
-    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="Reflect" data-initial="R" aria-disabled="true">Reflect</span></li>
-    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="All Accounts" data-initial="A" aria-disabled="true">All Accounts</span></li>
+    <li>
+      <%= link_to "Plan", users_budget_path(@budget.public_id), class: "app-shell-nav-item", title: "Plan", data: { initial: "P" },
+                  aria: { current: (@selected_account ? nil : "page") } %>
+    </li>
+    <%# Reflect and All Accounts have no routes yet. Shown disabled, not as dead links. %>
+    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="Reflect: not available yet" data-initial="R" aria-disabled="true">Reflect</span></li>
+    <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="All Accounts: not available yet" data-initial="A" aria-disabled="true">All Accounts</span></li>
   </ul>
 
   <% groups = shell_account_groups(@budget) %>
@@ -27,13 +33,22 @@
         </summary>
         <ul class="app-shell-accounts">
           <% group[:accounts].each do |account| %>
-            <li class="app-shell-account">
-              <span class="app-shell-account-name"><%= account.name %></span>
-              <span class="<%= shell_money_class(account.balance) %>"><%= shell_money(account.balance) %></span>
+            <% selected = @selected_account&.id == account.id %>
+            <li>
+              <%= link_to users_budget_path(@budget.public_id, account: account.public_id),
+                          class: "app-shell-account#{' app-shell-account--selected' if selected}",
+                          aria: { current: (selected ? "page" : nil) } do %>
+                <span class="app-shell-account-name"><%= account.name %></span>
+                <span class="<%= shell_money_class(account.balance) %>"><%= shell_money(account.balance) %></span>
+              <% end %>
             </li>
           <% end %>
         </ul>
       </details>
     <% end %>
   <% end %>
+
+  <div class="app-shell-sidebar-footer">
+    <%= button_to "Sign out", session_path, method: :delete, class: "app-shell-signout", title: "Sign out", form: { class: "app-shell-signout-form" }, data: { initial: "S" } %>
+  </div>
 </nav>
