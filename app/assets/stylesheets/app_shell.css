@@ -184,13 +184,22 @@ body.app-shell-body {
 }
 
 .app-shell-account:hover {
-  background: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-text-on-inverse) 12%, transparent);
 }
 
+/* Selected row: a filled background dark enough for AA (4.5:1) with white
+   text and the negative amount color in both themes, plus a left marker that
+   does not rely on hue. */
 .app-shell-account--selected,
 .app-shell-account--selected:hover {
-  background: var(--color-accent);
+  background: var(--color-accent-active);
   color: var(--color-text-on-accent);
+  box-shadow: inset 3px 0 0 var(--color-highlight-on-inverse);
+}
+
+[data-theme="dark"] .app-shell-account--selected,
+[data-theme="dark"] .app-shell-account--selected:hover {
+  background: var(--color-accent-faint);
 }
 
 .app-shell-account--selected .app-shell-account-name {
@@ -430,4 +439,4 @@ body.app-shell-body {
 
 .shell-panel-row dd {
   margin: 0;
-}
+  }
