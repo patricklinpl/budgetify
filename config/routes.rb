@@ -48,6 +48,8 @@ Rails.application.routes.draw do
   get "v1/plans/:plan_id/accounts", to: "api/v1/accounts#index", defaults: { format: :json }
   post "v1/plans/:plan_id/accounts", to: "api/v1/accounts#create", defaults: { format: :json }
   get "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#show", defaults: { format: :json }
+  patch "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#update", defaults: { format: :json }
+  delete "v1/plans/:plan_id/accounts/:account_id", to: "api/v1/accounts#destroy", defaults: { format: :json }
   get "v1/plans/:plan_id/categories", to: "api/v1/categories#index", defaults: { format: :json }
   post "v1/plans/:plan_id/categories", to: "api/v1/categories#create", defaults: { format: :json }
   get "v1/plans/:plan_id/categories/:category_id", to: "api/v1/categories#show", defaults: { format: :json }

@@ -8,7 +8,7 @@ class Account < ApplicationRecord
   # YNAB account types (spec: AccountType enum in responses).
   TYPES = %w[checking savings cash creditCard lineOfCredit otherAsset otherLiability mortgage autoLoan studentLoan personalLoan medicalDebt otherDebt].freeze
   # Types accepted when creating an account (spec: SaveAccountType enum).
-  SAVE_TYPES = %w[checking savings cash creditCard otherAsset otherLiability].freeze
+  SAVE_TYPES = %w[checking savings cash creditCard lineOfCredit otherAsset otherLiability].freeze
   # Types whose spending is credit-backed: overspending from these accounts
   # carries as category debt instead of reducing next month's Ready to
   # Assign (spec: AccountType).
@@ -53,6 +53,87 @@ class Account < ApplicationRecord
       opening.apply_amounts!(+1)
       account.reload
     end
+  end
+
+  ADJUSTMENT_PAYEE_NAME = "Manual Balance Adjustment".freeze
+
+  class Blocked < StandardError; end
+
+  # Tracking (off-budget) accounts are the only ones with a tested
+  # adjustment/close reference (TRACK-01, TRACK-02). On-budget behavior
+  # for these actions is untested, so it is refused rather than guessed.
+  def tracking?
+    !on_budget?
+  end
+
+  # Records an auditable, category-less Manual Balance Adjustment so the
+  # balance equals target without rewriting history.
+  def adjust_balance!(target)
+    raise Blocked, "Only tracking accounts can have their balance adjusted here." unless tracking?
+    raise Blocked, "This account is closed. Reopen it before changing its balance." if closed?
+    delta = target - balance
+    return nil if delta.zero?
+
+    transaction do
+      payee = budget.payees.not_deleted.where("LOWER(name) = ?", ADJUSTMENT_PAYEE_NAME.downcase).first ||
+        budget.payees.create!(name: ADJUSTMENT_PAYEE_NAME)
+      entry = budget.transactions.create!(account: self, payee: payee, date: Date.current,
+        amount: delta, cleared: "cleared", approved: true, memo: ADJUSTMENT_PAYEE_NAME)
+      entry.apply_amounts!(+1)
+      entry
+    end
+  end
+
+  # Close zeroes a tracking balance with an adjustment and keeps history.
+  def close!
+    raise Blocked, "Only tracking accounts with a nonzero balance can be closed with a zeroing adjustment; this account is on budget." if !tracking? && !balance.zero?
+    transaction do
+      adjust_balance!(0) if tracking?
+      update!(closed: true)
+    end
+    self
+  end
+
+  # Reopening returns the account at 0, not its pre-close balance.
+  def reopen!
+    update!(closed: false)
+    self
+  end
+
+  # Why this account cannot be deleted, or nil when it can. Deletable only
+  # when its sole activity is its opening balance and no budget money sits on
+  # its payment category (deleting would otherwise drop assignments silently).
+  def delete_blocker
+    live = transactions.not_deleted.to_a
+    unless live.size == 1 && live.first.opening_balance? && live.first.transfer_account_id.nil? &&
+        !Transaction.not_deleted.where(transfer_account_id: id).exists? &&
+        !ScheduledTransaction.where(deleted: false).where("account_id = ? OR transfer_account_id = ?", id, id).exists?
+      return "This account has transactions, transfers or scheduled items. Remove them before deleting it."
+    end
+
+    category = Category.not_deleted.find_by(payment_account_id: id)
+    if category && category.month_categories.where("budgeted <> 0 OR activity <> 0 OR credit_activity <> 0").exists?
+      return "Its payment category has money assigned or activity. Move or remove that first so no budget money is lost."
+    end
+    nil
+  end
+
+  def deletable?
+    delete_blocker.nil?
+  end
+
+  def delete_opening_only!
+    reason = delete_blocker
+    raise Blocked, reason if reason
+    transaction do
+      opening = transactions.not_deleted.sole
+      opening.apply_amounts!(-1)
+      opening.update!(deleted: true)
+      Category.not_deleted.where(payment_account_id: id).find_each { |c| c.update!(deleted: true) }
+      Payee.not_deleted.where(transfer_account_id: id).find_each { |p| p.update!(deleted: true) }
+      update!(deleted: true)
+    end
+    self
   end
 
   def credit?
