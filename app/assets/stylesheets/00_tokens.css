@@ -1,0 +1,155 @@
+/*
+ * Budgetify design tokens (issue #67).
+ *
+ * All color, spacing, radius, border, shadow and typography values live here as
+ * CSS custom properties. Roles are named by purpose, never by value. Light is
+ * the default theme; set data-theme="dark" on <html> for the dark theme.
+ *
+ * Values are measured approximations of the reference palette, not copied
+ * assets. Display formatting of currency is not decided here (see #54 PLAN-03).
+ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Accent */
+  --color-accent: #545bfe;
+  --color-accent-hover: #464cd1;
+  --color-accent-active: #383ca3;
+  --color-accent-light: #a3acff;
+  --color-accent-subtle: #d4d5ff;
+  --color-accent-faint: #f1f1ff;
+  --color-text-on-accent: #fff;
+
+  /* Status. Pair each with a non-color cue (icon or label) in components. */
+  --color-status-positive: #77ba21;
+  --color-status-positive-text: #508316;
+  --color-status-positive-subtle: #eff8f2;
+  --color-status-negative: #bf2e3b;
+  --color-status-negative-text: #9e2530;
+  --color-status-negative-subtle: #fff3f1;
+  --color-status-negative-border: #f0c9c5;
+  --color-status-warning: #f6c91d;
+  --color-status-warning-text: #362c05;
+  --color-status-warning-strong: #daac00;
+
+  /* Text */
+  --color-text-primary: #292b3d;
+  --color-text-secondary: #3c3e53;
+  --color-text-muted: #56596c;
+  --color-text-subtle: #727484;
+
+  /* Surfaces and borders */
+  --color-surface-page: #f7f8f3;
+  --color-surface-raised: #fff;
+  --color-surface-sunken: #f1f1ff;
+  --color-surface-inverse: #22235f;
+  --color-text-on-inverse: #f8f8ff;
+  --color-text-on-inverse-muted: #d7d9f0;
+  --color-highlight-on-inverse: #88e1cc;
+  --color-border: #dbd7cc;
+  --color-border-strong: #c7c4bd;
+  --color-border-input: #c7c4bd;
+  --color-border-input-active: var(--color-accent);
+  --color-focus-ring: rgba(84, 91, 254, 0.18);
+  --color-overlay: rgba(41, 43, 61, 0.45);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-accent: #7a80ff;
+  --color-accent-hover: #a3acff;
+  --color-accent-active: #d4d5ff;
+  --color-accent-light: #545bfe;
+  --color-accent-subtle: #383ca3;
+  --color-accent-faint: #2a2d63;
+  --color-text-on-accent: #fff;
+
+  --color-status-positive: #77ba21;
+  --color-status-positive-text: #9ad35a;
+  --color-status-positive-subtle: #1f3320;
+  --color-status-negative: #e0505c;
+  --color-status-negative-text: #f08a93;
+  --color-status-negative-subtle: #3a1d22;
+  --color-status-negative-border: #6b2a32;
+  --color-status-warning: #f6c91d;
+  --color-status-warning-text: #f6c91d;
+  --color-status-warning-strong: #daac00;
+
+  --color-text-primary: #f1f1f6;
+  --color-text-secondary: #d6d7e2;
+  --color-text-muted: #aeb0c2;
+  --color-text-subtle: #8c8fa3;
+
+  --color-surface-page: #181a33;
+  --color-surface-raised: #20234f;
+  --color-surface-sunken: #14162b;
+  --color-surface-inverse: #14162b;
+  --color-text-on-inverse: #f8f8ff;
+  --color-text-on-inverse-muted: #d7d9f0;
+  --color-highlight-on-inverse: #88e1cc;
+  --color-border: #35386b;
+  --color-border-strong: #4a4e86;
+  --color-border-input: #4a4e86;
+  --color-border-input-active: var(--color-accent);
+  --color-focus-ring: rgba(122, 128, 255, 0.3);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+}
+
+:root {
+  /* Typography. Figtree is the reference face but is not bundled yet (open
+     product decision on #67), so the stack falls back to Inter and system fonts. */
+  --font-family-base: Inter, Figtree, "Helvetica Neue", Helvetica, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 25px;
+  --font-size-3xl: 32px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-base: 1.5;
+  --line-height-loose: 1.65;
+
+  /* Money/number style: tabular figures, format-agnostic. */
+  --font-feature-money: "tnum" 1;
+  --font-variant-money: tabular-nums;
+
+  /* Spacing scale (4px base) */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radius, borders, shadows */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 9px;
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --shadow-raised: 0 1px 3px rgba(41, 43, 61, 0.12);
+  --shadow-overlay: 0 20px 56px rgba(6, 8, 42, 0.27);
+  --transition-fast: 120ms ease;
+}
+
+/* Money style for any element that displays a currency amount. */
+.money {
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: var(--font-variant-money);
+  text-align: right;
+}
+
+.money--negative {
+  color: var(--color-status-negative-text);
+}
