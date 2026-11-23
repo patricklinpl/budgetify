@@ -443,24 +443,24 @@ body.app-shell-body {
 
 /* end of app shell styles */
 
-/* Narrow screens: the sidebar never takes grid width from the content. The
-   collapsed rail keeps its column; an expanded sidebar overlays the page so
-   forms stay usable and nav stays reachable. */
+/* Phones (600px and below): the sidebar is always the 56px rail, whatever
+   was stored on a wider screen, so it never covers or squeezes the page and
+   no overlay or focus trap is needed. The expand toggle is hidden there. */
 @media (max-width: 600px) {
+  .app-shell-collapse {
+    display: none;
+  }
+
+  /* The inspector stacks under the content instead of taking a third column. */
   .app-shell,
   .app-shell--collapsed {
-    grid-template-columns: 56px minmax(0, 1fr) auto;
+    grid-template-columns: 56px minmax(0, 1fr);
   }
 
-  .app-shell-main {
+  .app-shell-inspector {
     grid-column: 2;
-  }
-
-  .app-shell:not(.app-shell--collapsed) .app-shell-sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: 260px;
-    z-index: 30;
-    box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.35);
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
   }
 }
