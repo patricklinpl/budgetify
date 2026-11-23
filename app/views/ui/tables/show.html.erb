@@ -30,14 +30,14 @@
           <td class="data-table__money"><%= data_table_money(-950_000) %></td>
           <td class="data-table__money"><%= data_table_money(250_000) %></td>
         </tr>
-        <tr class="data-table__row" data-group="bills" aria-selected="false">
+        <tr class="data-table__row" data-group="bills">
           <td class="data-table__select"><input type="checkbox" aria-label="Select Rent" data-action="data-table#select"></td>
           <td>Rent</td>
           <td class="data-table__money"><%= data_table_money(900_000) %></td>
           <td class="data-table__money"><%= data_table_money(-900_000) %></td>
           <td class="data-table__money"><%= status_pill(:zero, 0) %></td>
         </tr>
-        <tr class="data-table__row" data-group="bills" aria-selected="true">
+        <tr class="data-table__row data-table__row--selected" data-group="bills">
           <td class="data-table__select"><input type="checkbox" checked aria-label="Select Electric" data-action="data-table#select"></td>
           <td>Electric (selected)</td>
           <td class="data-table__money"><%= data_table_money(150_000) %></td>
@@ -48,7 +48,7 @@
           <td></td>
           <td colspan="4"><div class="data-table__bar"><span class="data-table__bar-track"><span class="data-table__bar-fill" style="width: 33%"></span></span><span>Spent <%= data_table_money(50_000) %> of <%= data_table_money(150_000) %></span></div></td>
         </tr>
-        <tr class="data-table__row" data-group="bills" aria-selected="false">
+        <tr class="data-table__row" data-group="bills">
           <td class="data-table__select"><input type="checkbox" aria-label="Select Internet" data-action="data-table#select"></td>
           <td>Internet</td>
           <td class="data-table__money"><%= data_table_money(150_000) %></td>
@@ -62,7 +62,7 @@
           <td class="data-table__money"><%= data_table_money(-130_000) %></td>
           <td class="data-table__money"><%= data_table_money(-30_000) %></td>
         </tr>
-        <tr class="data-table__row" data-group="fun" aria-selected="false">
+        <tr class="data-table__row" data-group="fun">
           <td class="data-table__select"><input type="checkbox" aria-label="Select Dining Out" data-action="data-table#select"></td>
           <td>Dining Out</td>
           <td class="data-table__money"><%= data_table_money(100_000) %></td>
@@ -73,7 +73,7 @@
           <td></td>
           <td colspan="4"><div class="data-table__bar"><span class="data-table__bar-track"><span class="data-table__bar-fill data-table__bar-fill--over" style="width: 100%"></span></span><span>Spent <%= data_table_money(130_000) %> of <%= data_table_money(100_000) %></span></div></td>
         </tr>
-        <tr class="data-table__row" data-group="fun" aria-selected="false">
+        <tr class="data-table__row" data-group="fun">
           <td class="data-table__select"><input type="checkbox" aria-label="Select Hobbies" data-action="data-table#select"></td>
           <td>Hobbies</td>
           <td class="data-table__money data-table__cell--empty">&mdash;</td>
@@ -90,9 +90,9 @@
       <thead>
         <tr>
           <th class="data-table__select"><input type="checkbox" aria-label="Select all"></th>
-          <th class="data-table__col--flag">Flag</th>
+          <th class="data-table__col--flag" scope="col">Flag</th>
           <th class="data-table__col--image">Image</th>
-          <th aria-sort="descending"><button type="button" class="data-table__sort" aria-sort="descending">Date</button></th>
+          <th aria-sort="descending"><button type="button" class="data-table__sort">Date</button></th>
           <th>Payee</th>
           <th>Category</th>
           <th>Memo</th>
@@ -102,17 +102,17 @@
         </tr>
       </thead>
       <tbody>
-        <tr class="data-table__row" data-editor-id="editor-1" aria-selected="false">
+        <tr class="data-table__row" data-editor-id="editor-1">
           <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
-          <td class="data-table__col--flag"><span aria-label="Flag">&#9873;</span></td>
-          <td class="data-table__col--image"><span aria-label="Attachment">&#9112;</span></td>
-          <td><button type="button" id="edit-1" class="data-table__sort" data-action="data-table#edit">11/20/2026</button></td>
+          <td class="data-table__col--flag"><span role="img" aria-label="Flagged">&#9873;</span></td>
+          <td class="data-table__col--image"><span role="img" aria-label="Has attachment">&#9112;</span></td>
+          <td><button type="button" id="edit-1" class="data-table__edit-trigger" aria-expanded="false" aria-controls="editor-1" aria-label="Edit transaction, Corner Market, 11/20/2026" data-action="data-table#edit">11/20/2026</button></td>
           <td class="data-table__payee">Corner Market</td>
           <td class="data-table__category">Groceries</td>
           <td>Weekly shop</td>
           <td class="data-table__money"><%= data_table_money(84_500) %></td>
           <td class="data-table__money data-table__cell--empty"></td>
-          <td class="data-table__status-icon" aria-label="Cleared">&#10003;</td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Cleared">&#10003;</span></td>
         </tr>
         <tr class="data-table__editor" id="editor-1" hidden tabindex="-1" data-action="keydown->data-table#keydown">
           <td colspan="10">
@@ -120,7 +120,7 @@
             <button type="button" data-action="data-table#cancel">Cancel</button>
           </td>
         </tr>
-        <tr class="data-table__row data-table__row--split" aria-selected="false">
+        <tr class="data-table__row data-table__row--split">
           <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
           <td class="data-table__col--flag"></td>
           <td class="data-table__col--image"></td>
@@ -130,9 +130,9 @@
           <td></td>
           <td class="data-table__money"><%= data_table_money(120_000) %></td>
           <td class="data-table__money data-table__cell--empty"></td>
-          <td class="data-table__status-icon" aria-label="Uncleared">&#9675;</td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Uncleared">&#9675;</span></td>
         </tr>
-        <tr class="data-table__row data-table__row--transfer" aria-selected="false">
+        <tr class="data-table__row data-table__row--transfer">
           <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
           <td class="data-table__col--flag"></td>
           <td class="data-table__col--image"></td>
@@ -142,9 +142,9 @@
           <td></td>
           <td class="data-table__money"><%= data_table_money(200_000) %></td>
           <td class="data-table__money data-table__cell--empty"></td>
-          <td class="data-table__status-icon" aria-label="Cleared">&#10003;</td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Cleared">&#10003;</span></td>
         </tr>
-        <tr class="data-table__row data-table__row--scheduled" aria-selected="false">
+        <tr class="data-table__row data-table__row--scheduled">
           <td class="data-table__select"><input type="checkbox" aria-label="Select row" data-action="data-table#select"></td>
           <td class="data-table__col--flag"></td>
           <td class="data-table__col--image"></td>
@@ -154,7 +154,7 @@
           <td>Upcoming</td>
           <td class="data-table__money"><%= data_table_money(900_000) %></td>
           <td class="data-table__money data-table__cell--empty"></td>
-          <td class="data-table__status-icon" aria-label="Scheduled">&#9719;</td>
+          <td class="data-table__status-icon"><span role="img" aria-label="Scheduled">&#9719;</span></td>
         </tr>
       </tbody>
     </table>
