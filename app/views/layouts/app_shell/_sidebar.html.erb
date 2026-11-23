@@ -19,6 +19,9 @@
     <%# Reflect and All Accounts have no routes yet. Shown disabled, not as dead links. %>
     <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="Reflect: not available yet" data-initial="R" aria-disabled="true">Reflect</span></li>
     <li><span class="app-shell-nav-item app-shell-nav-item--inactive" title="All Accounts: not available yet" data-initial="A" aria-disabled="true">All Accounts</span></li>
+    <li>
+      <%= link_to "Add account", new_users_budget_account_path(@budget.public_id), class: "app-shell-nav-item", title: "Add account", data: { initial: "+" } %>
+    </li>
   </ul>
 
   <% groups = shell_account_groups(@budget) %>
@@ -46,6 +49,28 @@
         </ul>
       </details>
     <% end %>
+  <% end %>
+
+  <% closed_accounts = shell_closed_accounts(@budget) %>
+  <% if closed_accounts.any? %>
+    <details class="app-shell-account-group" <%= "open" if @selected_account&.closed %>>
+      <summary class="app-shell-account-group-header">
+        <span class="app-shell-account-group-name">Closed accounts</span>
+        <span class="money"><%= closed_accounts.size %></span>
+      </summary>
+      <ul class="app-shell-accounts">
+        <% closed_accounts.each do |account| %>
+          <% selected = @selected_account&.id == account.id %>
+          <li>
+            <%= link_to users_budget_path(@budget.public_id, account: account.public_id),
+                        class: "app-shell-account#{' app-shell-account--selected' if selected}",
+                        aria: { current: (selected ? "page" : nil) } do %>
+              <span class="app-shell-account-name"><%= account.name %> (closed)</span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </details>
   <% end %>
 
   <div class="app-shell-sidebar-footer">

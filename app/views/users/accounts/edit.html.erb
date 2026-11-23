@@ -1,0 +1,72 @@
+<% content_for :title, "Edit account" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow">Edit account<%= " (closed)" if @account.closed %></p>
+    <h1 class="app-shell-page-title"><%= @account.name %></h1>
+  </div></div></div>
+<% end %>
+<% deletable = @account.deletable? %>
+
+<section class="plan-settings">
+  <%= render "users/accounts/errors", heading: "The account was not changed." %>
+  <%= form_with url: users_budget_account_path(@budget.public_id, @account.public_id), method: :patch, scope: :account, class: "plan-settings__form" do %>
+    <div class="field">
+      <label class="field__label" for="account_name">Account nickname</label>
+      <input class="field__input" id="account_name" name="account[name]" value="<%= @form[:name] %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>">
+    </div>
+    <div class="field">
+      <label class="field__label" for="account_note">Note</label>
+      <textarea class="field__input" id="account_note" name="account[note]" rows="4" maxlength="2000"><%= @form[:note] %></textarea>
+    </div>
+    <div class="plan-settings__actions">
+      <button type="submit" class="btn btn--primary">Save account</button>
+      <%= link_to "Cancel", users_budget_path(@budget.public_id, account: @account.public_id), class: "btn btn--secondary" %>
+    </div>
+  <% end %>
+
+  <section class="plan-settings__fresh">
+    <h2>Adjust balance</h2>
+    <% if @account.tracking? && !@account.closed %>
+      <p>Records a Manual Balance Adjustment so the balance matches your statement. It stays outside Ready to Assign and keeps history.</p>
+      <%= form_with url: adjust_users_budget_account_path(@budget.public_id, @account.public_id), method: :post, scope: :adjustment, class: "plan-settings__form" do %>
+        <div class="field">
+          <label class="field__label" for="adjustment_balance">New balance (currently <%= shell_money(@account.balance) %>)</label>
+          <input class="field__input" id="adjustment_balance" name="adjustment[balance]" inputmode="decimal" required>
+        </div>
+        <button type="submit" class="btn btn--secondary">Adjust balance</button>
+      <% end %>
+    <% elsif @account.closed %>
+      <p>This account is closed. Reopen it before adjusting its balance.</p>
+    <% else %>
+      <p>Balance adjustment is only available for tracking accounts. For on-budget accounts, enter a transaction instead.</p>
+    <% end %>
+  </section>
+
+  <section class="plan-settings__fresh">
+    <% if @account.closed %>
+      <h2>Reopen account</h2>
+      <p>A reopened account starts again at zero.</p>
+      <%= button_to "Reopen account", reopen_users_budget_account_path(@budget.public_id, @account.public_id), method: :post, class: "btn btn--secondary" %>
+    <% else %>
+      <h2>Close account</h2>
+      <% if @account.on_budget? && !@account.balance.zero? %>
+        <p>This on-budget account has a balance, so it cannot be closed yet. Closing accounts with money in them is not supported in this version.</p>
+        <button type="button" class="btn btn--secondary" disabled>Close account</button>
+      <% else %>
+        <p><%= @account.balance.zero? ? "History is kept." : "A zeroing adjustment of #{shell_money(-@account.balance)} is recorded today, and history is kept." %></p>
+        <%= button_to "Close account", close_users_budget_account_path(@budget.public_id, @account.public_id), method: :post, class: "btn btn--destructive" %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="plan-settings__fresh">
+    <h2>Delete account</h2>
+    <% if deletable %>
+      <p>This account only has its starting balance. Deleting it removes the account and that row right away.</p>
+      <%= button_to "Delete account", users_budget_account_path(@budget.public_id, @account.public_id), method: :delete, class: "btn btn--destructive" %>
+    <% else %>
+      <p>Delete is unavailable because this account has other transactions, transfers or scheduled items. Remove those first.</p>
+      <button type="button" class="btn btn--destructive" disabled>Delete account</button>
+    <% end %>
+  </section>
+</section>

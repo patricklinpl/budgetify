@@ -1,0 +1,38 @@
+<% content_for :title, "Add account" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @budget.name %></p>
+    <h1 class="app-shell-page-title">Add account</h1>
+  </div></div></div>
+<% end %>
+
+<section class="plan-settings">
+  <%= render "users/accounts/errors", heading: "The account was not added." %>
+  <%= form_with url: users_budget_accounts_path(@budget.public_id), method: :post, scope: :account, class: "plan-settings__form" do %>
+    <div class="field">
+      <label class="field__label" for="account_name">Account nickname</label>
+      <input class="field__input" id="account_name" name="account[name]" value="<%= @form[:name] %>" required maxlength="<%= PlanLifecycle::MAX_NAME_LENGTH %>">
+    </div>
+    <div class="field">
+      <label class="field__label" for="account_type">Account type</label>
+      <select class="field__input" id="account_type" name="account[type]" required>
+        <option value="">Choose a type</option>
+        <% Users::AccountsController::TYPE_OPTIONS.each do |label, value| %>
+          <option value="<%= value %>" <%= "selected" if value == @form[:type] %>><%= label %></option>
+        <% end %>
+        <% Users::AccountsController::UNAVAILABLE_TYPES.each do |label| %>
+          <option value="" disabled><%= label %> (not available yet)</option>
+        <% end %>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="account_balance">Current balance</label>
+      <input class="field__input field__input--money" id="account_balance" name="account[balance]" value="<%= @form[:balance] %>" required inputmode="decimal" autocomplete="off" aria-describedby="account_balance_hint">
+      <span class="field__hint" id="account_balance_hint">Use a negative number for debt, for example -50.25. Recorded today as a Starting Balance.</span>
+    </div>
+    <div class="plan-settings__actions">
+      <button type="submit" class="btn btn--primary">Add account</button>
+      <%= link_to "Cancel", users_budget_path(@budget.public_id), class: "btn btn--secondary" %>
+    </div>
+  <% end %>
+</section>

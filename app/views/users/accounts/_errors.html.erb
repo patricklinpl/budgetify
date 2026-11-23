@@ -1,0 +1,7 @@
+<% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+<% if @errors.any? %>
+  <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
+    <p><%= heading %></p>
+    <ul><% @errors.each do |message| %><li><%= message %></li><% end %></ul>
+  </div>
+<% end %>

@@ -52,7 +52,7 @@ class AppShellPhoneTest < ApplicationSystemTestCase
       assert_equal 56, page.evaluate_script("document.querySelector('.app-shell-sidebar').getBoundingClientRect().width").round
       assert_operator page.evaluate_script("document.documentElement.scrollWidth"), :<=, page.evaluate_script("document.documentElement.clientWidth"), path
       assert page.evaluate_script("document.querySelector('.app-shell-main').getBoundingClientRect().left >= 56"), path
-      assert_selector ".app-shell-nav-item", count: 3
+      assert_selector ".app-shell-nav-item", count: 4
     end
     assert_equal "false", page.evaluate_script("localStorage.getItem('budgetify.sidebarCollapsed')")
 
