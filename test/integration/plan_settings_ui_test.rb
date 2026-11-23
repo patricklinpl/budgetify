@@ -50,6 +50,8 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_select "a.btn", text: "Cancel", href: users_budget_path(@plan.public_id)
     assert_select "dialog#dlg-fresh-start .dialog__facts li", /All accounts/
     assert_select "dialog#dlg-fresh-start", /private to you/
+    assert_select "dialog#dlg-fresh-start", text: /card-payment/, count: 0
+    assert_select "dialog#dlg-fresh-start .dialog__facts li", /credit card payments/
   end
 
   test "saving settings persists name, date format and currency format together" do
@@ -135,6 +137,21 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "value=\"<b>"
     assert_includes response.body, "value=\"&lt;b&gt;&quot;\""
     assert_select "input#cf_symbol[value=?]", "<b>\""
+  end
+
+  test "Fresh Start carries a credit card payment schedule instead of blocking it" do
+    checking = Account.open!(budget: @plan, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
+    visa = Account.open!(budget: @plan, attributes: { "name" => "Visa", "type" => "creditCard", "balance" => 0 })
+    payment = @plan.categories.find_by!(payment_account_id: visa.id)
+    @plan.scheduled_transactions.create!(account: checking, category: payment, transfer_account: visa,
+      date_first: Date.current, date_next: Date.current, frequency: "monthly", amount: -15_000)
+
+    post fresh_start_users_budget_path(@plan.public_id)
+
+    fresh = @user.budgets.where.not(id: @plan.id).sole
+    assert_redirected_to users_budget_path(fresh.public_id)
+    carried = fresh.scheduled_transactions.sole
+    assert_equal fresh.categories.find_by!(payment_account_id: fresh.accounts.find_by!(name: "Visa").id).id, carried.category_id
   end
 
   test "another user's plan is a 404 for settings, update and Fresh Start" do
