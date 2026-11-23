@@ -77,4 +77,5 @@ export function parseDate(text) {
   const date = new Date(Date.UTC(y, mo - 1, d))
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null
   return date.toISOString().slice(0, 10)
-        }
+}
+// end of currency_expression
