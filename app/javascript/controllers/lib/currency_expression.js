@@ -2,19 +2,21 @@
 // { ok: true, milliunits } or { ok: false, error }. Invalid input is never
 // turned into zero.
 export function evaluateCurrency(text) {
-  const src = String(text).replace(/[$,\s]/g, "")
+  const src = String(text).replace(/[$\s]/g, "")
   if (src === "") return { ok: false, error: "Enter an amount" }
-  if (!/^[0-9.+\-*/()]+$/.test(src)) return { ok: false, error: "Use numbers and + - * / only" }
+  if (!/^[0-9.,+\-*/()]+$/.test(src)) return { ok: false, error: "Use numbers and + - * / only" }
 
   let i = 0
   const fail = () => { throw new Error("Not a valid amount") }
   const peek = () => src[i]
 
   function number() {
-    const m = /^(\d+\.?\d*|\.\d+)/.exec(src.slice(i))
+    // Commas are thousands separators only: 1,234.56 is valid, 1,5 and 12,34 are not.
+    const m = /^((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)/.exec(src.slice(i))
     if (!m) fail()
     i += m[0].length
-    return parseFloat(m[0])
+    if (src[i] === "," || src[i] === "." || /\d/.test(src[i] || "")) throw new Error("Check commas: use 1,234.56 (commas only as thousands separators)")
+    return parseFloat(m[0].replace(/,/g, ""))
   }
   function factor() {
     if (peek() === "-") { i++; return -factor() }
@@ -51,9 +53,13 @@ export function evaluateCurrency(text) {
   try {
     const value = expr()
     if (i !== src.length || !Number.isFinite(value)) fail()
-    return { ok: true, milliunits: Math.round(value * 1000) }
+    // Precision policy: amounts are whole cents. A result with fractions of a
+    // cent is rejected so what is shown is exactly what is stored.
+    const cents = Math.round(value * 100)
+    if (Math.abs(value * 100 - cents) > 1e-6) throw new Error("Use at most 2 decimal places (whole cents)")
+    return { ok: true, milliunits: cents * 10 }
   } catch (e) {
-    return { ok: false, error: e.message }
+    return { ok: false, error: src.includes(",") && e.message === "Not a valid amount" ? "Check commas: use 1,234.56 (commas only as thousands separators)" : e.message }
   }
 }
 
@@ -72,3 +78,4 @@ export function parseDate(text) {
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null
   return date.toISOString().slice(0, 10)
 }
+// end of currency_expression
