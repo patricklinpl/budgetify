@@ -29,7 +29,7 @@ class PlanSettingsUiTest < ActionDispatch::IntegrationTest
     assert_select ".app-shell-plan-name", "Trip"
     assert_select ".app-shell-empty", "No accounts yet."
     assert_equal 0, created.accounts.count
-    assert_equal 8, created.categories.where(internal: false).count
+    assert_equal PlanLifecycle::DEFAULT_CATEGORY_GROUPS.values.flatten.size, created.categories.where(internal: false).count
   end
 
   test "creating a plan with a blank name shows an error and creates nothing" do
