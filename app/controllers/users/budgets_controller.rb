@@ -20,13 +20,14 @@ module Users
     end
 
     def create
-      name = params.dig(:budget, :name).to_s.strip
-      if valid_name?(name)
+      name = PlanLifecycle.clean_name(budget_params[:name])
+      if name
+        
         created = PlanLifecycle.create_plan(Current.user, name: name)
         redirect_to users_budget_path(created.public_id), notice: "Plan created."
       else
         @budgets = Current.user.budgets.order(:name)
-        @new_plan_name = name
+        @new_plan_name = budget_params[:name].to_s.strip
         @new_plan_error = name_error
         render :index, status: :unprocessable_entity
       end
@@ -40,16 +41,16 @@ module Users
     # Saves the name and formats together or not at all. Cancel on the page
     # is a plain link back to the plan, so nothing is saved.
     def update
-      attrs = params.fetch(:budget, {}).permit(:name, :date_format, currency_format: {})
+      attrs = budget_params.permit(:name, :date_format, currency_format: {})
       @form = form_from_params(attrs)
       @errors = []
-      @errors << name_error unless valid_name?(@form[:name])
+      @errors << name_error unless PlanLifecycle.clean_name(@form[:name])
       @errors << "Choose a supported date format." unless PlanLifecycle::DATE_FORMATS.include?(@form[:date_format])
       format, format_errors = CurrencyFormat.build(typed_currency_values(@form[:currency_format]), base: @budget.currency_format)
       @errors.concat(format_errors)
 
       if @errors.empty?
-        @budget.update!(name: @form[:name], date_format: @form[:date_format], currency_format: format.as_json)
+        @budget.update!(name: PlanLifecycle.clean_name(@form[:name]), date_format: @form[:date_format], currency_format: format.as_json)
         redirect_to settings_users_budget_path(@budget.public_id), notice: "Plan settings saved."
       else
         render :settings, status: :unprocessable_entity
@@ -60,6 +61,10 @@ module Users
       fresh = PlanLifecycle.fresh_start(@budget)
       redirect_to users_budget_path(fresh.public_id),
         notice: "Fresh Start created a new plan. The original is kept as #{@budget.reload.name}."
+    rescue PlanLifecycle::UnsupportedCarry => e
+      @form = form_from_budget
+      @errors = [ "Fresh Start was not run, and nothing changed. #{e.blockers.size} scheduled transaction(s) use a closed or deleted account or a deleted or card-payment category and cannot carry over unchanged. Fix or delete them first." ]
+      render :settings, status: :unprocessable_entity
     end
 
     private
@@ -67,8 +72,9 @@ module Users
         @budget = Current.user.budgets.find_by!(public_id: params[:public_id])
       end
 
-      def valid_name?(name)
-        name.present? && name.length <= PlanLifecycle::MAX_NAME_LENGTH
+      def budget_params
+        raw = params[:budget]
+        raw.is_a?(ActionController::Parameters) ? raw : ActionController::Parameters.new
       end
 
       def name_error
@@ -81,7 +87,7 @@ module Users
 
       def form_from_params(attrs)
         { name: attrs[:name].to_s.strip, date_format: attrs[:date_format].to_s,
-          currency_format: (attrs[:currency_format] || {}).to_h }
+          currency_format: attrs[:currency_format].respond_to?(:to_h) ? attrs[:currency_format].to_h : {} }
       end
 
       # Form fields arrive as strings; convert only values that parse so
