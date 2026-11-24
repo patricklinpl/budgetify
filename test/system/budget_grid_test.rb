@@ -19,21 +19,41 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
 
   teardown { page.driver.browser.manage.window.resize_to(1400, 1400) }
 
+  # Stimulus connects after load; typing before that would skip the controller.
+  def grid_field
+    assert_selector "[data-controller~=field][data-field-ready=true]", minimum: 1
+    find_field("Assigned for Zebra fund")
+  end
+
   def assigned
     @category.reload.month_category_for(Date.current.beginning_of_month).budgeted.to_i
   end
 
   test "Enter commits an expression and saves it" do
-    field = find_field("Assigned for Zebra fund")
+    field = grid_field
     field.set("10+5*2")
     field.send_keys(:enter)
     assert_text "Zebra fund assigned $20.00."
     assert_equal 20_000, assigned
 
+    # Aborted request: outcome unknown, text kept, visible failure, Enter retries once, then it works.
+    visit users_budget_path(@plan.public_id)
+    field = grid_field
+    page.execute_script("window.__real = window.fetch; window.__calls = 0; window.fetch = function() { window.__calls++; return Promise.reject(new TypeError('Failed to fetch')) }")
+    field.set("30")
+    field.send_keys(:enter)
+    assert_text "Could not confirm the save"
+    assert_field "Assigned for Zebra fund", with: "30"
+    assert_equal 1, page.evaluate_script("window.__calls")
+    page.execute_script("window.fetch = window.__real")
+    find_field("Assigned for Zebra fund").send_keys(:enter)
+    assert_text "Zebra fund assigned $30.00"
+    assert_equal 30_000, assigned
+
     # Yen plan: no dollar "Saved" announcement before the server answers; one request.
     @plan.update!(currency_format: @plan.currency_format.as_json.merge("decimal_digits" => 0, "currency_symbol" => "\u00a5", "symbol_first" => true))
     visit users_budget_path(@plan.public_id)
-    field = find_field("Assigned for Zebra fund")
+    field = grid_field
     field.set("1200")
     # Hold the request to look at the page before the server answers.
     page.execute_script("window.__subs = 0; document.querySelectorAll('form[data-controller=submit]').forEach(f => f.addEventListener('submit', e => { window.__subs++; e.preventDefault() }))")
@@ -42,7 +62,7 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_field "Assigned for Zebra fund", with: "1200"
     assert_equal "Saving", field.find(:xpath, "ancestor::div[@data-controller='field']").find("[data-field-target=status]", visible: :all).text(:all)
     visit users_budget_path(@plan.public_id)
-    field = find_field("Assigned for Zebra fund")
+    field = grid_field
     field.set("1200")
     field.send_keys(:enter)
     assert_text "Zebra fund assigned \u00a51,200"
@@ -50,7 +70,7 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
   end
 
   test "invalid text is kept with an inline error and nothing is saved; Escape restores" do
-    field = find_field("Assigned for Zebra fund")
+    field = grid_field
     field.set("0.004")
     field.send_keys(:enter)
     assert_text "Use at most 2 decimal places"
@@ -61,7 +81,7 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_field "Assigned for Zebra fund", with: "0.00"
 
     # Client and server share one amount ceiling.
-    field = find_field("Assigned for Zebra fund")
+    field = grid_field
     field.set("1000000000")
     field.send_keys(:enter)
     assert_text "That amount is too large"
