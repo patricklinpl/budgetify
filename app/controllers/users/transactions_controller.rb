@@ -81,6 +81,11 @@ module Users
         @unsupported = @transaction.sub_transactions.exists? || @transaction.transfer_account_id.present?
         return unless @unsupported && action_name != "destroy"
 
+        # A split opens its own editor; a transfer has none yet.
+        if @transaction.transfer_account_id.blank?
+          return redirect_to edit_users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, @transaction.public_id)
+        end
+
         redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), alert: "This transaction is a split or a transfer. This editor does not handle those yet, so nothing was changed."
       end
 
