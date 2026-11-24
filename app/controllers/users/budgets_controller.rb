@@ -69,24 +69,9 @@ module Users
     end
 
     private
-      # Budget grid rows for the current plan month: each category with its
-      # assigned, activity and available amounts (the same figures as the API).
       def load_grid
-        month = Date.current.beginning_of_month
         @show_hidden = params[:hidden] == "1"
-        groups = @budget.category_groups.not_deleted.where(internal: false).order(:id)
-        groups = groups.where(hidden: false) unless @show_hidden
-        @grid = groups.map do |group|
-          categories = group.categories.not_deleted.where(internal: false).order(:id)
-          categories = categories.where(hidden: false) unless @show_hidden
-          rows = categories.map do |category|
-            data = CategorySerializer.as_json(category, month: month)
-            { category: category, assigned: data[:budgeted], activity: data[:activity], available: data[:balance] }
-          end
-          { group: group, rows: rows,
-            assigned: rows.sum { |r| r[:assigned] }, activity: rows.sum { |r| r[:activity] }, available: rows.sum { |r| r[:available] } }
-        end
-        @hidden_count = @budget.categories.not_deleted.where(internal: false, hidden: true).count
+        @grid, @hidden_count = PlanGrid.build(@budget, show_hidden: @show_hidden)
       end
 
       def set_budget
