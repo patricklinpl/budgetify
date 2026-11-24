@@ -17,7 +17,7 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
     visit settings_users_budget_path(@plan.public_id)
     install_input_log
     fill_in "Plan name", with: "Something else"
-    click_link "Cancel"
+    diag_click(find_link("Cancel"), "Cancel link")
 
     with_input_diagnostics("Cancel") { assert_current_path users_budget_path(@plan.public_id) }
     assert_selector ".app-shell-plan-name", text: "Household"
@@ -45,9 +45,9 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
     page.execute_script(EVENT_LOG_JS)
     install_input_log
     assert_no_difference -> { @user.budgets.count } do
-      click_button "Fresh Start…"
+      diag_click(find_button("Fresh Start…"), "Fresh Start… (open)")
       with_input_diagnostics("Fresh Start…", "Cancel") { assert_selector "dialog[open] .dialog__title", text: "Start fresh" }
-      within("dialog[open]") { click_button "Cancel" }
+      within("dialog[open]") { diag_click(find_button("Cancel"), "dialog Cancel") }
       assert page.has_no_selector?("dialog[open]"), "Cancel left the dialog open. Event log: #{page.evaluate_script('window.__dialogLog').inspect}"
       sleep 0.3
     end
