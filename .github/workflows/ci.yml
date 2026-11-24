@@ -125,6 +125,15 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Record browser versions
+        # Evidence only (intermittent lost-input failures): which Chrome the
+        # runner image provides. A failure here never fails the job.
+        run: |
+          google-chrome --version || chromium --version || echo "no system chrome on PATH"
+          chromedriver --version || echo "chromedriver not on PATH (Selenium Manager resolves it at run time)"
+          echo "$ImageOS $ImageVersion"
+        continue-on-error: true
+
       - name: Run System Tests
         env:
           RAILS_ENV: test
