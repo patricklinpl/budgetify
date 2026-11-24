@@ -70,22 +70,51 @@ class RegisterTransfersTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "a payee with characters the plan does not allow is refused instead of failing with a server error" do
-    assert_no_difference -> { Transaction.count } do
-      post list_path(@cash), params: params_for("Corner-Shop")
+  test "a payee name with punctuation saves, as in the reference, and an existing payee is matched ignoring case" do
+    assert_difference -> { @budget.payees.count }, 1 do
+      post list_path(@cash), params: params_for("Corner-Shop & Co.")
     end
-    assert_response :unprocessable_entity
-    assert_match(/Payee may only contain letters, numbers and spaces/, response.body)
+    assert_redirected_to list_path(@cash)
+    first = @cash.transactions.last
+    assert_equal "Corner-Shop & Co.", first.payee.name
+    assert_nil first.transfer_account_id
+
+    assert_no_difference -> { @budget.payees.count } do
+      post list_path(@cash), params: params_for("corner-shop & co.")
+    end
+    assert_equal first.payee_id, @cash.transactions.last.payee_id
   end
 
-  test "a transfer with a category is refused and nothing is saved" do
+  test "the editor's looser payee names do not loosen the API or the default writer" do
+    assert_raises(ActiveRecord::RecordInvalid) { TransactionWriter.new(@budget).persist_new!(TransactionWriter.new(@budget).build("account_id" => @cash.public_id, "date" => @today.iso8601, "amount" => -1000, "payee_name" => "Corner-Shop")) }
+  end
+
+  test "a transfer replaces the category as in the reference: a card payment shows the card's payment category, others show none needed" do
+    get new_users_budget_account_transaction_path(@budget.public_id, @cash.public_id)
+    assert_select "div[data-controller=transfer-payee][data-transfer-payee-labels-value*=?]", "Credit Card Payments: CardA"
+    assert_select "div[data-controller=transfer-payee][data-transfer-payee-labels-value*=?]", "Category not needed"
+
+    post list_path(@cash), params: params_for("To/From Savings", category_id: @groceries.public_id)
+    saved = @cash.transactions.last
+    assert_nil saved.category, "the category chosen with a transfer is replaced, not saved"
+    assert_equal 0, @groceries.month_categories.sum(:activity)
+    get tx_path(@cash, saved, :edit)
+    assert_select "select#transaction_category_id[disabled] option[selected]", text: "Category not needed"
+    assert_select "span[data-transfer-payee-target=status]", text: "Category: Category not needed"
+  end
+
+  test "two open accounts with the same name make the transfer ambiguous: refused with nothing saved and not offered" do
+    @budget.accounts.create!(name: "savings", type: "savings")
+    get new_users_budget_account_transaction_path(@budget.public_id, @cash.public_id)
+    assert_select "datalist#transaction_payee_options option[value=?]", "To/From Savings", count: 0
+    assert_select "datalist#transaction_payee_options option[value=?]", "To/From CardA"
+
     assert_no_difference -> { Transaction.count } do
-      post list_path(@cash), params: params_for("To/From Savings", category_id: @groceries.public_id)
+      post list_path(@cash), params: params_for("To/From Savings")
     end
     assert_response :unprocessable_entity
-    assert_match(/does not use a category/, response.body)
+    assert_match(/More than one open account has that name/, response.body)
     assert_match(/Nothing was changed/, response.body)
-    assert_equal [ 0, 0, 0 ], balances
   end
 
   test "a card payment moves cash and the card, and paying a card with no balance is allowed" do
@@ -102,6 +131,7 @@ class RegisterTransfersTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input#transaction_payee[value=?]", "To/From Cash"
     assert_select "input#transaction_inflow[value=?]", "40.00"
+    assert_select "select#transaction_category_id[disabled] option[selected]", text: "Credit Card Payments: CardA"
 
     patch tx_path(@card, counterpart), params: { transaction: { date: @today.iso8601, payee: "To/From Cash", category_id: "", memo: "Edited from card", outflow: "", inflow: "35" } }
     assert_redirected_to list_path(@card)
