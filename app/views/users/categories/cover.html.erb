@@ -22,16 +22,16 @@
     <% else %>
       <%= form_with url: cover_users_budget_category_path(@budget.public_id, @category.public_id), method: :post, class: "plan-settings__form" do %>
         <div class="field">
-          <label class="field__label" for="cover_source">Cover from</label>
+          <label class="field__label" for="cover_source">Cover from (Available amount shown)</label>
           <select class="field__input" id="cover_source" name="source_id" required>
             <% @sources.each do |source| %>
-              <option value="<%= source.public_id %>"><%= source.category_group.name %>: <%= source.name %> (<%= fmt.format_milliunits(CoverOverspending.available(@budget, source, Date.current.beginning_of_month)) %> available)</option>
+              <option value="<%= source.public_id %>"><%= source.name %>, <%= fmt.format_milliunits(CoverOverspending.available(@budget, source, Date.current.beginning_of_month)) %></option>
             <% end %>
           </select>
         </div>
         <div class="plan-settings__actions">
           <button type="submit" class="btn btn--primary">Cover <%= fmt.format_milliunits(@deficit) %></button>
-          <%= link_to "Cancel", users_budget_path(@budget.public_id), class: "budget-back-link" %>
+          <%= link_to "Cancel", users_budget_path(@budget.public_id), class: "btn btn--secondary" %>
         </div>
       <% end %>
     <% end %>
