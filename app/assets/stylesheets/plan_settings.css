@@ -49,3 +49,9 @@
 .cover-form .btn { box-sizing: border-box; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .target-page .field__input, .target-page .btn { box-sizing: border-box; min-height: 44px; }
 .target-page .btn { min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Reconciled-row warnings (#63 REC-04/05): the warning is text, not colour alone. */
+.plan-settings__warning { border: 2px solid var(--color-border-input-active); padding: var(--space-3); }
+.plan-settings__warning:focus { outline: 2px solid var(--color-border-input-active); outline-offset: 2px; }
+.plan-settings__warning h2 { margin-top: 0; }
+.plan-settings__warning .btn { box-sizing: border-box; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
