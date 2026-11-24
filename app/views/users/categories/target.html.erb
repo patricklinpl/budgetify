@@ -8,6 +8,7 @@
 <% end %>
 
 <section class="plan-settings target-page">
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <% if @target_error %>
     <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus"><p><%= @target_error %></p></div>
   <% end %>
@@ -28,13 +29,16 @@
   <% end %>
 
   <% unless MonthlyTarget.any?(@category) && !monthly %>
-    <%= form_with url: target_update_users_budget_category_path(@budget.public_id, @category.public_id), method: :patch, scope: :target, class: "plan-settings__form" do %>
-      <div class="field">
+    <%= form_with url: target_update_users_budget_category_path(@budget.public_id, @category.public_id), method: :patch, scope: :target, class: "plan-settings__form",
+          data: { controller: "form submit", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update field:commit->submit#submit turbo:submit-end->submit#end" } do %>
+      <div class="field<%= ' field--invalid' if @field_error %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
         <label class="field__label" for="target_amount">Set aside every month</label>
-        <input class="field__input" id="target_amount" name="target[amount]" inputmode="decimal" autocomplete="off" value="<%= @amount_text %>" required>
+        <input class="field__input field__input--money" id="target_amount" name="target[amount]" value="<%= @amount_text %>" inputmode="decimal" autocomplete="off" required aria-describedby="target_amount-err"<%= raw(' aria-invalid="true" autofocus') if @field_error %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+        <span class="field__error" id="target_amount-err" data-field-target="error" role="alert"<%= ' hidden' unless @field_error %>><%= @field_error %></span>
+        <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
       </div>
       <div class="plan-settings__actions">
-        <button type="submit" class="btn btn--primary"><%= monthly ? "Save target" : "Create target" %></button>
+        <button type="submit" class="btn btn--primary" data-form-target="submit"><%= monthly ? "Save target" : "Create target" %></button>
         <%= link_to "Back to the plan", users_budget_path(@budget.public_id), class: "btn btn--secondary" %>
       </div>
     <% end %>
