@@ -52,7 +52,7 @@ module Users
       return render_form(:edit) if @errors.any? || @field_errors.any?
 
       begin
-        Transaction.transaction { writer.update!(@transaction, attributes_for(@form), rebuild_subs: false) }
+        Transaction.transaction { writer.update!(@transaction, attributes_for(@form).merge(unexposed_attributes), rebuild_subs: false) }
       rescue TransactionWriter::Invalid => e
         @errors = [ e.message ]
         @field_errors = {}
@@ -157,6 +157,13 @@ module Users
           attributes.delete("payee_name") if form[:payee].blank?
           attributes["category_id"] = nil if form[:category_id].blank?
         end
+      end
+
+      # The editor has no flag fields. The writer assigns flags unconditionally
+      # (API semantics), so an edit here passes the stored values back to keep
+      # them instead of clearing them.
+      def unexposed_attributes
+        { "flag_color" => @transaction.flag_color, "flag_name" => @transaction.flag_name }
       end
 
       def category_options
