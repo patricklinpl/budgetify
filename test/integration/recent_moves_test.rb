@@ -45,4 +45,17 @@ class RecentMovesTest < ActionDispatch::IntegrationTest
     get moves_users_budget_path(@budget.public_id)
     assert_select "p", text: "No money has been moved yet."
   end
+
+  test "times are labelled UTC and the footer says whether the list is complete" do
+    at = Time.utc(2026, 3, 4, 15, 30)
+    @budget.money_movements.create!(month: @month, moved_at: at, performed_by_user: @user, to_category: @a, amount: 1_000)
+    get moves_users_budget_path(@budget.public_id)
+    assert_select "th", text: "When (UTC)"
+    assert_select "td[data-label='When (UTC)']", text: "2026-03-04 15:30"
+    assert_select "p", text: "Showing all 1 move. Times are in UTC."
+    100.times { |i| @budget.money_movements.create!(month: @month, moved_at: at + i + 1, performed_by_user: @user, to_category: @a, amount: 1_000) }
+    get moves_users_budget_path(@budget.public_id)
+    assert_equal 100, css_select("tbody tr").size
+    assert_select "p", text: "Showing the 100 newest of 101 moves. Older moves are not listed. Times are in UTC."
+  end
 end
