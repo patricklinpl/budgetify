@@ -118,6 +118,16 @@ class RegisterTransactionsTest < ActionDispatch::IntegrationTest
     assert_equal 0, activity
   end
 
+  test "editing keeps a flag the editor does not expose" do
+    post list_path, params: valid_params
+    transaction = @account.transactions.last
+    transaction.update!(flag_color: "red", flag_name: "Check receipt")
+    patch tx_path(transaction), params: valid_params(memo: "changed", outflow: "20")
+    assert_redirected_to list_path
+    transaction.reload
+    assert_equal [ "changed", -20_000, "red", "Check receipt" ], [ transaction.memo, transaction.amount, transaction.flag_color, transaction.flag_name ]
+  end
+
   test "a refused edit leaves the transaction, balance and activity unchanged" do
     post list_path, params: valid_params
     transaction = @account.transactions.last
