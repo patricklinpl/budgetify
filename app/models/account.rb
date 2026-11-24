@@ -117,7 +117,7 @@ class Account < ApplicationRecord
       difference = entered.nil? ? 0 : entered - current.cleared_balance
       if current.credit? && !difference.zero? &&
           [ current.cleared_balance, entered, current.balance, current.balance + difference ].any?(&:positive?)
-        raise Blocked, "Reconciling a credit card with a positive balance is not supported yet."
+        raise Blocked, "Adjusting a credit card with a positive or mixed balance is not supported yet. Nothing was changed. Reconciling when your balance matches is still available."
       end
       rows = budget.transactions.not_deleted.where(account_id: id, cleared: "cleared").to_a
       rows.each { |row| row.update!(cleared: "reconciled") }
