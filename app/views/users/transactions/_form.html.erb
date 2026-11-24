@@ -9,7 +9,7 @@
   </div>
 <% end %>
 <%= form_with url: url, method: (transaction ? :patch : :post), scope: :transaction, class: "plan-settings__form",
-      data: { controller: "form submit", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
+      data: { controller: "form", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" } do %>
   <div class="field">
     <label class="field__label" for="transaction_date">Date</label>
     <input class="field__input" type="date" id="transaction_date" name="transaction[date]" value="<%= @form[:date] %>" required>
