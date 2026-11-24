@@ -29,6 +29,7 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_includes field[:"aria-describedby"].split, "transaction_outflow-err"
     assert_equal "abc", field.value
     assert_button "Save", disabled: true, exact: true
+    assert_button "Save and add another", disabled: true, exact: true
     sleep 0.3
     assert_equal 0, @account.transactions.count
   end
