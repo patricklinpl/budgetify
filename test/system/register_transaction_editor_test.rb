@@ -43,4 +43,17 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_selector "td[data-label=Outflow]", text: "$12.50"
     assert_equal(-12_500, @account.reload.balance)
   end
+
+  test "at phone width amounts and Edit are on screen without sideways page scroll" do
+    @account.transactions.create!(budget: @plan, date: Date.current, amount: -12_340, payee: Payee.create!(budget: @plan, name: "Corner Shop"), category: @category)
+    page.driver.browser.manage.window.resize_to(390, 844)
+    visit users_budget_account_transactions_path(@plan.public_id, @account.public_id)
+    assert_selector "td[data-label=Outflow]", text: "$12.34"
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
+    edit = find_link(href: /edit/)
+    right = edit.native.rect.x + edit.native.rect.width
+    height = edit.native.rect.height
+    assert right <= 390, "Edit link is off screen at 390px (right edge #{right})"
+    assert height >= 44, "Edit link is under 44px tall (#{height})"
+  end
 end
