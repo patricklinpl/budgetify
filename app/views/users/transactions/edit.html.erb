@@ -1,0 +1,17 @@
+<% content_for :title, "Edit transaction" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Edit transaction</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings">
+  <%= render "form", transaction: @transaction %>
+  <section class="plan-settings__fresh">
+    <h2>Delete transaction</h2>
+    <p>Deleting reverses its effect on the account and the category. Undo is not built.</p>
+    <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete do %>
+      <button type="submit" class="btn btn--destructive">Delete transaction</button>
+    <% end %>
+  </section>
+</section>

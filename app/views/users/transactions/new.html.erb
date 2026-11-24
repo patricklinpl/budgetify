@@ -1,0 +1,11 @@
+<% content_for :title, "Add transaction" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Add transaction</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings">
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+  <%= render "form", transaction: nil %>
+</section>
