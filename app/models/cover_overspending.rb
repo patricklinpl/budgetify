@@ -7,7 +7,8 @@
 #
 # Not covered by the audit (U), so refused instead of guessed: partial or
 # arbitrary-amount moves, a source with less Available than the deficit,
-# payment categories as either side, and months other than the current one.
+# payment categories as either side, hidden categories or groups as a source
+# (not offered, and refused if posted), and months other than the current one.
 class CoverOverspending
   class Refused < StandardError; end
 
@@ -30,17 +31,19 @@ class CoverOverspending
   end
 
   def self.eligible(budget)
-    budget.categories.not_deleted.where(internal: false, payment_account_id: nil).includes(:category_group)
+    budget.categories.not_deleted.where(internal: false, payment_account_id: nil, hidden: false).joins(:category_group).where(category_groups: { hidden: false, deleted: false }).includes(:category_group)
   end
 
-  def self.cover!(budget:, target:, source:, month:, user:)
+  def self.cover!(budget:, target:, source:, month:, user:, expected_deficit:)
     raise Refused, "Choose a different category to cover from." if source.nil? || source.id == target.id
+    raise Refused, "The overspending changed. Review and try again." unless expected_deficit.is_a?(Integer)
 
     budget.transaction do
       # Lock both month rows' categories so concurrent moves cannot both use the same Available.
       Category.where(id: [ target.id, source.id ]).order(:id).lock.to_a
       needed = deficit(budget, target, month)
       raise Refused, "#{target.name} is not overspent, so there is nothing to cover." if needed.zero?
+      raise Refused, "The overspending changed. Review and try again." if needed != expected_deficit
       raise Refused, "#{source.name} has only #{budget.currency_format.format_milliunits(available(budget, source, month))} available, less than the whole overspending." if available(budget, source, month) < needed
 
       from = source.month_category_for(month)
