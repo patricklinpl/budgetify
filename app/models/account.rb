@@ -86,7 +86,7 @@ class Account < ApplicationRecord
 
   RECONCILIATION_PAYEE_NAME = "Reconciliation Balance Adjustment".freeze
   # Wording is Budgetify's own; the audit (#63 REC-02) only says the memo is automatic.
-  RECONCILIATION_MEMO = "Entered automatically by Reconcile".freeze
+  RECONCILIATION_MEMO = "Entered automatically by Budgetify".freeze
 
   Reconciliation = Struct.new(:marked, :adjustment, :difference)
 
@@ -94,9 +94,10 @@ class Account < ApplicationRecord
   # uncleared rows stay as they are and balances do not change by this step.
   # With an entered statement balance that differs from the cleared balance, one
   # adjustment is recorded for the difference, already reconciled, dated today,
-  # in the Ready to Assign category for a cash account (#63 REC-02). Tracking
-  # accounts and credit-card debt have no category and leave Ready to Assign
-  # alone (YNAB help: Balance Adjustments, Correcting Balances in Closed Accounts). A split counts once, through its parent. Nothing is
+  # in the Ready to Assign category for a cash account (#63 REC-02; confirmed in the
+  # reference test account for both directions). Tracking accounts and credit
+  # cards leave Ready to Assign alone; a card with a positive balance is
+  # untested in the reference and is treated like debt here. A split counts once, through its parent. Nothing is
   # written unless the whole step succeeds.
   def reconcile!(entered: nil)
     raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
@@ -113,7 +114,7 @@ class Account < ApplicationRecord
           budget.payees.create!(name: RECONCILIATION_PAYEE_NAME)
         adjustment = budget.transactions.create!(account: self, payee: payee, date: Date.current, amount: difference,
           cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO,
-          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if reconciliation_moves_ready_to_assign?(difference)))
+          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if reconciliation_moves_ready_to_assign?))
         adjustment.apply_amounts!(+1)
       end
       reload
@@ -121,8 +122,8 @@ class Account < ApplicationRecord
     end
   end
 
-  def reconciliation_moves_ready_to_assign?(difference)
-    on_budget? && (!credit? || difference.positive?)
+  def reconciliation_moves_ready_to_assign?
+    on_budget? && !credit?
   end
 
   # Close zeroes a tracking balance with an adjustment and keeps history.
