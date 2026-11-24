@@ -25,6 +25,28 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     find_field("Assigned for Zebra fund")
   end
 
+  # With an error showing, a long message wraps and never pushes Available or
+  # any amount out of the table at desktop, tablet and phone widths.
+  def assert_grid_fits_with_error(text)
+    [ [ 1400, 1000 ], [ 1280, 900 ], [ 1024, 800 ], [ 390, 844 ] ].each do |width, height|
+      page.driver.browser.manage.window.resize_to(width, height)
+      assert_selector ".field__error", text: text
+      fits = page.evaluate_script(<<~JS)
+        (() => {
+          const wrap = document.querySelector(".budget-grid .data-table").parentElement;
+          const box = wrap.getBoundingClientRect();
+          const cells = [...document.querySelectorAll(".budget-grid tbody tr:not([hidden]) td:last-child")].filter((c) => c.getClientRects().length);
+          return {
+            wrapFits: wrap.scrollWidth <= wrap.clientWidth + 1,
+            pageFits: document.documentElement.scrollWidth <= innerWidth + 1,
+            available: cells.length > 0 && cells.every((c) => { const r = c.getBoundingClientRect(); return r.right <= box.right + 1 && r.left >= box.left - 1 })
+          };
+        })()
+      JS
+      assert_equal({ "wrapFits" => true, "pageFits" => true, "available" => true }, fits, "error state overflows at #{width}px")
+    end
+  end
+
   def assigned
     @category.reload.month_category_for(Date.current.beginning_of_month).budgeted.to_i
   end
@@ -45,6 +67,7 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_text "Could not confirm the save"
     assert_field "Assigned for Zebra fund", with: "30"
     assert_equal 1, page.evaluate_script("window.__calls")
+    assert_grid_fits_with_error("Could not confirm the save")
     page.execute_script("window.fetch = window.__real")
     find_field("Assigned for Zebra fund").send_keys(:enter)
     assert_text "Zebra fund assigned $30.00"
@@ -89,6 +112,7 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_equal 0, assigned
     assert_nil AssignedExpression.parse("999999999.99").error
     assert_equal "That amount is too large", AssignedExpression.parse("1000000000").error
+    assert_grid_fits_with_error("That amount is too large")
   end
 
   test "phone layout keeps Activity visible with 44px controls and no sideways scroll" do
