@@ -180,6 +180,7 @@ class TransactionWriter
       account: transfer_account,
       date: transaction.date,
       amount: -transaction.amount.to_i,
+      memo: transaction.memo,
       cleared: transaction.cleared,
       approved: transaction.approved,
       payee: @plan.payees.not_deleted.find_by(transfer_account_id: transaction.account.id),
