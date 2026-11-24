@@ -89,7 +89,7 @@ module Users
       end
 
       def writer
-        @writer ||= TransactionWriter.new(@budget, free_payee_names: true)
+        @writer ||= TransactionWriter.new(@budget)
       end
 
       def render_form(template)
