@@ -15,10 +15,11 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
 
   test "PLAN-CANCEL-01 typing a different name then Cancel keeps the saved name" do
     visit settings_users_budget_path(@plan.public_id)
+    install_input_log
     fill_in "Plan name", with: "Something else"
     click_link "Cancel"
 
-    assert_current_path users_budget_path(@plan.public_id)
+    with_input_diagnostics("Cancel") { assert_current_path users_budget_path(@plan.public_id) }
     assert_selector ".app-shell-plan-name", text: "Household"
     assert_equal "Household", @plan.reload.name
     visit users_budgets_path
@@ -42,9 +43,10 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
     visit settings_users_budget_path(@plan.public_id)
     assert_selector "[data-controller~=dialog][data-dialog-ready]"
     page.execute_script(EVENT_LOG_JS)
+    install_input_log
     assert_no_difference -> { @user.budgets.count } do
       click_button "Fresh Start…"
-      assert_selector "dialog[open] .dialog__title", text: "Start fresh"
+      with_input_diagnostics("Fresh Start…", "Cancel") { assert_selector "dialog[open] .dialog__title", text: "Start fresh" }
       within("dialog[open]") { click_button "Cancel" }
       assert page.has_no_selector?("dialog[open]"), "Cancel left the dialog open. Event log: #{page.evaluate_script('window.__dialogLog').inspect}"
       sleep 0.3
