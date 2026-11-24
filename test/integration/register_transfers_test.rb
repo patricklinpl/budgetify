@@ -168,7 +168,7 @@ class RegisterTransfersTest < ActionDispatch::IntegrationTest
     assert_equal [ -25_000, 0, 0 ], balances
   end
 
-  test "an editor on a transfer shows the To/From entry, and a split still redirects" do
+  test "an editor on a transfer shows the To/From entry, and a split opens the split editor" do
     post list_path(@cash), params: params_for("To/From Savings")
     get tx_path(@cash, @cash.transactions.last, :edit)
     assert_select "input#transaction_payee[value=?]", "To/From Savings"
@@ -177,7 +177,6 @@ class RegisterTransfersTest < ActionDispatch::IntegrationTest
     split.save!
     split.sub_transactions.create!(amount: -10_000, category: @groceries)
     get tx_path(@cash, split, :edit)
-    assert_redirected_to list_path(@cash)
-    assert_match(/This transaction is a split/, flash[:alert])
+    assert_redirected_to edit_users_budget_account_transaction_split_path(@budget.public_id, @cash.public_id, split.public_id)
   end
 end
