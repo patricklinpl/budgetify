@@ -11,8 +11,12 @@ class TransactionWriter
   BAD_DATE = "The transaction date is not valid; use ISO format (e.g. 2016-12-01).".freeze
   SUB_TOTAL = "The subtransactions must add up to the transaction amount.".freeze
 
-  def initialize(plan)
+  # free_payee_names: the register editor may use any payee name (the
+  # reference does) and matches an existing payee ignoring case. The API keeps
+  # the stricter default.
+  def initialize(plan, free_payee_names: false)
     @plan = plan
+    @free_payee_names = free_payee_names
   end
 
   # An unsaved transaction from permitted attributes, with unsaved split
@@ -110,7 +114,7 @@ class TransactionWriter
       transaction.payee = payee
       transaction.transfer_account = payee.transfer_account
     elsif attributes["payee_name"].present?
-      transaction.payee = @plan.payees.not_deleted.find_or_create_by!(name: attributes["payee_name"], budget: @plan)
+      transaction.payee = payee_named(attributes["payee_name"])
       transaction.transfer_account = nil
     elsif attributes.key?("payee_id")
       transaction.payee = nil
@@ -201,6 +205,13 @@ class TransactionWriter
   end
 
   private
+    def payee_named(name)
+      return @plan.payees.not_deleted.find_or_create_by!(name: name, budget: @plan) unless @free_payee_names
+
+      @plan.payees.not_deleted.where("LOWER(name) = ?", name.downcase).first ||
+        @plan.payees.new(name: name, allow_any_name: true).tap(&:save!)
+    end
+
     def parse_date(value)
       Date.iso8601(value.to_s)
     rescue ArgumentError, TypeError
