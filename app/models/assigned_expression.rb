@@ -91,4 +91,5 @@ class AssignedExpression
         Rational(match[0])
       end
     end
-    end
+end
+# Used by the budget grid (Users::CategoriesController).
