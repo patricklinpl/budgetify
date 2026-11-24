@@ -159,15 +159,25 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_redirected_to register
   end
 
-  test "a card with cleared debt and an uncleared inflow (working balance positive) is refused with no write" do
-    @account = @budget.accounts.create!(name: "Card", type: "creditCard")
-    add(-5_000, "cleared")
-    add(20_000, "uncleared")
-    assert_equal [ -5_000, 20_000, 15_000 ], balances
-    post path, params: { answer: "no", step: "finish", balance: "6" }
-    assert_response :unprocessable_entity
-    assert_equal 0, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
-    assert_equal [ -5_000, 20_000, 15_000 ], balances
+  # Each case trips exactly one condition of the card guard: cleared positive,
+  # working positive before, or working positive after the adjustment. The
+  # entered balance is not positive in any of them.
+  {
+    "cleared balance is positive" => [ [ 5_000, "cleared" ], [ -20_000, "uncleared" ] ], # working -15, entered -1 => working -21
+    "working balance is positive before" => [ [ -5_000, "cleared" ], [ 20_000, "uncleared" ] ], # working +15, entered -30 => working -10
+    "working balance would become positive" => [ [ -5_000, "cleared" ], [ 3_000, "uncleared" ] ] # working -2, entered -1 => working +2
+  }.zip([ "-1", "-30", "-1" ]).each do |(name, rows), entered|
+    test "a card whose #{name} is refused with no write (isolated condition)" do
+      @account = @budget.accounts.create!(name: "Card", type: "creditCard")
+      rows.each { |amount, cleared| add(amount, cleared) }
+      before = balances
+      post path, params: { answer: "no", step: "finish", balance: entered }
+      assert_response :unprocessable_entity
+      assert_select "p", text: /not supported yet/
+      assert_equal 0, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
+      assert_equal before, balances
+      assert_equal rows.map(&:last).sort, @account.transactions.order(:cleared).pluck(:cleared).sort
+    end
   end
 
   test "matching entered balance needs no adjustment" do
