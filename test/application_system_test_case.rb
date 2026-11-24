@@ -17,7 +17,53 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # assertions (.app-shell-plan-name and others) fail depending on test order.
   # Every test starts at the configured desktop size; phone tests resize inside
   # the test as before.
-  setup { page.driver.browser.manage.window.resize_to(*DESKTOP_WINDOW) }
+  setup do
+    window = page.driver.browser.manage.window
+    before = window.size
+    window.resize_to(*DESKTOP_WINDOW)
+    after = window.size
+    (@window_trace ||= []) << { before: [ before.width, before.height ], after: [ after.width, after.height ] }
+  end
+
+  SHELL_STATE_JS = <<~JS
+    (() => {
+      const shell = document.querySelector("[data-controller~=app-shell]");
+      const names = [...document.querySelectorAll(".app-shell-plan-name")].map((el) => {
+        const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+        return { text: el.textContent.trim(), display: cs.display, visibility: cs.visibility, rect: [r.x, r.y, r.width, r.height].map(Math.round), innerText: el.innerText };
+      });
+      let storage;
+      try { storage = window.localStorage.getItem("budgetify.sidebarCollapsed"); } catch (e) { storage = "unavailable: " + e.name; }
+      return JSON.stringify({
+        href: location.pathname,
+        inner: [innerWidth, innerHeight],
+        outer: [outerWidth, outerHeight],
+        screen: [screen.width, screen.height],
+        dpr: devicePixelRatio,
+        shellClass: shell ? shell.className : "no shell element",
+        shellTag: shell ? shell.tagName : null,
+        collapsedStorage: storage,
+        media: { phone: matchMedia("(max-width: 600px)").matches, small: matchMedia("(max-width: 900px)").matches, wide: matchMedia("(max-width: 1200px)").matches },
+        planNames: names,
+        readyState: document.readyState
+      });
+    })()
+  JS
+
+  def shell_state
+    page.evaluate_script(SHELL_STATE_JS)
+  rescue => e
+    "shell state unavailable: #{e.class}: #{e.message.to_s.lines.first&.strip}"
+  end
+
+  # Re-raises an expectation failure with the window history of this test and
+  # the shell layout state (width, collapsed class, storage, computed plan name
+  # visibility) appended. Observation only: the assertion is unchanged.
+  def with_shell_diagnostics
+    yield
+  rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
+    raise e.class, "#{e.message}\nWindow trace: #{(@window_trace || []).to_json}\nShell state: #{shell_state}"
+  end
 
   # Test-driver diagnostics for lost clicks (the recurring Cancel failure).
   # Native Selenium clicks stay as they are. Install the log before the
@@ -151,6 +197,20 @@ try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("l
     window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
   }, true);
 });
+const log = (what) => window.__inputLog.push(Math.round(performance.now()) + "ms " + what);
+if (!window.__fetchWrapped) {
+  window.__fetchWrapped = true;
+  const originalFetch = window.fetch;
+  window.fetch = function (input, init) { log("fetch " + ((init && init.method) || "GET") + " " + (typeof input === "string" ? input : (input && input.url))); return originalFetch.apply(this, arguments); };
+  const originalOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) { log("xhr " + method + " " + url); return originalOpen.apply(this, arguments); };
+}
+["turbo:click", "turbo:before-fetch-request", "turbo:before-fetch-response", "turbo:visit", "turbo:submit-start", "turbo:submit-end", "turbo:frame-load"].forEach((type) => {
+  document.addEventListener(type, (e) => log(type + " " + ((e.detail && (e.detail.url || (e.detail.fetchOptions && e.detail.fetchOptions.method))) || "")), true);
+});
+document.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a"); if (a) setTimeout(() => log("after click link href=" + a.getAttribute("href") + " defaultPrevented=" + e.defaultPrevented), 0); }, false);
+window.addEventListener("beforeunload", () => log("beforeunload"), true);
+if (window.navigation) window.navigation.addEventListener("navigate", (e) => log("navigate " + e.navigationType + " " + e.destination.url + " userInitiated=" + e.userInitiated), true);
 ["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
