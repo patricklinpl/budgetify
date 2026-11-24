@@ -6,6 +6,9 @@ module Api
     # under /v1/plans/:plan_id.
     class TransactionsController < BaseController
       before_action :set_plan
+      rescue_from TransactionWriter::Invalid do |error|
+        render_bad_request(error.message)
+      end
       before_action :set_month, only: :for_month
 
       # GET /v1/plans/:plan_id/transactions - { data: { transactions: [TransactionSummary], server_knowledge } }.
@@ -91,8 +94,7 @@ module Api
         attributes = permitted_transaction_params(:transaction)
         return if attributes.nil?
 
-        transaction = build_transaction(attributes)
-        return if transaction.nil?
+        transaction = writer.build(attributes)
 
         # import_id dedupe is per account (spec: NewTransaction.import_id).
         if attributes["import_id"].present? &&
@@ -104,10 +106,7 @@ module Api
           } }, status: :created
         end
 
-        return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.save
-
-        sync_transfer!(transaction)
-        apply_all_amounts!(transaction, +1)
+        writer.persist_new!(transaction)
         render json: { data: {
           transaction_ids: [ transaction.public_id ],
           duplicate_import_ids: [],
@@ -124,36 +123,12 @@ module Api
 
         attributes = permitted_transaction_params(:transaction)
         return if attributes.nil?
-        if attributes["date"].present?
-          begin
-            return render_bad_request("The transaction date cannot be in the future.") if Date.iso8601(attributes["date"].to_s) > Date.current
-          rescue ArgumentError, TypeError
-            return render_bad_request("The transaction date is not valid; use ISO format (e.g. 2016-12-01).")
-          end
-        end
-        return render_bad_request("The subtransactions must add up to the transaction amount.") unless sub_amounts_valid?(attributes, transaction.amount)
 
         # Reverse, re-apply and re-sync the transfer pair atomically: a
         # validation or lookup failure after reversal must not leave
         # balances reduced (issue #33: account balances update from
         # transaction writes).
-        Transaction.transaction do
-          apply_all_amounts!(transaction, -1)
-
-          unless assign_transaction_attributes(transaction, attributes)
-            raise ActiveRecord::Rollback
-          end
-          unless transaction.save
-            render_bad_request(transaction.errors.full_messages.to_sentence)
-            raise ActiveRecord::Rollback
-          end
-
-          rebuild_sub_transactions(transaction, attributes["subtransactions"])
-          sync_transfer!(transaction)
-          apply_all_amounts!(transaction, +1)
-        end
-        return if performed?
-
+        Transaction.transaction { writer.update!(transaction, attributes, rebuild_subs: true) }
         render_data({
           transaction_ids: [ transaction.public_id ],
           transaction: TransactionSerializer.detail_as_json(transaction.reload),
@@ -184,30 +159,7 @@ module Api
               render_bad_request("A transaction was not found for the given id or import_id.")
               raise ActiveRecord::Rollback
             end
-            if attributes["date"].present?
-              begin
-                if Date.iso8601(attributes["date"].to_s) > Date.current
-                  render_bad_request("The transaction date cannot be in the future.")
-                  raise ActiveRecord::Rollback
-                end
-              rescue ArgumentError, TypeError
-                render_bad_request("The transaction date is not valid; use ISO format (e.g. 2016-12-01).")
-                raise ActiveRecord::Rollback
-              end
-            end
-
-            apply_all_amounts!(transaction, -1)
-
-            unless assign_transaction_attributes(transaction, attributes.except("id"))
-              raise ActiveRecord::Rollback
-            end
-            unless transaction.save
-              render_bad_request(transaction.errors.full_messages.to_sentence)
-              raise ActiveRecord::Rollback
-            end
-
-            sync_transfer!(transaction)
-            apply_all_amounts!(transaction, +1)
+            writer.update!(transaction, attributes.except("id"), rebuild_subs: false)
             updated << transaction
           end
         end
@@ -227,11 +179,7 @@ module Api
         transaction = find_transaction
         return if transaction.nil?
 
-        Transaction.transaction do
-          apply_all_amounts!(transaction, -1)
-          transaction.transfer_transaction&.update!(deleted: true)
-          transaction.update!(deleted: true)
-        end
+        Transaction.transaction { writer.destroy!(transaction) }
         render_data({ transaction: TransactionSerializer.detail_as_json(transaction.reload), server_knowledge: plan.reload.server_knowledge })
       end
 
@@ -249,8 +197,7 @@ module Api
           created = []
           duplicate_import_ids = []
           attributes_list.each do |attributes|
-            transaction = build_transaction(attributes)
-            return if transaction.nil?
+            transaction = writer.build(attributes)
 
             # import_id dedupe is per account, including repeats within
             # the same bulk request (spec: NewTransaction.import_id).
@@ -262,11 +209,9 @@ module Api
               next
             end
 
-            return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.save
+            writer.persist_new!(transaction)
 
             seen << [ transaction.account_id, import_id ] if import_id.present?
-            sync_transfer!(transaction)
-            apply_all_amounts!(transaction, +1)
             created << transaction
           end
 
@@ -278,165 +223,8 @@ module Api
           } }, status: :created
         end
 
-        def build_transaction(attributes)
-          return render_bad_request("The transaction date cannot be in the future.") if attributes["date"].blank?
-          date = begin
-            Date.iso8601(attributes["date"].to_s)
-          rescue ArgumentError, TypeError
-            return render_bad_request("The transaction date is not valid; use ISO format (e.g. 2016-12-01).")
-          end
-          return render_bad_request("The transaction date cannot be in the future.") if date > Date.current
-
-          account = plan.accounts.not_deleted.find_by(public_id: attributes["account_id"])
-          return render_bad_request("The account_id is not valid.") if account.nil?
-
-          transaction = plan.transactions.new(account: account)
-          return unless assign_transaction_attributes(transaction, attributes)
-          return render_bad_request(transaction.errors.full_messages.to_sentence) unless transaction.valid?
-          return render_bad_request("The subtransactions must add up to the transaction amount.") unless sub_amounts_valid?(attributes, transaction.amount)
-
-          build_sub_transactions(transaction, attributes["subtransactions"])
-          transaction
-        end
-
-        # Split transactions require the subtransaction amounts to sum to
-        # the parent amount (spec: NewTransaction.subtransactions).
-        def sub_amounts_valid?(attributes, parent_amount)
-          entries = attributes["subtransactions"]
-          return true if entries.nil?
-
-          total = entries.sum { |entry| (entry.respond_to?(:[]) ? entry["amount"].to_i : 0) }
-          total == (attributes.key?("amount") && !attributes["amount"].nil? ? attributes["amount"].to_i : parent_amount.to_i)
-        end
-
-        # Assigns permitted save fields, resolving payee by id or creating
-        # by payee_name, category by id, and transfer accounts via the
-        # transfer payee (spec: NewTransaction / SaveTransaction).
-        def assign_transaction_attributes(transaction, attributes)
-          transaction.date = attributes["date"] if attributes["date"].present?
-          transaction.amount = attributes["amount"] if attributes.key?("amount") && !attributes["amount"].nil?
-          transaction.memo = attributes["memo"] if attributes.key?("memo")
-          transaction.cleared = attributes["cleared"] if attributes["cleared"].present?
-          transaction.approved = attributes["approved"] unless attributes["approved"].nil?
-          transaction.flag_color = attributes["flag_color"].presence
-          transaction.flag_name = attributes["flag_name"]
-          transaction.import_id = attributes["import_id"] if attributes["import_id"].present?
-          transaction.import_payee_name = attributes["import_payee_name"] if attributes["import_payee_name"].present?
-          transaction.import_payee_name_original = attributes["import_payee_name_original"] if attributes["import_payee_name_original"].present?
-
-          if attributes["transfer_account_id"].present?
-            transfer_account = plan.accounts.not_deleted.find_by(public_id: attributes["transfer_account_id"])
-            return render_bad_request("The transfer_account_id is not valid.") if transfer_account.nil?
-
-            transaction.transfer_account = transfer_account
-            transaction.payee = transfer_account.transfer_payee
-          elsif attributes["payee_id"].present?
-            payee = plan.payees.not_deleted.find_by(public_id: attributes["payee_id"])
-            return render_bad_request("The payee_id is not valid.") if payee.nil?
-
-            transaction.payee = payee
-            transaction.transfer_account = payee.transfer_account
-          elsif attributes["payee_name"].present?
-            transaction.payee = plan.payees.not_deleted.find_or_create_by!(name: attributes["payee_name"], budget: plan)
-            transaction.transfer_account = nil
-          elsif attributes.key?("payee_id")
-            transaction.payee = nil
-            transaction.transfer_account = nil
-          end
-
-          if attributes["category_id"].present?
-            category = plan.categories.not_deleted.find_by(public_id: attributes["category_id"])
-            return render_bad_request("The category_id is not valid.") if category.nil?
-
-            # Credit Card Payment categories are system-managed; a
-            # supplied one is ignored, leaving the category unchanged
-            # (spec: SaveTransaction.category_id).
-            transaction.category = category unless category.payment?
-          elsif attributes.key?("category_id")
-            transaction.category = nil
-          end
-          true
-        end
-
-        def build_sub_transactions(transaction, entries)
-          return if entries.blank?
-
-          entries.each do |entry|
-            entry = entry.respond_to?(:permit) ? entry.permit!.to_h : entry.to_h
-            sub = transaction.sub_transactions.build(amount: entry["amount"], memo: entry["memo"])
-            if entry["payee_id"].present?
-              sub.payee = plan.payees.not_deleted.find_by(public_id: entry["payee_id"])
-            elsif entry["payee_name"].present?
-              sub.payee = plan.payees.not_deleted.find_or_create_by!(name: entry["payee_name"], budget: plan)
-            end
-            if entry["category_id"].present?
-              # Credit Card Payment categories are ignored if supplied
-              # (spec: SaveSubTransaction.category_id).
-              sub_category = plan.categories.not_deleted.find_by(public_id: entry["category_id"])
-              sub.category = sub_category unless sub_category&.payment?
-            end
-          end
-        end
-
-        def rebuild_sub_transactions(transaction, entries)
-          return if entries.nil?
-
-          transaction.sub_transactions.each(&:destroy!)
-          build_sub_transactions(transaction, entries)
-          transaction.sub_transactions.each { |sub| sub.save! if sub.new_record? }
-        end
-
-        # Transfers auto-create and sync the paired transaction in the
-        # other account (spec: transfer_account_id /
-        # transfer_transaction_id).
-        def sync_transfer!(transaction)
-          transfer_account = transaction.transfer_account
-          pair = transaction.transfer_transaction
-          if transfer_account.nil?
-            # Unlinked from a transfer: the mirror is soft-deleted (its
-            # amounts were already reversed by the caller) rather than
-            # left live with a stale amount.
-            if pair
-              pair.update!(transfer_transaction: nil, deleted: true)
-              transaction.update_columns(transfer_transaction_id: nil)
-            end
-            return
-          end
-
-          pair ||= plan.transactions.new(account: transfer_account)
-          pair.assign_attributes(
-            account: transfer_account,
-            date: transaction.date,
-            amount: -transaction.amount.to_i,
-            cleared: transaction.cleared,
-            approved: transaction.approved,
-            payee: plan.payees.not_deleted.find_by(transfer_account_id: transaction.account.id),
-            transfer_account: transaction.account
-          )
-          pair.save!
-          pair.update_columns(transfer_transaction_id: transaction.id) if pair.transfer_transaction_id != transaction.id
-          transaction.update_columns(transfer_transaction_id: pair.id) if transaction.transfer_transaction_id != pair.id
-        end
-
-        # Applies (or reverses, with sign -1) this transaction's
-        # account/category effects, its subtransactions', and its transfer
-        # pair's (issue #33: transfers keep both sides in sync; account
-        # balances update from transaction writes).
-        def apply_all_amounts!(transaction, sign)
-          transaction.reload
-          transaction.apply_amounts!(sign)
-          transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, sign) }
-          transaction.transfer_transaction&.apply_amounts!(sign)
-        end
-
-        def apply_sub_amounts(sub, sign)
-          return if sub.category.nil?
-
-          delta = sub.amount.to_i * sign
-          month_category = sub.category.month_category_for(sub.parent_transaction.month)
-          month_category.activity = month_category.activity.to_i + delta
-          month_category.credit_activity = month_category.credit_activity.to_i + delta if sub.parent_transaction.account.credit?
-          month_category.save!
+        def writer
+          @writer ||= TransactionWriter.new(plan)
         end
 
         def find_transaction
