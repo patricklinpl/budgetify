@@ -87,15 +87,24 @@ class PayeesApiTest < ActionDispatch::IntegrationTest
     assert_equal "bad_request", response.parsed_body.fetch("error").fetch("name")
   end
 
-  test "POST payees rejects names with characters other than letters numbers and spaces" do
+  test "POST payees accepts punctuation in names (the spec gives only a 500 character limit) and rejects blank and over-long names" do
+    [ "Store #1", "Corner-Shop & Co.", "O'Neil's (Main St.)" ].each do |name|
+      post "/v1/plans/#{@plan.public_id}/payees",
+        params: { payee: { name: name } },
+        headers: auth_headers, as: :json
+
+      assert_response :created, name
+      assert_equal name, response.parsed_body.fetch("data").fetch("payee").fetch("name")
+    end
+
     post "/v1/plans/#{@plan.public_id}/payees",
-      params: { payee: { name: "Store #1" } },
+      params: { payee: { name: "" } },
       headers: auth_headers, as: :json
 
     assert_response :bad_request
 
     post "/v1/plans/#{@plan.public_id}/payees",
-      params: { payee: { name: "" } },
+      params: { payee: { name: "x" * 501 } },
       headers: auth_headers, as: :json
 
     assert_response :bad_request
