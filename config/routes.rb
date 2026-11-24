@@ -52,6 +52,7 @@ Rails.application.routes.draw do
           post :reopen
           post :adjust
         end
+        resources :transactions, only: %i[index new create edit update destroy], param: :public_id
       end
     end
   end
