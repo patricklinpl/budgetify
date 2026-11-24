@@ -3,9 +3,9 @@ module Users
   # Plans are private to their owner: every lookup is scoped to the current
   # user, and nothing here shares a plan.
   class BudgetsController < ApplicationController
-    layout "app_shell", only: %i[show settings update fresh_start]
+    layout "app_shell", only: %i[show settings update fresh_start moves]
 
-    before_action :set_budget, only: %i[show settings update fresh_start]
+    before_action :set_budget, only: %i[show settings update fresh_start moves]
 
     def index
       @budgets = Current.user.budgets.order(:name)
@@ -19,6 +19,16 @@ module Users
       else
         load_grid
       end
+    end
+
+    # Recent Moves (#57 MONEY-03): a read-only list of this plan's money
+    # movements, newest first. The reference tabs and actor filter were only
+    # inspected (predicates unknown), so none are built here.
+    def moves
+      scope = @budget.money_movements.not_deleted
+      @moves_total = scope.count
+      @moves = scope.includes(:from_category, :to_category, :performed_by_user)
+        .order(moved_at: :desc, id: :desc).limit(100)
     end
 
     def create

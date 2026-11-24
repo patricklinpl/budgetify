@@ -1,0 +1,46 @@
+<% content_for :title, "Recent Moves" %>
+<% fmt = @budget.currency_format %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @budget.name %></p>
+    <h1 class="app-shell-page-title">Recent Moves</h1>
+  </div></div></div>
+<% end %>
+
+<section class="budget-grid" aria-label="Recent Moves">
+  <p><%= link_to "Back to the plan", users_budget_path(@budget.public_id), class: "budget-back-link" %></p>
+  <% if @moves.empty? %>
+    <p>No money has been moved yet.</p>
+  <% else %>
+    <div class="data-table-wrap">
+      <table class="data-table" aria-label="Recent Moves">
+        <thead>
+          <tr><th>When (UTC)</th><th>Month</th><th>Move</th><th class="data-table__money">Amount</th><th>By</th></tr>
+        </thead>
+        <tbody>
+          <% @moves.each do |move| %>
+            <% if move.from_category && move.to_category %>
+              <% kind = "Moved"; detail = "#{move.from_category.name} to #{move.to_category.name}" %>
+            <% elsif move.to_category %>
+              <% kind = "Assigned"; detail = move.to_category.name %>
+            <% else %>
+              <% kind = "Removed"; detail = move.from_category&.name.to_s %>
+            <% end %>
+            <tr class="data-table__row">
+              <td data-label="When (UTC)"><%= move.moved_at ? move.moved_at.utc.strftime("%Y-%m-%d %H:%M") : "" %></td>
+              <td data-label="Month"><%= move.month.strftime("%B %Y") %></td>
+              <td data-label="Move"><%= kind %>: <%= detail %></td>
+              <td class="data-table__money" data-label="Amount"><%= grid_money(fmt, move.amount) %></td>
+              <td data-label="By"><%= move.performed_by_user&.email_address %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <% if @moves_total > @moves.size %>
+      <p>Showing the <%= @moves.size %> newest of <%= @moves_total %> moves. Older moves are not listed. Times are in UTC.</p>
+    <% else %>
+      <p>Showing all <%= @moves_total %> <%= @moves_total == 1 ? "move" : "moves" %>. Times are in UTC.</p>
+    <% end %>
+  <% end %>
+</section>
