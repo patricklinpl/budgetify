@@ -139,8 +139,9 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_operator link.native.rect.height, :>=, 44
     # Native click, but with the link centred so it is not at the window edge.
     page.execute_script("arguments[0].scrollIntoView({ block: 'center' })", link)
-    link.click
-    assert_text "overspent by $43.21"
+    install_input_log
+    diag_click(link, "Cover overspending link")
+    with_input_diagnostics("Cover overspending for Overspent fund") { assert_text "overspent by $43.21" }
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     [ "select#cover_source", "button", "a.btn" ].each do |selector|
       all("main #{selector}, .plan-settings #{selector}").each { |element| assert_operator element.native.rect.height, :>=, 44, selector }
