@@ -34,6 +34,9 @@ Rails.application.routes.draw do
         get :settings
         post :fresh_start
       end
+      resources :categories, only: %i[edit update destroy], param: :public_id do
+        member { patch :assign }
+      end
       resources :accounts, only: %i[new create edit update destroy], param: :public_id do
         member do
           post :close

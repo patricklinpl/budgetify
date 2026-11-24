@@ -8,10 +8,13 @@ import { evaluateCurrency, formatMilliunits, parseDate } from "controllers/lib/c
 // data-field-kind-value: "currency" | "date" | "text"
 export default class extends Controller {
   static targets = [ "input", "error", "status" ]
-  static values = { kind: String, committed: String }
+  // defer: the server owns the result (grid rows). Commit keeps the typed text,
+  // announces "Saving" and never claims "Saved" or reformats with a currency.
+  static values = { kind: String, committed: String, defer: Boolean }
 
   connect() {
     if (!this.hasCommittedValue) this.committedValue = this.inputTarget.value
+    this.element.dataset.fieldReady = "true"
   }
 
   keydown(event) {
@@ -43,6 +46,13 @@ export default class extends Controller {
     }
     if (!result.ok) return this.showError(result.error)
     this.clearError()
+    if (this.deferValue) {
+      this.committedValue = text
+      this.element.dataset.committedRaw = result.raw
+      this.say("Saving")
+      this.element.dispatchEvent(new CustomEvent("field:commit", { bubbles: true, detail: { raw: result.raw } }))
+      return
+    }
     this.inputTarget.value = result.display
     this.committedValue = result.display
     this.element.dataset.committedRaw = result.raw
