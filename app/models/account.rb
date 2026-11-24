@@ -94,7 +94,9 @@ class Account < ApplicationRecord
   # uncleared rows stay as they are and balances do not change by this step.
   # With an entered statement balance that differs from the cleared balance, one
   # adjustment is recorded for the difference, already reconciled, dated today,
-  # with no category. A split counts once, through its parent. Nothing is
+  # in the Ready to Assign category for a cash account (#63 REC-02). Tracking
+  # accounts and credit-card debt have no category and leave Ready to Assign
+  # alone (YNAB help: Balance Adjustments, Correcting Balances in Closed Accounts). A split counts once, through its parent. Nothing is
   # written unless the whole step succeeds.
   def reconcile!(entered: nil)
     raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
@@ -110,12 +112,17 @@ class Account < ApplicationRecord
         payee = budget.payees.not_deleted.where("LOWER(name) = ?", RECONCILIATION_PAYEE_NAME.downcase).first ||
           budget.payees.create!(name: RECONCILIATION_PAYEE_NAME)
         adjustment = budget.transactions.create!(account: self, payee: payee, date: Date.current, amount: difference,
-          cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO)
+          cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO,
+          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if reconciliation_moves_ready_to_assign?(difference)))
         adjustment.apply_amounts!(+1)
       end
       reload
       Reconciliation.new(rows.size, adjustment, difference)
     end
+  end
+
+  def reconciliation_moves_ready_to_assign?(difference)
+    on_budget? && (!credit? || difference.positive?)
   end
 
   # Close zeroes a tracking balance with an adjustment and keeps history.
