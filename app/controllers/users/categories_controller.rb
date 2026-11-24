@@ -9,7 +9,7 @@ module Users
     before_action :set_category
 
     def assign
-      parsed = AssignedExpression.parse(params.dig(:assigned, :amount))
+      parsed = AssignedExpression.parse(params.dig(:assigned, :amount), digits: @budget.currency_format.decimal_digits)
       if parsed.error
         return redirect_to(users_budget_path(@budget.public_id), alert: "#{@category.name}: #{parsed.error} Nothing was changed.")
       end
@@ -18,7 +18,7 @@ module Users
       if saved.errors.any?
         redirect_to users_budget_path(@budget.public_id), alert: "#{@category.name}: #{saved.errors.full_messages.to_sentence}. Nothing was changed."
       else
-        redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{ActionController::Base.helpers.number_to_currency(parsed.milliunits / 1000.0)}."
+        redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{@budget.currency_format.format_milliunits(parsed.milliunits)}."
       end
     end
 
