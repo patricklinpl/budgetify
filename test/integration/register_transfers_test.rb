@@ -85,8 +85,10 @@ class RegisterTransfersTest < ActionDispatch::IntegrationTest
     assert_equal first.payee_id, @cash.transactions.last.payee_id
   end
 
-  test "the editor's looser payee names do not loosen the API or the default writer" do
-    assert_raises(ActiveRecord::RecordInvalid) { TransactionWriter.new(@budget).persist_new!(TransactionWriter.new(@budget).build("account_id" => @cash.public_id, "date" => @today.iso8601, "amount" => -1000, "payee_name" => "Corner-Shop")) }
+  test "the default writer, as the API uses it, accepts punctuation payee names too" do
+    writer = TransactionWriter.new(@budget)
+    transaction = writer.persist_new!(writer.build("account_id" => @cash.public_id, "date" => @today.iso8601, "amount" => -1000, "payee_name" => "Corner-Shop & Co."))
+    assert_equal "Corner-Shop & Co.", transaction.payee.name
   end
 
   test "a transfer replaces the category as in the reference: a card payment shows the card's payment category, others show none needed" do
