@@ -36,7 +36,11 @@ Rails.application.routes.draw do
         get :moves
       end
       resources :categories, only: %i[edit update destroy], param: :public_id do
-        member { patch :assign }
+        member do
+          patch :assign
+          get :cover
+          post "cover", action: :cover_create, as: :cover_confirm
+        end
       end
       resources :accounts, only: %i[new create edit update destroy], param: :public_id do
         member do
