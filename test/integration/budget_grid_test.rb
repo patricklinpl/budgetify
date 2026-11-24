@@ -107,7 +107,7 @@ class BudgetGridTest < ActionDispatch::IntegrationTest
   private
     def sign_in_with_category
       user = User.create!(email_address: "grid@example.com", password: "password123")
-      post session_path, params: { email_address: user.email_address, password: "password123" }
+      sign_in_as(user)
       budget = PlanLifecycle.create_plan(user, name: "Grid plan")
       group = budget.category_groups.create!(name: "Everyday")
       category = group.categories.create!(budget: budget, name: "Groceries")
