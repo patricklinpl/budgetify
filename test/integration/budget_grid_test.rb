@@ -1,8 +1,9 @@
 require "test_helper"
 
 class BudgetGridTest < ActionDispatch::IntegrationTest
-  EXPRESSIONS = { "100" => 100_000, "10+5*2" => 20_000, "(10+5)*2" => 30_000, "-5" => -5_000, "12.34" => 12_340, "10/4" => 2_500, " 7 + 3 " => 10_000 }.freeze
-  INVALID = [ "", "abc", "10+", "1/0", "1.2345", "12.345", "0.004", "((1)", "1 2", "$5", "1e3", "10/3" ].freeze
+  EXPRESSIONS = { "100" => 100_000, "10+5*2" => 20_000, "(10+5)*2" => 30_000, "-5" => -5_000, "12.34" => 12_340, "10/4" => 2_500,
+                  " 7 + 3 " => 10_000, "$1,234.56" => 1_234_560, ".5" => 500, "+4" => 4_000, "0.1+0.2" => 300 }.freeze
+  INVALID = [ "", "abc", "10+", "1/0", "1.2345", "12.345", "0.004", "((1)", "$5x", "1e3", "10/3", "1,5", "12,34", "1,2345", "1.", "99999999999999999" ].freeze
 
   test "expressions evaluate with precedence and exact amounts" do
     EXPRESSIONS.each { |text, milli| assert_equal milli, AssignedExpression.parse(text).milliunits, text }
@@ -16,25 +17,30 @@ class BudgetGridTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "precision follows the plan currency digits" do
-    assert_equal 12_000, AssignedExpression.parse("12", digits: 0).milliunits
-    assert_nil AssignedExpression.parse("12.5", digits: 0).milliunits
-    assert_match(/at most 0 decimal places/, AssignedExpression.parse("12.5", digits: 0).error)
-    assert_equal 12_345, AssignedExpression.parse("12.345", digits: 3).milliunits
-    assert_nil AssignedExpression.parse("12.3456", digits: 3).milliunits
+  test "precision is whole cents whatever the plan display digits" do
+    assert_equal "Use at most 2 decimal places (whole cents)", AssignedExpression.parse("12.345").error
+    assert_equal 12_340, AssignedExpression.parse("12.34").milliunits
   end
 
-  test "grid shows amounts in the plan currency format and rejects finer input" do
+  test "a yen plan shows its own format, keeps whole-cent arithmetic and prints the exact value" do
     user, budget, category = sign_in_with_category
     budget.update!(currency_format: budget.currency_format.as_json.merge("decimal_digits" => 0, "currency_symbol" => "\u00a5", "symbol_first" => true))
     patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "1200" } }
     follow_redirect!
     assert_select "td", text: /\u00a51,200/
-    assert_select "input[name='assigned[amount]'][value='1200']"
-    patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "1.5" } }
-    follow_redirect!
-    assert_select "[role=alert]", text: /at most 0 decimal places.*Nothing was changed/
-    assert_equal 1_200_000, category.reload.month_category_for(Date.current.beginning_of_month).budgeted
+    assert_select "input[name='assigned[amount]'][value='1200.00']"
+    patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "1200.5" } }
+    assert_equal 1_200_500, category.reload.month_category_for(Date.current.beginning_of_month).budgeted
+    get users_budget_path(budget.public_id)
+    assert_select ".budget-grid__exact", text: "exact 1200.500", minimum: 3
+  end
+
+  test "values finer than the plan digits show their exact amount, never silently rounded" do
+    user, budget, category = sign_in_with_category
+    MonthAssignment.set!(budget: budget, category: category, month: Date.current.beginning_of_month, amount: 12_345, user: user)
+    get users_budget_path(budget.public_id)
+    assert_select ".budget-grid__exact", text: "exact 12.345", minimum: 3
+    assert_select "input[name='assigned[amount]'][value='12.345']"
   end
 
   test "grid lists categories and assigns from an expression" do
@@ -50,11 +56,15 @@ class BudgetGridTest < ActionDispatch::IntegrationTest
     assert_equal 1, budget.money_movements.count
   end
 
-  test "an invalid expression changes nothing and says so" do
+  test "an invalid expression keeps the typed text, shows an inline linked error and saves nothing" do
     user, budget, category = sign_in_with_category
     patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "10+" } }
-    follow_redirect!
-    assert_select "[role=alert]", text: /Nothing was changed/
+    assert_response :unprocessable_entity
+    input = css_select("input#assigned_#{category.public_id}").first
+    assert_equal "10+", input["value"]
+    assert_equal "true", input["aria-invalid"]
+    assert_equal "assigned_#{category.public_id}-err", input["aria-describedby"]
+    assert_select "span#assigned_#{category.public_id}-err[role=alert]", text: /Nothing was changed/
     assert_equal 0, category.reload.month_category_for(Date.current.beginning_of_month).budgeted.to_i
     assert_equal 0, budget.money_movements.count
   end
