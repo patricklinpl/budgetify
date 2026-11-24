@@ -20,7 +20,7 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
     diag_click(find_link("Cancel"), "Cancel link")
 
     with_input_diagnostics("Cancel") { assert_current_path users_budget_path(@plan.public_id) }
-    assert_selector ".app-shell-plan-name", text: "Household"
+    with_shell_diagnostics { assert_selector ".app-shell-plan-name", text: "Household" }
     assert_equal "Household", @plan.reload.name
     visit users_budgets_path
     assert_selector ".budget-selection-name", text: "Household"
