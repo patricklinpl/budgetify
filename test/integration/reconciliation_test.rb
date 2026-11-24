@@ -159,6 +159,17 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_redirected_to register
   end
 
+  test "a card with cleared debt and an uncleared inflow (working balance positive) is refused with no write" do
+    @account = @budget.accounts.create!(name: "Card", type: "creditCard")
+    add(-5_000, "cleared")
+    add(20_000, "uncleared")
+    assert_equal [ -5_000, 20_000, 15_000 ], balances
+    post path, params: { answer: "no", step: "finish", balance: "6" }
+    assert_response :unprocessable_entity
+    assert_equal 0, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
+    assert_equal [ -5_000, 20_000, 15_000 ], balances
+  end
+
   test "matching entered balance needs no adjustment" do
     seed_rec01
     post path, params: { answer: "no", step: "finish", balance: "1000" }
