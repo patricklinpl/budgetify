@@ -1,6 +1,8 @@
 // Safe arithmetic for currency inputs (FRM-02). No eval. Returns an object:
 // { ok: true, milliunits } or { ok: false, error }. Invalid input is never
 // turned into zero.
+export const MAX_MILLIUNITS = 1_000_000_000_000
+
 export function evaluateCurrency(text) {
   const src = String(text).replace(/[$\s]/g, "")
   if (src === "") return { ok: false, error: "Enter an amount" }
@@ -63,6 +65,8 @@ export function evaluateCurrency(text) {
     // cent is rejected so what is shown is exactly what is stored.
     const cents = Math.round(value * 100)
     if (Math.abs(value * 100 - cents) > 1e-6) throw new Error("Use at most 2 decimal places (whole cents)")
+    // Same ceiling as the server (AssignedExpression::LIMIT) so both agree.
+    if (Math.abs(cents) * 10 >= MAX_MILLIUNITS) throw new Error("That amount is too large")
     return { ok: true, milliunits: cents * 10 }
   } catch (e) {
     return { ok: false, error: e.message }

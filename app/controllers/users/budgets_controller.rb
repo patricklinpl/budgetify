@@ -16,6 +16,8 @@ module Users
       # navigation. Scoped to this plan; unknown ids are a 404.
       if params[:account].present?
         @selected_account = @budget.accounts.not_deleted.find_by!(public_id: params[:account])
+      else
+        load_grid
       end
     end
 
@@ -67,6 +69,11 @@ module Users
     end
 
     private
+      def load_grid
+        @show_hidden = params[:hidden] == "1"
+        @grid, @hidden_count = PlanGrid.build(@budget, show_hidden: @show_hidden)
+      end
+
       def set_budget
         @budget = Current.user.budgets.find_by!(public_id: params[:public_id])
       end
