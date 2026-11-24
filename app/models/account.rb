@@ -96,8 +96,9 @@ class Account < ApplicationRecord
   # adjustment is recorded for the difference, already reconciled, dated today,
   # in the Ready to Assign category for a cash account (#63 REC-02; confirmed in the
   # reference test account for both directions). Tracking accounts and credit
-  # cards leave Ready to Assign alone; a card with a positive balance is
-  # untested in the reference and is treated like debt here. A split counts once, through its parent. Nothing is
+  # cards leave Ready to Assign alone; a card with a positive balance, or an
+  # adjustment that would reach one, is untested in the reference (the public
+  # help says positive cards move Ready to Assign) and is refused with no write. A split counts once, through its parent. Nothing is
   # written unless the whole step succeeds.
   def reconcile!(entered: nil)
     raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
@@ -114,6 +115,9 @@ class Account < ApplicationRecord
       raise Blocked, "This account is closed. Reopen it before reconciling." if current.closed?
 
       difference = entered.nil? ? 0 : entered - current.cleared_balance
+      if current.credit? && !difference.zero? && (current.cleared_balance.positive? || entered.positive?)
+        raise Blocked, "Reconciling a credit card with a positive balance is not supported yet."
+      end
       rows = budget.transactions.not_deleted.where(account_id: id, cleared: "cleared").to_a
       rows.each { |row| row.update!(cleared: "reconciled") }
 
