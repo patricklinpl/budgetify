@@ -7,9 +7,6 @@ require "application_system_test_case"
 # saves. Native key and click interactions only.
 class MonthlyTargetSystemTest < ApplicationSystemTestCase
   setup do
-    # Sign-in is rate limited per process (10 per 3 minutes); start this test
-    # with a fresh counter so UI logins from other system tests cannot trip it.
-    Rails.cache.clear
     @user = users(:one)
     @plan = PlanLifecycle.create_plan(@user, name: "Target plan")
     group = @plan.category_groups.create!(name: "Everyday")
