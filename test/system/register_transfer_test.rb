@@ -21,6 +21,11 @@ class RegisterTransferTest < ApplicationSystemTestCase
   test "a To/From payee saves a transfer and the other account shows the matching row" do
     assert_selector "datalist#transaction_payee_options option[value='To/From Savings']", visible: :all
     find_field("Payee").send_keys("To/From Savings")
+    assert_field "Category", disabled: true, with: ""
+    assert_select "Category", selected: "Category not needed", disabled: true
+    find_field("Payee").send_keys(*Array.new(20, :backspace))
+    assert_no_selector "select[disabled]"
+    find_field("Payee").send_keys("To/From Savings")
     find_field("Memo").send_keys("Top up")
     find_field("Outflow").send_keys("25", :enter)
     click_button "Save", exact: true
