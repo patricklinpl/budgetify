@@ -1,18 +1,20 @@
 # Parses an Assigned amount typed in the budget grid (issue #56 CAT-EXPR-01):
 # a plain number or arithmetic such as 10+5*2 (= 20). Exact rational math, no
 # eval. Anything it cannot read is rejected with a message, never saved as 0.
-# The result must be a whole number of milliunits (at most 3 decimals) so
-# nothing is silently rounded.
+# The result must be a whole number of the plan's currency units at its
+# decimal_digits (whole cents for USD, the same rule as the #70 form fields:
+# 0.004 and 10/3 are rejected), so displayed and stored amounts always agree.
 class AssignedExpression
   LIMIT = 1_000_000_000_000
   Result = Struct.new(:milliunits, :error)
 
-  def self.parse(text)
-    new(text.to_s).parse
+  def self.parse(text, digits: 2)
+    new(text.to_s, digits).parse
   end
 
-  def initialize(text)
+  def initialize(text, digits = 2)
     @text = text.strip
+    @digits = digits.to_i.clamp(0, 3)
     @pos = 0
   end
 
@@ -25,7 +27,10 @@ class AssignedExpression
     return Result.new(nil, "That expression has a division by zero.") if value.nil?
 
     milli = value * 1000
-    return Result.new(nil, "The result must be a whole number of thousandths, such as 12.345.") unless milli.denominator == 1
+    unless milli.denominator == 1 && (milli % (10**(3 - @digits))).zero?
+      example = @digits.zero? ? "12" : "12.#{'3456'[0, @digits]}"
+      return Result.new(nil, "The result must have at most #{@digits} decimal #{@digits == 1 ? 'place' : 'places'} for this plan's currency, such as #{example}.")
+    end
     return Result.new(nil, "That amount is too large.") if milli.abs >= LIMIT
 
     Result.new(milli.to_i, nil)
