@@ -3,6 +3,8 @@
    controls are real touch targets (44px) instead of squeezed table cells. */
 .budget-grid .data-table-wrap { position: relative; }
 .budget-grid .data-table td form { display: flex; gap: 0.25rem; justify-content: flex-end; align-items: center; margin: 0; }
+.budget-grid .data-table td form .field { margin: 0; }
+.budget-grid .data-table .field__error[hidden] { display: none; }
 .budget-grid .data-table .field__input { width: 6.5rem; min-width: 0; padding: 0.25rem 0.4rem; text-align: right; }
 .budget-grid .data-table .btn { padding: 0.25rem 0.5rem; }
 .budget-grid .data-table td.budget-grid__name a { display: inline-block; margin-left: 0.25rem; }
