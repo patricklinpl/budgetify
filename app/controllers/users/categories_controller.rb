@@ -53,12 +53,12 @@ module Users
     def target_update
       @amount_text = params.dig(:target, :amount).to_s
       parsed = AssignedExpression.parse(@amount_text)
-      return render_target_error(parsed.error) if parsed.error
+      return render_target_error(parsed.error, field: true) if parsed.error
 
       begin
         MonthlyTarget.set!(@category, parsed.milliunits, month: cover_month)
       rescue MonthlyTarget::Refused => e
-        return render_target_error(e.message)
+        return render_target_error(e.message, field: true)
       end
       redirect_to target_users_budget_category_path(@budget.public_id, @category.public_id), notice: "Target saved."
     end
@@ -133,9 +133,10 @@ module Users
         @remaining = MonthlyTarget.remaining(@category, @month)
       end
 
-      def render_target_error(message)
+      def render_target_error(message, field: false)
         load_target
-        @target_error = "#{message} Nothing was changed."
+        @field_error = message if field
+        @target_error = field ? "Nothing was changed." : "#{message} Nothing was changed."
         render :target, status: :unprocessable_entity
       end
 
