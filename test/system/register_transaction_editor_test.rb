@@ -32,6 +32,10 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_button "Save and add another", disabled: true, exact: true
     sleep 0.3
     assert_equal 0, @account.transactions.count
+    # Correcting the amount re-enables both submit buttons.
+    field.send_keys([ :control, "a" ], :backspace, "5", :enter)
+    assert_button "Save", disabled: false, exact: true
+    assert_button "Save and add another", disabled: false, exact: true
   end
 
   test "an expression commits and Save adds the row to the register" do
