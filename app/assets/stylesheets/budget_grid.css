@@ -1,0 +1,16 @@
+/* Budget grid (issue #56): keeps the Assigned editor compact so the grid fits
+   a 390px phone without sideways page scroll. */
+.budget-grid .data-table-wrap { position: relative; }
+.budget-grid .data-table td form { display: flex; gap: 0.25rem; justify-content: flex-end; align-items: center; margin: 0; }
+.budget-grid .data-table .field__input { width: 5.5rem; min-width: 0; padding: 0.25rem 0.4rem; text-align: right; }
+.budget-grid .data-table .btn { padding: 0.25rem 0.5rem; }
+.budget-grid .data-table td:first-child a { display: inline-block; margin-left: 0.25rem; }
+@media (max-width: 480px) {
+  .budget-grid .data-table th, .budget-grid .data-table td { padding-left: 0.25rem; padding-right: 0.25rem; letter-spacing: 0; }
+  .budget-grid .data-table .field__input { width: 4.25rem; font-size: 0.8rem; }
+  .budget-grid .data-table .btn { padding: 0.25rem 0.35rem; }
+  .budget-grid .data-table td:first-child a { display: block; margin-left: 0; }
+  .budget-grid .data-table th:first-child, .budget-grid .data-table td:first-child { max-width: 4.25rem; white-space: normal; }
+  /* Activity is hidden on phones so Assigned and Available both fit. */
+  .budget-grid .data-table th:nth-child(3), .budget-grid .data-table td:nth-child(3) { display: none; }
+}
