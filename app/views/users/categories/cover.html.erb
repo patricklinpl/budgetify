@@ -1,0 +1,39 @@
+<% content_for :title, "Cover overspending" %>
+<% fmt = @budget.currency_format %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow">Cover overspending</p>
+    <h1 class="app-shell-page-title"><%= @category.name %></h1>
+  </div></div></div>
+<% end %>
+
+<section class="plan-settings">
+  <% if @cover_error %>
+    <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus"><p><%= @cover_error %></p></div>
+  <% end %>
+  <% if @deficit.zero? %>
+    <p><%= @category.name %> is not overspent, so there is nothing to cover.</p>
+    <%= link_to "Back to the plan", users_budget_path(@budget.public_id), class: "budget-back-link" %>
+  <% else %>
+    <p><%= @category.name %> is overspent by <%= fmt.format_milliunits(@deficit) %>. Covering moves exactly that amount of Assigned from another category. Total assigned and account balances do not change.</p>
+    <% if @sources.empty? %>
+      <p>No other category has the full <%= fmt.format_milliunits(@deficit) %> available. Nothing can be covered from here.</p>
+      <%= link_to "Back to the plan", users_budget_path(@budget.public_id), class: "budget-back-link" %>
+    <% else %>
+      <%= form_with url: cover_users_budget_category_path(@budget.public_id, @category.public_id), method: :post, class: "plan-settings__form" do %>
+        <div class="field">
+          <label class="field__label" for="cover_source">Cover from</label>
+          <select class="field__input" id="cover_source" name="source_id" required>
+            <% @sources.each do |source| %>
+              <option value="<%= source.public_id %>"><%= source.category_group.name %>: <%= source.name %> (<%= fmt.format_milliunits(CoverOverspending.available(@budget, source, Date.current.beginning_of_month)) %> available)</option>
+            <% end %>
+          </select>
+        </div>
+        <div class="plan-settings__actions">
+          <button type="submit" class="btn btn--primary">Cover <%= fmt.format_milliunits(@deficit) %></button>
+          <%= link_to "Cancel", users_budget_path(@budget.public_id), class: "budget-back-link" %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+</section>
