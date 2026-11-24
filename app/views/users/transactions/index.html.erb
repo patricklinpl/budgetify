@@ -7,6 +7,8 @@
   </div>
   <div class="shell-toolbar">
     <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), class: "shell-button shell-button--primary" %>
+    <%= link_to "Reconcile", users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), class: "shell-button" unless @account.closed? %>
+    <%= link_to(@show_reconciled ? "Hide Reconciled" : "Show Reconciled", users_budget_account_transactions_path(@budget.public_id, @account.public_id, reconciled: (@show_reconciled ? nil : "1")), class: "shell-button") %>
     <%= link_to "Back to the plan", users_budget_path(@budget.public_id, account: @account.public_id), class: "shell-button" %>
   </div></div></div>
 <% end %>
@@ -14,14 +16,15 @@
 <section class="plan-settings register-page">
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <% if alert %><div class="plan-settings__errors" role="alert"><p><%= alert %></p></div><% end %>
+  <% if @hidden_reconciled.to_i.positive? %><p class="register-page__hidden" role="status"><%= @hidden_reconciled %> reconciled <%= "transaction".pluralize(@hidden_reconciled) %> hidden. Use Show Reconciled to see them.</p><% end %>
   <% if @transactions.empty? %>
-    <p>No transactions in this account yet.</p>
+    <p><%= @hidden_reconciled.to_i.positive? ? "No other transactions to show." : "No transactions in this account yet." %></p>
   <% else %>
     <div class="data-table-wrap">
       <table class="data-table" aria-label="Register">
         <thead>
           <tr>
-            <th>Date</th><th>Payee</th><th>Category</th><th>Memo</th>
+            <th>Date</th><th>Status</th><th>Payee</th><th>Category</th><th>Memo</th>
             <th class="data-table__money">Outflow</th><th class="data-table__money">Inflow</th><th><span class="data-table__sr">Actions</span></th>
           </tr>
         </thead>
@@ -30,6 +33,7 @@
             <% amount = transaction.amount.to_i %>
             <tr class="data-table__row">
               <td data-label="Date"><%= transaction.date.iso8601 %></td>
+              <td data-label="Status"><%= transaction.cleared.capitalize %></td>
               <td data-label="Payee"><%= transaction.payee&.name %></td>
               <td data-label="Category"><%= transaction.sub_transactions.any? ? "Split" : transaction.category&.name %></td>
               <td data-label="Memo"><%= transaction.memo %></td>
