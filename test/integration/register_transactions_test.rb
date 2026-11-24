@@ -159,16 +159,22 @@ class RegisterTransactionsTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "Corner Shop", count: 0
   end
 
-  test "a split or a transfer is shown but not editable here, and nothing changes" do
+  test "a split opens the split editor and a transfer is not editable here, and nothing changes" do
     split = @budget.transactions.new(account: @account, date: @today, amount: -10_000)
     split.save!
     split.sub_transactions.create!(amount: -10_000, category: @groceries)
     patch tx_path(split), params: valid_params(outflow: "1")
-    assert_redirected_to list_path
-    assert_match(/split or a transfer/, flash[:alert])
+    assert_redirected_to edit_users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, split.public_id)
     assert_equal(-10_000, split.reload.amount)
     get tx_path(split, :edit)
+    assert_redirected_to edit_users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, split.public_id)
+
+    transfer = @budget.transactions.new(account: @account, date: @today, amount: -5_000, transfer_account: @other_account)
+    transfer.save!
+    patch tx_path(transfer), params: valid_params(outflow: "1")
     assert_redirected_to list_path
+    assert_match(/split or a transfer/, flash[:alert])
+    assert_equal(-5_000, transfer.reload.amount)
   end
 
   test "another user's plan, another plan's account and a transaction from a different account are a 404" do
