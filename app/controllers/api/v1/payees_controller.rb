@@ -15,8 +15,8 @@ module Api
       end
 
       # POST /v1/plans/:plan_id/payees - { data: { payee: Payee, server_knowledge } }
-      # (spec: PostPayeeWrapper / SavePayeeResponse). Duplicate names and
-      # names with characters other than letters/numbers/spaces are 400.
+      # (spec: PostPayeeWrapper / SavePayeeResponse). Duplicate names (and
+      # blank or over-long names) are 400. The spec gives no character rule.
       def create
         attributes = permitted_payee_params
         return if attributes.nil?
