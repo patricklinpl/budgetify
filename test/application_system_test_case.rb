@@ -25,6 +25,50 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     (@window_trace ||= []) << { before: [ before.width, before.height ], after: [ after.width, after.height ] }
   end
 
+  # Observation only, for the intermittent driver error "Node with given id
+  # does not belong to the document" (seen in several different system tests).
+  # The original error is untouched and still fails the test. When a test
+  # ended with that error, print to stderr what the stripped backtrace hides
+  # (the test-file frames of the raw backtrace) and a small bounded snapshot of
+  # the page at that moment. Synthetic test data only; no retry, no rescue.
+  NODE_LOST_MESSAGE = "Node with given id does not belong to the document".freeze
+
+  def before_teardown
+    report_lost_node
+  ensure
+    super
+  end
+
+  def report_lost_node
+    lost = failures.filter_map { |f| f.error if f.respond_to?(:error) && f.error.message.to_s.include?(NODE_LOST_MESSAGE) }.first
+    if lost
+      frames = lost.backtrace.to_a
+      snapshot = begin
+        page.evaluate_script(<<~JS)
+          (() => JSON.stringify({
+            path: location.pathname,
+            readyState: document.readyState,
+            visibility: document.visibilityState,
+            title: document.title,
+            heading: (document.querySelector("h1") || {}).textContent,
+            text: document.body ? document.body.innerText.replace(/\s+/g, " ").slice(0, 300) : null,
+            elementCount: document.getElementsByTagName("*").length,
+            turboVisiting: document.documentElement.hasAttribute("data-turbo-preview") || document.documentElement.hasAttribute("aria-busy")
+          }))()
+        JS
+      rescue => e
+        "page snapshot unavailable: #{e.class}"
+      end
+      warn "NODE_LOST_DIAGNOSTIC test=#{self.class}##{name} error=#{lost.class}"
+      warn "NODE_LOST_DIAGNOSTIC test-frames:\n#{frames.grep(%r{/test/|^test/}).first(15).join("\n")}"
+      warn "NODE_LOST_DIAGNOSTIC raw-frames-total=#{frames.size} first-frames:\n#{frames.first(8).join("\n")}"
+      warn "NODE_LOST_DIAGNOSTIC doc-state=#{doc_state}"
+      warn "NODE_LOST_DIAGNOSTIC page=#{snapshot}"
+    end
+  rescue => e
+    warn "NODE_LOST_DIAGNOSTIC unavailable: #{e.class}"
+  end
+
   SHELL_STATE_JS = <<~JS
     (() => {
       const shell = document.querySelector("[data-controller~=app-shell]");
