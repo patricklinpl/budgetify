@@ -33,6 +33,7 @@ Rails.application.routes.draw do
       member do
         get :settings
         post :fresh_start
+        get :moves
       end
       resources :categories, only: %i[edit update destroy], param: :public_id do
         member { patch :assign }
