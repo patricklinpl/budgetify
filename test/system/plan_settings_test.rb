@@ -71,9 +71,12 @@ class PlanSettingsSystemTest < ApplicationSystemTestCase
     JS
     assert_selector "dialog[open]"
     page.execute_script(EVENT_LOG_JS)
+    install_input_log
     assert_no_difference -> { @user.budgets.count } do
-      within("dialog[open]") { click_button "Cancel" }
-      assert page.has_no_selector?("dialog[open]"), "Cancel left the dialog open with no script connected. Event log: #{page.evaluate_script('window.__dialogLog').inspect}"
+      within("dialog[open]") { diag_click(find_button("Cancel"), "dialog Cancel (no script)") }
+      with_input_diagnostics("Cancel") do
+        assert page.has_no_selector?("dialog[open]"), "Cancel left the dialog open with no script connected. Event log: #{page.evaluate_script('window.__dialogLog').inspect}"
+      end
       sleep 0.3
     end
     assert_current_path settings_users_budget_path(@plan.public_id)
