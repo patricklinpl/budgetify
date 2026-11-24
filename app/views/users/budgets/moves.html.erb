@@ -15,7 +15,7 @@
     <div class="data-table-wrap">
       <table class="data-table" aria-label="Recent Moves">
         <thead>
-          <tr><th>When</th><th>Month</th><th>Move</th><th class="data-table__money">Amount</th><th>By</th></tr>
+          <tr><th>When (UTC)</th><th>Month</th><th>Move</th><th class="data-table__money">Amount</th><th>By</th></tr>
         </thead>
         <tbody>
           <% @moves.each do |move| %>
@@ -27,7 +27,7 @@
               <% kind = "Removed"; detail = move.from_category&.name.to_s %>
             <% end %>
             <tr class="data-table__row">
-              <td data-label="When"><%= move.moved_at ? move.moved_at.strftime("%Y-%m-%d %H:%M") : "" %></td>
+              <td data-label="When (UTC)"><%= move.moved_at ? move.moved_at.utc.strftime("%Y-%m-%d %H:%M") : "" %></td>
               <td data-label="Month"><%= move.month.strftime("%B %Y") %></td>
               <td data-label="Move"><%= kind %>: <%= detail %></td>
               <td class="data-table__money" data-label="Amount"><%= grid_money(fmt, move.amount) %></td>
@@ -37,6 +37,10 @@
         </tbody>
       </table>
     </div>
-    <p>Showing up to the 100 newest moves.</p>
+    <% if @moves_total > @moves.size %>
+      <p>Showing the <%= @moves.size %> newest of <%= @moves_total %> moves. Older moves are not listed. Times are in UTC.</p>
+    <% else %>
+      <p>Showing all <%= @moves_total %> <%= @moves_total == 1 ? "move" : "moves" %>. Times are in UTC.</p>
+    <% end %>
   <% end %>
 </section>
