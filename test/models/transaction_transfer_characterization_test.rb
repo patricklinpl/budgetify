@@ -12,6 +12,8 @@ class TransactionTransferCharacterizationTest < ActiveSupport::TestCase
     @cash = @plan.accounts.create!(name: "Cash", type: "cash")
     @savings = @plan.accounts.create!(name: "Savings", type: "savings")
     @card = @plan.accounts.create!(name: "CardA", type: "creditCard")
+    group = @plan.category_groups.create!(name: "Everyday")
+    @groceries = group.categories.create!(budget: @plan, name: "Groceries")
     @writer = TransactionWriter.new(@plan)
     @today = Date.current
   end
@@ -70,5 +72,21 @@ class TransactionTransferCharacterizationTest < ActiveSupport::TestCase
     assert_equal(-100_000, @card.reload.balance)
     assert pair.reload.deleted
     assert_equal 2, @plan.transactions.not_deleted.count, "the two opening rows remain"
+  end
+
+  # TX-PAY-01 (T): the payment category had 100 available from funded card
+  # spending and 60 after the 40 payment. Setup: Groceries has 100 assigned, a
+  # 100 card purchase in Groceries funds the card's payment category, then pay 40.
+  test "the card payment category goes from 100 available to 60 after a 40 payment" do
+    month = @today.beginning_of_month
+    @groceries.month_category_for(month).update!(budgeted: 100_000)
+    put(@cash, 965_000)
+    put(@card, -100_000, "category_id" => @groceries.public_id)
+    payment_category = @card.reload.payment_category
+    available = -> { CategorySerializer.as_json(payment_category.reload, month: month)[:balance] }
+    assert_equal 100_000, available.call
+
+    put(@cash, -40_000, "transfer_account_id" => @card.public_id)
+    assert_equal 60_000, available.call
   end
 end
