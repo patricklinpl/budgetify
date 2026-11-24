@@ -39,6 +39,10 @@ Rails.application.routes.draw do
         member do
           patch :assign
           get :cover
+          get :target
+          patch "target", action: :target_update, as: :target_update
+          delete "target", action: :target_destroy, as: :target_destroy
+          post "target/assign", action: :target_assign, as: :target_assign
           post "cover", action: :cover_create, as: :cover_confirm
         end
       end
