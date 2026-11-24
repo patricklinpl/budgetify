@@ -80,12 +80,11 @@ module Users
 
       def set_transaction
         @transaction = @budget.transactions.not_deleted.find_by!(public_id: params[:public_id], account_id: @account.id)
-        # A split needs its own editor; saving here would drop it. A linked transfer is edited here
+        # A split opens its own editor; saving here would drop it. A linked transfer is edited here
         # through the writer, which keeps the other side in step.
-        @unsupported = @transaction.sub_transactions.exists?
-        return unless @unsupported && action_name != "destroy"
+        return unless @transaction.sub_transactions.exists? && action_name != "destroy"
 
-        redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), alert: "This transaction is a split. This editor does not handle splits yet, so nothing was changed."
+        redirect_to edit_users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, @transaction.public_id)
       end
 
       def writer
