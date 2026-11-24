@@ -161,12 +161,13 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
 
   # Each case trips exactly one condition of the card guard: cleared positive,
   # working positive before, or working positive after the adjustment. The
-  # entered balance is not positive in any of them.
+  # entered balance is positive only in the last case.
   {
     "cleared balance is positive" => [ [ 5_000, "cleared" ], [ -20_000, "uncleared" ] ], # working -15, entered -1 => working -21
     "working balance is positive before" => [ [ -5_000, "cleared" ], [ 20_000, "uncleared" ] ], # working +15, entered -30 => working -10
-    "working balance would become positive" => [ [ -5_000, "cleared" ], [ 3_000, "uncleared" ] ] # working -2, entered -1 => working +2
-  }.zip([ "-1", "-30", "-1" ]).each do |(name, rows), entered|
+    "working balance would become positive" => [ [ -5_000, "cleared" ], [ 3_000, "uncleared" ] ], # working -2, entered -1 => working +2
+    "entered balance is positive" => [ [ -5_000, "cleared" ], [ -20_000, "uncleared" ] ] # cleared -5, working -25, entered +10 => working -15
+  }.zip([ "-1", "-30", "-1", "10" ]).each do |(name, rows), entered|
     test "a card whose #{name} is refused with no write (isolated condition)" do
       @account = @budget.accounts.create!(name: "Card", type: "creditCard")
       rows.each { |amount, cleared| add(amount, cleared) }
