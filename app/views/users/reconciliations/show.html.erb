@@ -51,7 +51,7 @@
         <span class="field__error" id="reconcile_balance-err" data-field-target="error" role="alert"<%= ' hidden' unless @errors.any? %>><%= @errors.first %></span>
         <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
       </div>
-      <button class="btn btn--secondary" type="submit" data-form-target="submit">Review difference</button>
+      <button class="btn btn--primary" type="submit" data-form-target="submit">Review difference</button>
     <% end %>
     <%= link_to "Back to the register", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "budget-back-link" %>
   <% end %>
