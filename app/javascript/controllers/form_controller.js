@@ -10,6 +10,6 @@ export default class extends Controller {
     const required = [ ...this.element.querySelectorAll("[required]") ]
     const missing = required.some((el) => el.value.trim() === "")
     const invalid = this.element.querySelector(".field--invalid:not([data-static])") !== null
-    this.submitTarget.disabled = missing || invalid
+    this.submitTargets.forEach((button) => { button.disabled = missing || invalid })
   }
 }

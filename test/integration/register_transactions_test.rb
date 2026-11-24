@@ -66,6 +66,15 @@ class RegisterTransactionsTest < ActionDispatch::IntegrationTest
     assert_equal 0, @account.reload.balance
   end
 
+  test "Save and add another also refuses invalid text on the server and writes nothing" do
+    assert_no_difference -> { Transaction.count } do
+      post list_path, params: valid_params(outflow: "abc").merge(commit_action: "another")
+    end
+    assert_response :unprocessable_entity
+    assert_select "[role=alert]", text: /Nothing was changed/
+    assert_equal 0, @account.reload.balance
+  end
+
   test "entering both an outflow and an inflow is refused" do
     assert_no_difference -> { Transaction.count } do
       post list_path, params: valid_params(inflow: "5")

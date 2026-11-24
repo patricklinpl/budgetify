@@ -258,3 +258,12 @@ fieldset.field {
   color: var(--color-status-negative-text);
   border-color: var(--color-status-negative-border);
 }
+
+/* Dark theme: the themed primary and destructive fills above out-rank the base
+   disabled rule, so a disabled button looked like an enabled one. Repeat the
+   disabled look (sunken fill, muted text, dashed border) for dark. */
+:root[data-theme="dark"] .btn:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+}
