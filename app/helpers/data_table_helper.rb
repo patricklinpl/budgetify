@@ -34,4 +34,17 @@ module DataTableHelper
     exact = "#{sign}#{whole}.#{fraction.to_s.rjust(3, '0')}"
     safe_join([ text, tag.span("exact #{exact}", class: "budget-grid__exact") ], " ")
   end
+
+  # Plain-text amount for confirmations: the plan-format text, plus the exact
+  # value when it is finer than the display digits, so the amount a confirm
+  # button commits is never only shown rounded.
+  def money_with_exact(format, milliunits)
+    text = format.format_milliunits(milliunits)
+    scale = 10**(3 - format.decimal_digits.to_i.clamp(0, 3))
+    return text if (milliunits % scale).zero?
+
+    sign = milliunits.negative? ? "-" : ""
+    whole, fraction = milliunits.abs.divmod(1000)
+    "#{text} (exact #{sign}#{whole}.#{fraction.to_s.rjust(3, '0')})"
+  end
 end
