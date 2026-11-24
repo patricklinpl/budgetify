@@ -50,7 +50,17 @@
       <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
     </div>
   <% end %>
-  <div class="plan-settings__actions">
+  <% if @reconciled_warning %>
+    <section class="plan-settings__warning" role="alert" tabindex="-1" data-controller="focus" aria-labelledby="reconciled-warning-title">
+      <h2 id="reconciled-warning-title">Save Changes to Reconciled Transaction</h2>
+      <p>Saving your changes to this reconciled transaction may bring your reconciliation out of balance.</p>
+      <div class="plan-settings__actions">
+        <button type="submit" class="btn btn--primary" name="confirm_reconciled" value="1">Save</button>
+        <button type="submit" class="btn btn--secondary" name="confirm_reconciled" value="0" formnovalidate>Cancel</button>
+      </div>
+    </section>
+  <% end %>
+  <div class="plan-settings__actions"<%= raw(" hidden") if @reconciled_warning %>>
     <button type="submit" class="btn btn--primary" data-form-target="submit">Save</button>
     <% unless transaction %><button type="submit" class="btn btn--secondary" name="commit_action" value="another" data-form-target="submit">Save and add another</button><% end %>
     <%= link_to "Cancel", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "btn btn--secondary" %>
