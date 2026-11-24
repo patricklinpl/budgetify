@@ -20,7 +20,8 @@
       <p>No other category has the full <%= fmt.format_milliunits(@deficit) %> available. Nothing can be covered from here.</p>
       <%= link_to "Back to the plan", users_budget_path(@budget.public_id), class: "budget-back-link" %>
     <% else %>
-      <%= form_with url: cover_users_budget_category_path(@budget.public_id, @category.public_id), method: :post, class: "plan-settings__form" do %>
+      <%= form_with url: cover_users_budget_category_path(@budget.public_id, @category.public_id), method: :post, class: "plan-settings__form cover-form" do %>
+        <input type="hidden" name="expected_deficit" value="<%= @deficit %>">
         <div class="field">
           <label class="field__label" for="cover_source">Cover from (Available amount shown)</label>
           <select class="field__input" id="cover_source" name="source_id" required>
