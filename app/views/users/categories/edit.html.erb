@@ -38,7 +38,7 @@
       This category has <%= pluralize(@impact[:transactions] + @impact[:split_lines], "transaction line") %>,
       <%= pluralize(@impact[:scheduled_transactions], "scheduled item") %>,
       <%= pluralize(@impact[:money_movements], "money movement") %> and
-      <%= number_to_currency(@impact[:assigned] / 1000.0) %> assigned in total.
+      <%= @budget.currency_format.format_milliunits(@impact[:assigned]) %> assigned in total.
     </p>
     <% if @impact[:targets].positive? %>
       <p>It has a target. Target behavior on delete is not established, so deleting is refused until the target is removed.</p>
