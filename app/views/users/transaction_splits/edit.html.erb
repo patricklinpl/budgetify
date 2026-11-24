@@ -1,0 +1,78 @@
+<% content_for :title, "Split transaction" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Split transaction</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings split-editor">
+  <% if @errors.any? || @field_errors.any? || @row_errors.any? || @mismatch %>
+    <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
+      <% @errors.each do |message| %><p><%= message %></p><% end %>
+      <% if @mismatch %>
+        <p>The split rows do not add up to the total.</p>
+        <dl class="split-editor__mismatch">
+          <dt>Total</dt><dd><%= milliunits_text(@mismatch[:total]) %></dd>
+          <dt>Split rows</dt><dd><%= milliunits_text(@mismatch[:children]) %></dd>
+          <dt>Remainder</dt><dd><%= milliunits_text(@mismatch[:remainder]) %></dd>
+        </dl>
+        <p>Use "Update Total" to make the total match the rows, or "Adjust Manually" to change the rows.</p>
+      <% end %>
+      <p>Nothing was changed.</p>
+    </div>
+  <% elsif @notice %>
+    <p class="plan-settings__notice" role="status"><%= @notice %></p>
+  <% end %>
+  <%= form_with url: users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :patch, scope: :split, class: "plan-settings__form",
+        data: { turbo: false, controller: "form", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" } do %>
+    <h2>Total</h2>
+    <% { outflow: "Total outflow", inflow: "Total inflow" }.each do |key, label| %>
+      <% err = @field_errors[key] %>
+      <div class="field<%= ' field--invalid' if err %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
+        <label class="field__label" for="split_<%= key %>"><%= label %></label>
+        <input class="field__input field__input--money" id="split_<%= key %>" name="split[<%= key %>]" value="<%= @total[key] %>" inputmode="decimal" autocomplete="off" aria-describedby="split_<%= key %>-err"<%= raw(' aria-invalid="true"') if err %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+        <span class="field__error" id="split_<%= key %>-err" data-field-target="error" role="alert"<%= ' hidden' unless err %>><%= err %></span>
+        <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
+      </div>
+    <% end %>
+    <h2>Split rows</h2>
+    <% @rows.each_with_index do |row, index| %>
+      <fieldset class="split-editor__row">
+        <legend>Row <%= index + 1 %></legend>
+        <% (@row_errors[index] || []).each do |message| %><p class="field__error" role="alert"><%= message %></p><% end %>
+        <div class="field">
+          <label class="field__label" for="split_rows_<%= index %>_category_id">Category</label>
+          <select class="field__input" id="split_rows_<%= index %>_category_id" name="split[rows][<%= index %>][category_id]">
+            <option value="">No category</option>
+            <% category_options.each do |category| %>
+              <option value="<%= category.public_id %>"<%= " selected" if category.public_id == row[:category_id] %>><%= category.name %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="split_rows_<%= index %>_memo">Memo</label>
+          <input class="field__input" id="split_rows_<%= index %>_memo" name="split[rows][<%= index %>][memo]" value="<%= row[:memo] %>" autocomplete="off">
+        </div>
+        <% { outflow: "Outflow", inflow: "Inflow" }.each do |key, label| %>
+          <% err = (row[:field_errors] || {})[key] %>
+          <div class="field<%= ' field--invalid' if err %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
+            <label class="field__label" for="split_rows_<%= index %>_<%= key %>"><%= label %></label>
+            <input class="field__input field__input--money" id="split_rows_<%= index %>_<%= key %>" name="split[rows][<%= index %>][<%= key %>]" value="<%= row[key] %>" inputmode="decimal" autocomplete="off" aria-describedby="split_rows_<%= index %>_<%= key %>-err"<%= raw(' aria-invalid="true"') if err %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+            <span class="field__error" id="split_rows_<%= index %>_<%= key %>-err" data-field-target="error" role="alert"<%= ' hidden' unless err %>><%= err %></span>
+            <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
+          </div>
+        <% end %>
+      </fieldset>
+    <% end %>
+    <div class="plan-settings__actions">
+      <button type="submit" class="btn btn--primary" name="split_action" value="save" data-form-target="submit">Save split</button>
+      <button type="submit" class="btn btn--secondary" name="split_action" value="add_row" formnovalidate>Add row</button>
+      <% if @mismatch %>
+        <button type="submit" class="btn btn--secondary" name="split_action" value="update_total">Update Total</button>
+        <button type="submit" class="btn btn--secondary" name="split_action" value="adjust">Adjust Manually</button>
+      <% end %>
+      <%= link_to "Cancel", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "btn btn--secondary" %>
+    </div>
+  <% end %>
+  <p class="form-affordances">Auto-Distribute, split-transfer rows and undo are not built.</p>
+</section>
