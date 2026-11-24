@@ -18,6 +18,7 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_no_current_path users_sign_in_path
     visit new_users_budget_account_transaction_path(@plan.public_id, @account.public_id)
     assert_selector "[data-controller~=field][data-field-ready=true]", minimum: 2
+    install_input_log
   end
 
   test "invalid outflow text is kept with an adjacent accessible error and Save is disabled" do
@@ -34,8 +35,10 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_equal 0, @account.transactions.count
     # Correcting the amount re-enables both submit buttons.
     field.send_keys([ :control, "a" ], :backspace, "5", :enter)
-    assert_button "Save", disabled: false, exact: true
-    assert_button "Save and add another", disabled: false, exact: true
+    with_input_diagnostics do
+      assert_button "Save", disabled: false, exact: true
+      assert_button "Save and add another", disabled: false, exact: true
+    end
   end
 
   test "an expression commits and Save adds the row to the register" do

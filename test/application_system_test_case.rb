@@ -102,6 +102,9 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
           outer: [outerWidth, outerHeight],
           dpr: devicePixelRatio,
           focus: document.hasFocus(),
+          active: document.activeElement ? document.activeElement.tagName + "#" + document.activeElement.id : "none",
+          fields: [...document.querySelectorAll("input.field__input")].map((i) => i.id + "=" + JSON.stringify(i.value) + " invalid=" + i.getAttribute("aria-invalid")),
+          buttons: [...document.querySelectorAll("form button")].map((b) => b.textContent.trim() + ":" + (b.disabled ? "disabled" : "enabled")),
           visibility: document.visibilityState,
           readyState: document.readyState,
           scrollY: Math.round(scrollY),
@@ -134,7 +137,7 @@ const mark = (what) => { if (window.__lifecycle.length < 200) window.__lifecycle
 ["pagehide", "pageshow", "beforeunload", "scroll", "resize", "focus", "blur"].forEach((type) => window.addEventListener(type, () => mark(type + " scrollY=" + Math.round(scrollY) + " inner=" + innerWidth + "x" + innerHeight), true));
 ["visibilitychange", "turbo:before-visit", "turbo:before-render", "turbo:render", "turbo:load", "readystatechange"].forEach((type) => document.addEventListener(type, () => mark(type + " " + document.visibilityState + "/" + document.readyState), true));
 try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("layout-shift " + e.value.toFixed(4)))).observe({ type: "layout-shift", buffered: true }); } catch (e) { mark("layout-shift observer unavailable"); }
-["keydown", "keyup", "toggle"].forEach((type) => {
+["keydown", "keyup", "beforeinput", "input", "toggle"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
     window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
