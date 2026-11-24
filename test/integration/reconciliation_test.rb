@@ -61,6 +61,7 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "dd", text: "-$5.00"
     assert_select "button", text: "Create Adjustment & Finish"
+    assert_select "p", text: /recorded as reconciled in Ready to Assign\./
     assert_equal [ 950_000, -10_000, 940_000 ], balances
 
     rta = -> { MonthSerializer.summary_as_json(@budget, Date.current.beginning_of_month).fetch(:to_be_budgeted) }
