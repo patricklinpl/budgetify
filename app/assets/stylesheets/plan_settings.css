@@ -45,3 +45,5 @@
   display: flex;
   margin: 0;
 }
+.cover-form .field__input, .cover-form select.field__input, .cover-form .btn { box-sizing: border-box; min-height: 44px; }
+.cover-form .btn { box-sizing: border-box; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
