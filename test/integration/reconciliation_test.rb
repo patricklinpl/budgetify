@@ -63,15 +63,18 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_select "button", text: "Create Adjustment & Finish"
     assert_equal [ 950_000, -10_000, 940_000 ], balances
 
+    rta = -> { MonthSerializer.summary_as_json(@budget, Date.current.beginning_of_month).fetch(:to_be_budgeted) }
+    rta_before = rta.call
     post path, params: { answer: "no", step: "finish", balance: "945" }
     assert_redirected_to register
+    assert_equal rta_before - 5_000, rta.call, "the outflow adjustment lowers Ready to Assign by 5"
     assert_equal [ 945_000, -10_000, 935_000 ], balances
     adjustment = @account.transactions.find_by!(memo: Account::RECONCILIATION_MEMO)
     assert_equal(-5_000, adjustment.amount)
     assert_equal "reconciled", adjustment.cleared
     assert_equal Date.current, adjustment.date
     assert_equal "Reconciliation Balance Adjustment", adjustment.payee.name
-    assert_nil adjustment.category
+    assert_equal Budget::INFLOW_CATEGORY_NAME, adjustment.category.name
     assert_equal 1, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
   end
 
@@ -97,6 +100,29 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_equal %w[cleared uncleared], @account.transactions.order(:cleared).pluck(:cleared)
     post path, params: { answer: "no", step: "review", balance: "" }
     assert_response :unprocessable_entity
+  end
+
+  test "a tracking account adjustment has no category and leaves Ready to Assign alone" do
+    tracking = @budget.accounts.create!(name: "Asset", type: "otherAsset", on_budget: false)
+    @account = tracking
+    add(950_000, "cleared")
+    rta = -> { MonthSerializer.summary_as_json(@budget, Date.current.beginning_of_month).fetch(:to_be_budgeted) }
+    before = rta.call
+    post path, params: { answer: "no", step: "finish", balance: "945" }
+    assert_nil tracking.transactions.find_by!(memo: Account::RECONCILIATION_MEMO).category
+    assert_equal before, rta.call
+  end
+
+  test "a credit card debt adjustment has no category and leaves Ready to Assign alone" do
+    @account = @budget.accounts.create!(name: "Card", type: "creditCard")
+    add(-95_000, "cleared")
+    rta = -> { MonthSerializer.summary_as_json(@budget, Date.current.beginning_of_month).fetch(:to_be_budgeted) }
+    before = rta.call
+    post path, params: { answer: "no", step: "finish", balance: "-96" }
+    adjustment = @account.transactions.find_by!(memo: Account::RECONCILIATION_MEMO)
+    assert_equal(-1_000, adjustment.amount)
+    assert_nil adjustment.category
+    assert_equal before, rta.call
   end
 
   test "matching entered balance needs no adjustment" do
