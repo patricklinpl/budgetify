@@ -84,6 +84,40 @@ class Account < ApplicationRecord
     end
   end
 
+  RECONCILIATION_PAYEE_NAME = "Reconciliation Balance Adjustment".freeze
+  # Wording is Budgetify's own; the audit (#63 REC-02) only says the memo is automatic.
+  RECONCILIATION_MEMO = "Entered automatically by Reconcile".freeze
+
+  Reconciliation = Struct.new(:marked, :adjustment, :difference)
+
+  # Reconcile (#63 REC-01 to REC-03). Every cleared row becomes reconciled;
+  # uncleared rows stay as they are and balances do not change by this step.
+  # With an entered statement balance that differs from the cleared balance, one
+  # adjustment is recorded for the difference, already reconciled, dated today,
+  # with no category. A split counts once, through its parent. Nothing is
+  # written unless the whole step succeeds.
+  def reconcile!(entered: nil)
+    raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
+
+    transaction do
+      current = self.class.lock.find(id)
+      difference = entered.nil? ? 0 : entered - current.cleared_balance
+      rows = budget.transactions.not_deleted.where(account_id: id, cleared: "cleared").to_a
+      rows.each { |row| row.update!(cleared: "reconciled") }
+
+      adjustment = nil
+      unless difference.zero?
+        payee = budget.payees.not_deleted.where("LOWER(name) = ?", RECONCILIATION_PAYEE_NAME.downcase).first ||
+          budget.payees.create!(name: RECONCILIATION_PAYEE_NAME)
+        adjustment = budget.transactions.create!(account: self, payee: payee, date: Date.current, amount: difference,
+          cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO)
+        adjustment.apply_amounts!(+1)
+      end
+      reload
+      Reconciliation.new(rows.size, adjustment, difference)
+    end
+  end
+
   # Close zeroes a tracking balance with an adjustment and keeps history.
   def close!
     raise Blocked, "Only tracking accounts with a nonzero balance can be closed with a zeroing adjustment; this account is on budget." if !tracking? && !balance.zero?
