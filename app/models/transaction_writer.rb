@@ -11,12 +11,8 @@ class TransactionWriter
   BAD_DATE = "The transaction date is not valid; use ISO format (e.g. 2016-12-01).".freeze
   SUB_TOTAL = "The subtransactions must add up to the transaction amount.".freeze
 
-  # free_payee_names: the register editor may use any payee name (the
-  # reference does) and matches an existing payee ignoring case. The API keeps
-  # the stricter default.
-  def initialize(plan, free_payee_names: false)
+  def initialize(plan)
     @plan = plan
-    @free_payee_names = free_payee_names
   end
 
   # An unsaved transaction from permitted attributes, with unsaved split
@@ -206,10 +202,9 @@ class TransactionWriter
 
   private
     def payee_named(name)
-      return @plan.payees.not_deleted.find_or_create_by!(name: name, budget: @plan) unless @free_payee_names
-
+      # Matches an existing payee ignoring case, as payee names are unique that way.
       @plan.payees.not_deleted.where("LOWER(name) = ?", name.downcase).first ||
-        @plan.payees.new(name: name, allow_any_name: true).tap(&:save!)
+        @plan.payees.create!(name: name)
     end
 
     def parse_date(value)
