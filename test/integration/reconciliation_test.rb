@@ -145,6 +145,19 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_equal 1, @account.transactions.where(cleared: "uncleared").count
   end
 
+  test "a credit card adjustment that would reach or start from a positive balance is refused with no write" do
+    @account = @budget.accounts.create!(name: "Card", type: "creditCard")
+    add(-95_000, "cleared")
+    post path, params: { answer: "no", step: "finish", balance: "5" }
+    assert_response :unprocessable_entity
+    assert_select "p", text: /not supported yet/
+    assert_equal 0, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
+    assert_equal "cleared", @account.transactions.first.cleared
+    assert_equal [ -95_000, 0, -95_000 ], balances
+    post path, params: { answer: "yes" }
+    assert_redirected_to register
+  end
+
   test "matching entered balance needs no adjustment" do
     seed_rec01
     post path, params: { answer: "no", step: "finish", balance: "1000" }
