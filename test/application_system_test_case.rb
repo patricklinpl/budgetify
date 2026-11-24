@@ -1,7 +1,8 @@
 require "test_helper"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
-  driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
+  DESKTOP_WINDOW = [ 1400, 1400 ].freeze
+  driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_WINDOW
 
   # Every system test signs in through the real form, and sessions#create is
   # rate limited to 10 per 3 minutes per process (the counter lives in the
@@ -10,6 +11,13 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # only: the production limit is unchanged, and the dedicated rate-limit
   # test in sessions_controller_test still exercises it.
   setup { Rails.cache.clear }
+
+  # The browser window survives between tests. A test that resizes it to phone
+  # width (390px) left the next test at that width, where the desktop layout
+  # assertions (.app-shell-plan-name and others) fail depending on test order.
+  # Every test starts at the configured desktop size; phone tests resize inside
+  # the test as before.
+  setup { page.driver.browser.manage.window.resize_to(*DESKTOP_WINDOW) }
 
   # Test-driver diagnostics for lost clicks (the recurring Cancel failure).
   # Native Selenium clicks stay as they are. Install the log before the
