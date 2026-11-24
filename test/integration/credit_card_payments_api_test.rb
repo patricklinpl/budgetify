@@ -332,6 +332,49 @@ class CreditCardPaymentsApiTest < ActionDispatch::IntegrationTest
     assert_equal(-10_000, category_balance(@groceries, month: last_month))
   end
 
+  # MONEY-01 / MONEY-02 (issue #57, reference-observed vectors). Entry order
+  # is the opposite of purchase-date order, and the earlier purchase date
+  # is funded first. Same-date ties, refunds, positive balances and mixed
+  # cash/card overspending are NOT covered here (MONEY-06, untested).
+  test "earlier purchase date is funded first regardless of entry order across two cards" do
+    card_a = create_credit_card("CardA")
+    card_b = create_credit_card("CardB")
+    post_transaction(account: card_a, amount: -100_000, category: @groceries, date: last_month + 19)
+    post_transaction(account: card_b, amount: -100_000, category: @groceries, date: last_month + 9)
+
+    [
+      [ 150_000, 50_000, 100_000, -50_000 ],
+      [ 50_000, 0, 50_000, -150_000 ],
+      [ 125_000, 25_000, 100_000, -75_000 ],
+      [ 200_000, 100_000, 100_000, 0 ]
+    ].each do |assigned, a_available, b_available, category_available|
+      assign_budgeted(@groceries, assigned, month: last_month)
+      assert_equal a_available, payment_category_for(card_a, month: last_month).fetch("balance"), "CardA payment at #{assigned}"
+      assert_equal b_available, payment_category_for(card_b, month: last_month).fetch("balance"), "CardB payment at #{assigned}"
+      assert_equal category_available, category_balance(@groceries, month: last_month), "category available at #{assigned}"
+      funded = payment_category_for(card_a, month: last_month).fetch("activity") + payment_category_for(card_b, month: last_month).fetch("activity")
+      assert_equal [ assigned, 200_000 ].min, funded, "funded spending equals payment increases at #{assigned}"
+    end
+  end
+
+  # Same-date ties: the reference allocation rule is unknown (#57 MONEY-06,
+  # untested), so this asserts only invariants, never which card is funded.
+  test "same-date two-card allocation conserves funded money regardless of creation order" do
+    [ %w[CardA CardB], %w[CardB CardA] ].each_with_index do |names, index|
+      category = @group.categories.create!(budget: @plan, name: "Tie #{index}")
+      cards = names.map { |name| create_credit_card("#{name}#{index}") }
+      cards.each { |card| post_transaction(account: card, amount: -100_000, category: category, date: last_month + 14) }
+
+      [ 150_000, 50_000, 125_000, 200_000 ].each do |assigned|
+        assign_budgeted(category, assigned, month: last_month)
+        balances = cards.map { |card| payment_category_for(card, month: last_month).fetch("balance") }
+        assert_equal [ assigned, 200_000 ].min, balances.sum, "funded total at #{assigned} (order #{index})"
+        assert balances.all? { |balance| balance.between?(0, 100_000) }, "each card funded within its own purchase at #{assigned}: #{balances}"
+        assert_equal assigned - 200_000, category_balance(category, month: last_month)
+      end
+    end
+  end
+
   private
     def last_month
       @month.last_month
