@@ -6,7 +6,7 @@ require "test_helper"
 class MonthlyTargetTest < ActionDispatch::IntegrationTest
   setup do
     @user = User.create!(email_address: "target@example.com", password: "password123")
-    post session_path, params: { email_address: @user.email_address, password: "password123" }
+    sign_in_as(@user)
     @budget = PlanLifecycle.create_plan(@user, name: "Target plan")
     group = @budget.category_groups.create!(name: "Everyday")
     @cat = group.categories.create!(budget: @budget, name: "Groceries")
