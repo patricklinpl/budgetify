@@ -1,0 +1,7 @@
+/* Reconcile page (issue #63): 44px touch targets and a compact difference summary. */
+.reconcile-page .btn, .reconcile-page .field__input { box-sizing: border-box; min-height: 44px; min-width: 44px; }
+.reconcile-page .btn { display: inline-flex; align-items: center; justify-content: center; }
+.reconcile-page .budget-back-link { display: inline-flex; align-items: center; min-height: 44px; }
+.reconcile-page__difference { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem var(--space-3); margin: var(--space-2) 0; }
+.reconcile-page__difference dt { font-weight: 600; }
+.reconcile-page__difference dd { margin: 0; text-align: right; }

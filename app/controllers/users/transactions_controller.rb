@@ -14,7 +14,12 @@ module Users
     before_action :set_transaction, only: %i[edit update destroy]
 
     def index
-      @transactions = @account.transactions.not_deleted.where(budget: @budget).order(date: :desc, created_at: :desc).includes(:payee, :category)
+      scope = @account.transactions.not_deleted.where(budget: @budget)
+      # Reconciled rows are hidden by default; showing them only changes the list (#63 REC-01).
+      @show_reconciled = params[:reconciled] == "1"
+      @hidden_reconciled = @show_reconciled ? 0 : scope.where(cleared: "reconciled").count
+      scope = scope.where.not(cleared: "reconciled") unless @show_reconciled
+      @transactions = scope.order(date: :desc, created_at: :desc).includes(:payee, :category)
     end
 
     def new
