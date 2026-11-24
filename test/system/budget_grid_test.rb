@@ -137,9 +137,14 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     visit users_budget_path(@plan.public_id)
     link = find("a[aria-label='Cover overspending for Overspent fund']")
     assert_operator link.native.rect.height, :>=, 44
+    # Native click, but with the link centred so it is not at the window edge.
+    page.execute_script("arguments[0].scrollIntoView({ block: 'center' })", link)
     link.click
     assert_text "overspent by $43.21"
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
+    [ "select#cover_source", "button", "a.btn" ].each do |selector|
+      all("main #{selector}, .plan-settings #{selector}").each { |element| assert_operator element.native.rect.height, :>=, 44, selector }
+    end
     click_button "Cover $43.21"
     assert_text "Overspent fund overspending of $43.21 covered from Source fund."
     assert_equal [ 43_210, 0 ], [ over.month_category_for(month).reload.budgeted, CoverOverspending.deficit(@plan, over, month) ]
