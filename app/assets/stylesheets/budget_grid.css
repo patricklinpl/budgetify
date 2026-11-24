@@ -5,12 +5,17 @@
 .budget-grid .data-table td form { display: flex; gap: 0.25rem; justify-content: flex-end; align-items: center; margin: 0; }
 .budget-grid .data-table td form .field { margin: 0; }
 .budget-grid .data-table .field__error[hidden] { display: none; }
+/* Desktop: an error wraps in flow under the field with a capped width, so a long
+   message grows the row downward instead of widening the table, and Activity and
+   Available stay on screen. */
+.budget-grid .data-table td form .field { display: flex; flex-direction: column; align-items: flex-end; }
+.budget-grid .data-table td .field__error:not([hidden]) { display: block; max-width: 13rem; text-align: left; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; margin-top: 0.25rem; }
 .budget-grid .data-table .field__input { width: 6.5rem; min-width: 0; padding: 0.25rem 0.4rem; text-align: right; }
 .budget-grid .data-table .btn { padding: 0.25rem 0.5rem; }
 .budget-grid .data-table td.budget-grid__name a { display: inline-block; margin-left: 0.25rem; }
 .budget-grid__exact { display: block; font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: normal; }
 
-@media (max-width: 480px) {
+@media (max-width: 1200px) {
   .budget-grid .data-table-wrap { overflow-x: visible; }
   .budget-grid .data-table, .budget-grid .data-table tbody, .budget-grid .data-table tr, .budget-grid .data-table td { display: block; }
   .budget-grid .data-table tr[hidden] { display: none; }
@@ -24,7 +29,7 @@
   .budget-grid .data-table .data-table__chevron { min-width: 44px; min-height: 44px; }
   .budget-grid .data-table td form { flex: 1; min-width: 0; justify-content: flex-end; align-items: flex-start; }
   .budget-grid .data-table td form .field { flex: 1 1 auto; min-width: 0; margin: 0; text-align: right; }
-  .budget-grid .data-table .field__error { display: block; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .budget-grid .data-table td .field__error:not([hidden]) { max-width: none; align-self: stretch; }
   .budget-grid .data-table .field__input { width: 100%; max-width: 9rem; min-height: 44px; font-size: 1rem; }
   .budget-grid .data-table .btn { min-height: 44px; min-width: 44px; }
   .budget-grid .data-table tr.data-table__group { background: var(--color-surface-sunken); }
