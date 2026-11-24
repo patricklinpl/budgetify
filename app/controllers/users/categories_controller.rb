@@ -8,18 +8,18 @@ module Users
     before_action :set_budget
     before_action :set_category
 
+    # Assigned from the grid. A rejected expression re-renders the plan page
+    # with the typed text kept in that row's field and an inline error, and
+    # saves nothing (FRM-02, FRM-05).
     def assign
-      parsed = AssignedExpression.parse(params.dig(:assigned, :amount), digits: @budget.currency_format.decimal_digits)
-      if parsed.error
-        return redirect_to(users_budget_path(@budget.public_id), alert: "#{@category.name}: #{parsed.error} Nothing was changed.")
-      end
+      text = params.dig(:assigned, :amount).to_s
+      parsed = AssignedExpression.parse(text)
+      return render_assign_error(text, parsed.error) if parsed.error
 
       saved = MonthAssignment.set!(budget: @budget, category: @category, month: Date.current.beginning_of_month, amount: parsed.milliunits, user: Current.user)
-      if saved.errors.any?
-        redirect_to users_budget_path(@budget.public_id), alert: "#{@category.name}: #{saved.errors.full_messages.to_sentence}. Nothing was changed."
-      else
-        redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{@budget.currency_format.format_milliunits(parsed.milliunits)}."
-      end
+      return render_assign_error(text, "#{saved.errors.full_messages.to_sentence}.") if saved.errors.any?
+
+      redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{@budget.currency_format.format_milliunits(parsed.milliunits)}."
     end
 
     def edit
@@ -66,6 +66,13 @@ module Users
     end
 
     private
+      def render_assign_error(text, message)
+        @show_hidden = false
+        @grid, @hidden_count = PlanGrid.build(@budget)
+        @assign_error = { id: @category.public_id, text: text, message: "#{message} Nothing was changed." }
+        render "users/budgets/show", status: :unprocessable_entity
+      end
+
       def set_budget
         @budget = Current.user.budgets.find_by!(public_id: params[:budget_public_id])
       end
