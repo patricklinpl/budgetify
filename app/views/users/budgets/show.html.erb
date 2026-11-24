@@ -54,6 +54,7 @@
               <td class="budget-grid__name">
                 <%= category.name %><%= " (hidden)" if category.hidden %>
                 <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
+                <%= link_to "Target", target_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Target for #{category.name}" %>
               </td>
               <td class="data-table__money" data-label="Assigned">
                 <% err = @assign_error if @assign_error && @assign_error[:id] == category.public_id %>
