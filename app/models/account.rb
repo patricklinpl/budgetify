@@ -84,6 +84,62 @@ class Account < ApplicationRecord
     end
   end
 
+  RECONCILIATION_PAYEE_NAME = "Reconciliation Balance Adjustment".freeze
+  # Wording is Budgetify's own; the audit (#63 REC-02) only says the memo is automatic.
+  RECONCILIATION_MEMO = "Entered automatically by Budgetify".freeze
+
+  Reconciliation = Struct.new(:marked, :adjustment, :difference)
+
+  # Reconcile (#63 REC-01 to REC-03). Every cleared row becomes reconciled;
+  # uncleared rows stay as they are and balances do not change by this step.
+  # With an entered statement balance that differs from the cleared balance, one
+  # adjustment is recorded for the difference, already reconciled, dated today,
+  # in the Ready to Assign category for a cash account (#63 REC-02; confirmed in the
+  # reference test account for both directions). Tracking accounts and credit
+  # cards leave Ready to Assign alone; a card whose cleared, working or entered
+  # balance is, or would become, positive is untested in the reference (the public
+  # help says positive cards move Ready to Assign) and is refused with no write. A split counts once, through its parent. Nothing is
+  # written unless the whole step succeeds.
+  def reconcile!(entered: nil)
+    raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
+
+    # SQLite takes the write lock when this transaction opens, so nothing else
+    # writes between the reads and writes below. Everything is read again
+    # inside it, from a fresh copy of the account: the instance the request
+    # loaded can be stale, and rows or balances changed since then must be
+    # reflected in both the marked set and the adjustment. A repeat of the same
+    # request finds the cleared balance already equal to the entered one and
+    # writes no second adjustment.
+    transaction do
+      current = self.class.find(id)
+      raise Blocked, "This account is closed. Reopen it before reconciling." if current.closed?
+
+      difference = entered.nil? ? 0 : entered - current.cleared_balance
+      if current.credit? && !difference.zero? &&
+          [ current.cleared_balance, entered, current.balance, current.balance + difference ].any?(&:positive?)
+        raise Blocked, "Adjusting a credit card with a positive or mixed balance is not supported yet. Reconciling when your balance matches is still available."
+      end
+      rows = budget.transactions.not_deleted.where(account_id: id, cleared: "cleared").to_a
+      rows.each { |row| row.update!(cleared: "reconciled") }
+
+      adjustment = nil
+      unless difference.zero?
+        payee = budget.payees.not_deleted.where("LOWER(name) = ?", RECONCILIATION_PAYEE_NAME.downcase).first ||
+          budget.payees.create!(name: RECONCILIATION_PAYEE_NAME)
+        adjustment = budget.transactions.create!(account: current, payee: payee, date: Date.current, amount: difference,
+          cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO,
+          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if current.reconciliation_moves_ready_to_assign?))
+        adjustment.apply_amounts!(+1)
+      end
+      reload
+      Reconciliation.new(rows.size, adjustment, difference)
+    end
+  end
+
+  def reconciliation_moves_ready_to_assign?
+    on_budget? && !credit?
+  end
+
   # Close zeroes a tracking balance with an adjustment and keeps history.
   def close!
     raise Blocked, "Only tracking accounts with a nonzero balance can be closed with a zeroing adjustment; this account is on budget." if !tracking? && !balance.zero?

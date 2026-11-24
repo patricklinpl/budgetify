@@ -8,6 +8,7 @@
   .register-page .data-table tr { padding: 0.5rem 0.5rem 0.25rem; border-bottom: 1px solid var(--color-border); }
   .register-page .data-table td { padding: 0.25rem 0; text-align: left; border: 0; white-space: normal; overflow-wrap: anywhere; }
   .register-page .data-table td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: right; }
-  .register-page .data-table td[data-label]::before { content: attr(data-label); font-size: var(--font-size-sm); font-weight: normal; color: var(--color-text-secondary); text-align: left; }
+  .register-page .data-table td[data-label]::before { content: attr(data-label); font-size: var(--font-size-sm); font-weight: normal; color: var(--color-text-secondary); text-align: left; flex: 0 0 auto; white-space: nowrap; overflow-wrap: normal; }
+  .register-page .data-table td[data-label] > * { min-width: 0; }
   .register-page .data-table td a.budget-back-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
 }
