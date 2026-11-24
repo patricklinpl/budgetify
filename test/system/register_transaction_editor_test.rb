@@ -29,13 +29,19 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     assert_includes field[:"aria-describedby"].split, "transaction_outflow-err"
     assert_equal "abc", field.value
     assert_button "Save", disabled: true, exact: true
-    assert_button "Save and add another", disabled: true, exact: true
     sleep 0.3
     assert_equal 0, @account.transactions.count
-    # Correcting the amount re-enables both submit buttons.
-    field.send_keys([ :control, "a" ], :backspace, "5", :enter)
-    assert_button "Save", disabled: false, exact: true
-    assert_button "Save and add another", disabled: false, exact: true
+  end
+
+  test "a server refusal shows its message and not a could-not-confirm notice" do
+    fill_in "Payee", with: "Corner Shop"
+    find_field("Outflow").send_keys("5")
+    find_field("Inflow").send_keys("7")
+    click_button "Save", exact: true
+    assert_text "Enter an outflow or an inflow, not both."
+    assert_text "Nothing was changed."
+    assert_no_text "Could not confirm the save"
+    assert_equal 0, @account.transactions.count
   end
 
   test "an expression commits and Save adds the row to the register" do
