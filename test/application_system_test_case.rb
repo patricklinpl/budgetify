@@ -3,6 +3,14 @@ require "test_helper"
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
 
+  # Every system test signs in through the real form, and sessions#create is
+  # rate limited to 10 per 3 minutes per process (the counter lives in the
+  # test process's memory cache). Start each test with an empty cache so the
+  # order of tests and the number of UI logins never trip that limit. Test
+  # only: the production limit is unchanged, and the dedicated rate-limit
+  # test in sessions_controller_test still exercises it.
+  setup { Rails.cache.clear }
+
   # Test-driver diagnostics for lost clicks (the recurring Cancel failure).
   # Native Selenium clicks stay as they are. Install the log before the
   # interaction; when an expectation then fails, the message carries what the
