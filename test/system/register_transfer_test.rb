@@ -9,6 +9,8 @@ class RegisterTransferTest < ApplicationSystemTestCase
     @plan = PlanLifecycle.create_plan(@user, name: "Transfer plan")
     @cash = @plan.accounts.create!(name: "Cash", type: "cash")
     @savings = @plan.accounts.create!(name: "Savings", type: "savings")
+    group = @plan.category_groups.create!(name: "Everyday")
+    @category = group.categories.create!(budget: @plan, name: "Zebra fund")
     visit users_sign_in_path
     fill_in "Email", with: @user.email_address
     fill_in "Password", with: "password"
@@ -20,11 +22,14 @@ class RegisterTransferTest < ApplicationSystemTestCase
 
   test "a To/From payee saves a transfer and the other account shows the matching row" do
     assert_selector "datalist#transaction_payee_options option[value='To/From Savings']", visible: :all
+    select "Zebra fund", from: "Category"
     find_field("Payee").send_keys("To/From Savings")
     assert_field "Category", disabled: true, with: ""
     assert_select "Category", selected: "Category not needed", disabled: true
     find_field("Payee").send_keys(*Array.new(20, :backspace))
     assert_no_selector "select[disabled]"
+    assert_select "Category", selected: "Zebra fund"
+    assert_equal @category.public_id, find_field("Category").value
     find_field("Payee").send_keys("To/From Savings")
     find_field("Memo").send_keys("Top up")
     find_field("Outflow").send_keys("25", :enter)
