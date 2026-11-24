@@ -71,7 +71,7 @@
               <td class="data-table__money" data-label="Activity"><%= grid_money(fmt, row[:activity]) %></td>
               <td class="data-table__money" data-label="Available"><%= status_pill(pill, row[:available], text: grid_money(fmt, row[:available])) %>
                 <% if row[:available].negative? && row[:category].payment_account_id.nil? %>
-                  <%= link_to "Cover", cover_users_budget_category_path(@budget.public_id, row[:category].public_id), class: "budget-back-link", "aria-label": "Cover overspending for #{row[:category].name}" %>
+                  <%= link_to "Cover", cover_users_budget_category_path(@budget.public_id, row[:category].public_id), class: "budget-back-link budget-grid__cover", "aria-label": "Cover overspending for #{row[:category].name}" %>
                 <% end %></td>
             </tr>
           <% end %>
