@@ -16,7 +16,11 @@
   </div>
   <div class="field">
     <label class="field__label" for="transaction_payee">Payee</label>
-    <input class="field__input" id="transaction_payee" name="transaction[payee]" value="<%= @form[:payee] %>" maxlength="200" autocomplete="off">
+    <input class="field__input" id="transaction_payee" name="transaction[payee]" value="<%= @form[:payee] %>" maxlength="200" autocomplete="off" list="transaction_payee_options" aria-describedby="transaction_payee_hint">
+    <datalist id="transaction_payee_options">
+      <% transfer_accounts.each do |account| %><option value="<%= Users::TransactionsController::TRANSFER_PREFIX %><%= account.name %>"></option><% end %>
+    </datalist>
+    <span class="field__hint" id="transaction_payee_hint">Choose "To/From" and an account to record a transfer or card payment. It needs no category and adds a matching row in that account.</span>
   </div>
   <div class="field">
     <label class="field__label" for="transaction_category_id">Category</label>
