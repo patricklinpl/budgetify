@@ -5,6 +5,17 @@ on:
   push:
     branches: [ main ]
 
+# When a pull request gets a newer run, its older still-running run is
+# cancelled (one group per PR number; other PRs are separate groups). A
+# cancelled run is not a pass: always read the checks of the exact current head.
+# Pushes to main use the commit sha as the group and are never cancelled, so
+# each main commit keeps its full verification. GitHub does not guarantee which
+# run is kept when runs arrive close together or are re-run, so check the
+# result for the head you care about after any re-run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
