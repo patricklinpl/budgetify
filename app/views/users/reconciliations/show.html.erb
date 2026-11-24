@@ -31,7 +31,7 @@
         <p>The balances match. No adjustment is needed.</p>
         <button class="btn" type="submit">Finish reconciling</button>
       <% else %>
-        <p>One adjustment for the difference is recorded as reconciled, with no category.</p>
+        <p>One adjustment for the difference is recorded as reconciled<%= @account.reconciliation_moves_ready_to_assign? ? " in Ready to Assign" : " with no category" %>.</p>
         <button class="btn" type="submit">Create Adjustment &amp; Finish</button>
       <% end %>
       <%= link_to "Cancel", users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), class: "budget-back-link" %>
