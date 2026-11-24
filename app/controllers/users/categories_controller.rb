@@ -32,7 +32,8 @@ module Users
     def cover_create
       source = CoverOverspending.eligible(@budget).find_by(public_id: params[:source_id].to_s)
       begin
-        amount = CoverOverspending.cover!(budget: @budget, target: @category, source: source, month: cover_month, user: Current.user)
+        expected = params[:expected_deficit].to_s.match?(/\A\d{1,15}\z/) ? params[:expected_deficit].to_i : nil
+        amount = CoverOverspending.cover!(budget: @budget, target: @category, source: source, month: cover_month, user: Current.user, expected_deficit: expected)
       rescue CoverOverspending::Refused => e
         load_cover
         @cover_error = "#{e.message} Nothing was changed."
