@@ -22,6 +22,28 @@ module Users
       redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{@budget.currency_format.format_milliunits(parsed.milliunits)}."
     end
 
+    # Cover Overspending (#57 MONEY-04): full deficit coverage only. The page
+    # lists sources that can cover the whole deficit; confirming moves it in
+    # one transaction. A refusal changes nothing.
+    def cover
+      load_cover
+    end
+
+    def cover_create
+      source = CoverOverspending.eligible(@budget).find_by(public_id: params[:source_id].to_s)
+      begin
+        expected = params[:expected_deficit].to_s.match?(/\A\d{1,15}\z/) ? params[:expected_deficit].to_i : nil
+        amount = CoverOverspending.cover!(budget: @budget, target: @category, source: source, month: cover_month, user: Current.user, expected_deficit: expected)
+      rescue CoverOverspending::Refused => e
+        load_cover
+        @cover_error = "#{e.message} Nothing was changed."
+        return render(:cover, status: :unprocessable_entity)
+      end
+      fmt = @budget.currency_format
+      redirect_to users_budget_path(@budget.public_id),
+        notice: "#{@category.name} overspending of #{fmt.format_milliunits(amount)} covered from #{source.name}."
+    end
+
     def edit
       @errors = []
       @name = @category.name
@@ -71,6 +93,15 @@ module Users
         @grid, @hidden_count = PlanGrid.build(@budget)
         @assign_error = { id: @category.public_id, text: text, message: "#{message} Nothing was changed." }
         render "users/budgets/show", status: :unprocessable_entity
+      end
+
+      def cover_month
+        Date.current.beginning_of_month
+      end
+
+      def load_cover
+        @deficit = CoverOverspending.deficit(@budget, @category, cover_month)
+        @sources = CoverOverspending.sources(@budget, @category, cover_month)
       end
 
       def set_budget
