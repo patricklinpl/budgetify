@@ -1,10 +1,13 @@
 module Users
   # Account register and the ordinary transaction editor (issue #60, slice 2):
   # list, add, edit and delete. Writes go through TransactionWriter, the same
-  # code the API uses. Splits, transfers and payments are not in this editor.
+  # code the API uses. Splits are not in this editor. A transfer or card payment
+  # is chosen in the Payee field as "To/From <account>" and needs no category.
   # Every lookup is scoped to the current user's plan; other ids are a 404.
   class TransactionsController < ApplicationController
     layout "app_shell"
+
+    TRANSFER_PREFIX = "To/From ".freeze
 
     before_action :set_budget
     before_action :set_account
@@ -77,11 +80,12 @@ module Users
 
       def set_transaction
         @transaction = @budget.transactions.not_deleted.find_by!(public_id: params[:public_id], account_id: @account.id)
-        # A split or a linked transfer needs its own editor; saving here would drop or desync it.
-        @unsupported = @transaction.sub_transactions.exists? || @transaction.transfer_account_id.present?
+        # A split needs its own editor; saving here would drop it. A linked transfer is edited here
+        # through the writer, which keeps the other side in step.
+        @unsupported = @transaction.sub_transactions.exists?
         return unless @unsupported && action_name != "destroy"
 
-        redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), alert: "This transaction is a split or a transfer. This editor does not handle those yet, so nothing was changed."
+        redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), alert: "This transaction is a split. This editor does not handle splits yet, so nothing was changed."
       end
 
       def writer
@@ -111,7 +115,7 @@ module Users
       def form_from_transaction(transaction)
         amount = transaction.amount.to_i
         {
-          date: transaction.date.iso8601, payee: transaction.payee&.name.to_s, category_id: transaction.category&.public_id.to_s, memo: transaction.memo.to_s,
+          date: transaction.date.iso8601, payee: transaction.transfer_account ? "#{TRANSFER_PREFIX}#{transaction.transfer_account.name}" : transaction.payee&.name.to_s, category_id: transaction.category&.public_id.to_s, memo: transaction.memo.to_s,
           outflow: amount.negative? ? plain_money(-amount) : "", inflow: amount.positive? ? plain_money(amount) : ""
         }
       end
@@ -142,6 +146,11 @@ module Users
         errors << "Enter an outflow or an inflow, not both." if form[:outflow].present? && form[:inflow].present?
         errors << "Choose a category from the list." if form[:category_id].present? && category_options.none? { |category| category.public_id == form[:category_id] }
         errors << "Payee must be 200 characters or fewer." if form[:payee].length > 200
+        if form[:payee].downcase.start_with?(TRANSFER_PREFIX.downcase)
+          matches = transfer_matches(form)
+          errors << "There is no other open account with that name. Choose a To/From entry from the list." if matches.empty?
+          errors << "More than one open account has that name, so the transfer would be ambiguous. Rename one of the accounts first." if matches.size > 1
+        end
         errors
       end
 
@@ -152,6 +161,13 @@ module Users
           "date" => form[:date], "amount" => inflow - outflow, "memo" => form[:memo], "payee_name" => form[:payee].presence,
           "category_id" => form[:category_id].presence
         }.tap do |attributes|
+          if (target = transfer_target(form))
+            # The category is replaced, as in the reference: a card payment uses
+            # the card's Credit Card Payments category, other transfers need none.
+            attributes["transfer_account_id"] = target.public_id
+            attributes["category_id"] = nil
+            attributes.delete("payee_name")
+          end
           # Editing: an emptied payee or category clears it.
           attributes["payee_id"] = nil if form[:payee].blank?
           attributes.delete("payee_name") if form[:payee].blank?
@@ -165,6 +181,34 @@ module Users
       def unexposed_attributes
         { "flag_color" => @transaction.flag_color, "flag_name" => @transaction.flag_name }
       end
+
+      # "To/From <account>" names another open account of this plan. Text that
+      # starts with "To/From " and names none is refused, not saved as a payee.
+      def transfer_target(form)
+        matches = transfer_matches(form)
+        matches.first if matches.one?
+      end
+
+      def transfer_matches(form)
+        text = form[:payee].to_s
+        return [] unless text.downcase.start_with?(TRANSFER_PREFIX.downcase)
+
+        wanted = text[TRANSFER_PREFIX.length..].strip.downcase
+        transfer_accounts.select { |account| account.name.downcase == wanted }
+      end
+
+      # What the Category field shows for a transfer: the card's payment
+      # category (from either side) or "Category not needed".
+      def transfer_category_label(target)
+        card = [ target, @account ].find(&:credit?)
+        card ? "Credit Card Payments: #{card.name}" : "Category not needed"
+      end
+      helper_method :transfer_category_label
+
+      def transfer_accounts
+        @transfer_accounts ||= @budget.accounts.not_deleted.where.not(id: @account.id).order(:name).to_a
+      end
+      helper_method :transfer_accounts
 
       def category_options
         @category_options ||= @budget.categories.not_deleted.where(internal: false, payment_account_id: nil).order(:name).to_a

@@ -14,18 +14,28 @@
     <label class="field__label" for="transaction_date">Date</label>
     <input class="field__input" type="date" id="transaction_date" name="transaction[date]" value="<%= @form[:date] %>" required>
   </div>
-  <div class="field">
-    <label class="field__label" for="transaction_payee">Payee</label>
-    <input class="field__input" id="transaction_payee" name="transaction[payee]" value="<%= @form[:payee] %>" maxlength="200" autocomplete="off">
-  </div>
-  <div class="field">
-    <label class="field__label" for="transaction_category_id">Category</label>
-    <select class="field__input" id="transaction_category_id" name="transaction[category_id]">
-      <option value="">No category</option>
-      <% category_options.each do |category| %>
-        <option value="<%= category.public_id %>"<%= " selected" if category.public_id == @form[:category_id] %>><%= category.name %></option>
-      <% end %>
-    </select>
+  <% transfer_labels = transfer_accounts.group_by { |account| account.name.downcase }.values.select(&:one?).flatten.to_h { |account| [ "#{Users::TransactionsController::TRANSFER_PREFIX}#{account.name}", transfer_category_label(account) ] } %>
+  <% current_transfer = transfer_labels.find { |name, _| name.casecmp?(@form[:payee].to_s) }&.last %>
+  <div data-controller="transfer-payee" data-transfer-payee-labels-value="<%= transfer_labels.to_json %>">
+    <div class="field">
+      <label class="field__label" for="transaction_payee">Payee</label>
+      <input class="field__input" id="transaction_payee" name="transaction[payee]" value="<%= @form[:payee] %>" maxlength="200" autocomplete="off" list="transaction_payee_options" aria-describedby="transaction_payee_hint" data-transfer-payee-target="payee" data-action="input->transfer-payee#sync change->transfer-payee#sync">
+      <datalist id="transaction_payee_options">
+        <% transfer_labels.each_key do |name| %><option value="<%= name %>"></option><% end %>
+      </datalist>
+      <span class="field__hint" id="transaction_payee_hint">Choose "To/From" and an account to record a transfer or card payment. It adds a matching row in that account and replaces the category.</span>
+    </div>
+    <div class="field">
+      <label class="field__label" for="transaction_category_id">Category</label>
+      <select class="field__input" id="transaction_category_id" name="transaction[category_id]" data-transfer-payee-target="category"<%= " disabled" if current_transfer %>>
+        <option value="">No category</option>
+        <option value="" data-transfer-payee-target="replacement"<%= current_transfer ? " selected" : " hidden" %>><%= current_transfer %></option>
+        <% category_options.each do |category| %>
+          <option value="<%= category.public_id %>"<%= " selected" if category.public_id == @form[:category_id] && !current_transfer %>><%= category.name %></option>
+        <% end %>
+      </select>
+      <span class="data-table__sr" aria-live="polite" data-transfer-payee-target="status"><%= "Category: #{current_transfer}" if current_transfer %></span>
+    </div>
   </div>
   <div class="field">
     <label class="field__label" for="transaction_memo">Memo</label>

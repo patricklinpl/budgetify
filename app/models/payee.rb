@@ -1,11 +1,6 @@
 require "securerandom"
 
 class Payee < ApplicationRecord
-  # Payee names may contain only letters, numbers and spaces (spec:
-  # SavePayee docs). Transfer payees are exempt: their auto-generated
-  # "Transfer : <account>" names contain punctuation.
-  NAME_FORMAT = /\A[\p{L}\p{N} ]+\z/
-
   belongs_to :budget
   belongs_to :transfer_account, class_name: "Account", optional: true, inverse_of: :transfer_payee
   has_many :payee_locations, dependent: :destroy
@@ -16,7 +11,6 @@ class Payee < ApplicationRecord
   before_save :assign_knowledge
 
   validates :name, presence: true, length: { maximum: 500 }
-  validates :name, format: { with: NAME_FORMAT, message: "may only contain letters, numbers and spaces" }, unless: :transfer_payee?
   validate :name_is_unique_within_plan, unless: :transfer_payee?
 
   # Transfer payees are auto-created per account and managed through the

@@ -110,7 +110,7 @@ class TransactionWriter
       transaction.payee = payee
       transaction.transfer_account = payee.transfer_account
     elsif attributes["payee_name"].present?
-      transaction.payee = @plan.payees.not_deleted.find_or_create_by!(name: attributes["payee_name"], budget: @plan)
+      transaction.payee = payee_named(attributes["payee_name"])
       transaction.transfer_account = nil
     elsif attributes.key?("payee_id")
       transaction.payee = nil
@@ -201,6 +201,12 @@ class TransactionWriter
   end
 
   private
+    def payee_named(name)
+      # Matches an existing payee ignoring case, as payee names are unique that way.
+      @plan.payees.not_deleted.where("LOWER(name) = ?", name.downcase).first ||
+        @plan.payees.create!(name: name)
+    end
+
     def parse_date(value)
       Date.iso8601(value.to_s)
     rescue ArgumentError, TypeError

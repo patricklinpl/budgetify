@@ -2,8 +2,7 @@ require "test_helper"
 
 # Account register and the ordinary transaction editor (#60 slice 2: TX-01,
 # TX-ADD-ANOTHER-01, TX-EMPTY-01 as Peter chose: a fully blank save matches the
-# reference and stores one zero-amount uncategorized row). Splits, transfers,
-# payments, Undo and reload-time checks of the other slices are not asserted here.
+# reference and stores one zero-amount uncategorized row). Splits, Undo and reload-time checks of the other slices are not asserted here.
 class RegisterTransactionsTest < ActionDispatch::IntegrationTest
   setup do
     @user = User.create!(email_address: "register@example.com", password: "password123")
@@ -159,13 +158,13 @@ class RegisterTransactionsTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "Corner Shop", count: 0
   end
 
-  test "a split or a transfer is shown but not editable here, and nothing changes" do
+  test "a split is shown but not editable here, and nothing changes" do
     split = @budget.transactions.new(account: @account, date: @today, amount: -10_000)
     split.save!
     split.sub_transactions.create!(amount: -10_000, category: @groceries)
     patch tx_path(split), params: valid_params(outflow: "1")
     assert_redirected_to list_path
-    assert_match(/split or a transfer/, flash[:alert])
+    assert_match(/This transaction is a split/, flash[:alert])
     assert_equal(-10_000, split.reload.amount)
     get tx_path(split, :edit)
     assert_redirected_to list_path
