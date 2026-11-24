@@ -1,7 +1,8 @@
 require "test_helper"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
-  driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1400 ]
+  DESKTOP_WINDOW = [ 1400, 1400 ].freeze
+  driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_WINDOW
 
   # Every system test signs in through the real form, and sessions#create is
   # rate limited to 10 per 3 minutes per process (the counter lives in the
@@ -10,6 +11,59 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # only: the production limit is unchanged, and the dedicated rate-limit
   # test in sessions_controller_test still exercises it.
   setup { Rails.cache.clear }
+
+  # The browser window survives between tests. A test that resizes it to phone
+  # width (390px) left the next test at that width, where the desktop layout
+  # assertions (.app-shell-plan-name and others) fail depending on test order.
+  # Every test starts at the configured desktop size; phone tests resize inside
+  # the test as before.
+  setup do
+    window = page.driver.browser.manage.window
+    before = window.size
+    window.resize_to(*DESKTOP_WINDOW)
+    after = window.size
+    (@window_trace ||= []) << { before: [ before.width, before.height ], after: [ after.width, after.height ] }
+  end
+
+  SHELL_STATE_JS = <<~JS
+    (() => {
+      const shell = document.querySelector("[data-controller~=app-shell]");
+      const names = [...document.querySelectorAll(".app-shell-plan-name")].map((el) => {
+        const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+        return { text: el.textContent.trim(), display: cs.display, visibility: cs.visibility, rect: [r.x, r.y, r.width, r.height].map(Math.round), innerText: el.innerText };
+      });
+      let storage;
+      try { storage = window.localStorage.getItem("budgetify.sidebarCollapsed"); } catch (e) { storage = "unavailable: " + e.name; }
+      return JSON.stringify({
+        href: location.pathname,
+        inner: [innerWidth, innerHeight],
+        outer: [outerWidth, outerHeight],
+        screen: [screen.width, screen.height],
+        dpr: devicePixelRatio,
+        shellClass: shell ? shell.className : "no shell element",
+        shellTag: shell ? shell.tagName : null,
+        collapsedStorage: storage,
+        media: { phone: matchMedia("(max-width: 600px)").matches, small: matchMedia("(max-width: 900px)").matches, wide: matchMedia("(max-width: 1200px)").matches },
+        planNames: names,
+        readyState: document.readyState
+      });
+    })()
+  JS
+
+  def shell_state
+    page.evaluate_script(SHELL_STATE_JS)
+  rescue => e
+    "shell state unavailable: #{e.class}: #{e.message.to_s.lines.first&.strip}"
+  end
+
+  # Re-raises an expectation failure with the window history of this test and
+  # the shell layout state (width, collapsed class, storage, computed plan name
+  # visibility) appended. Observation only: the assertion is unchanged.
+  def with_shell_diagnostics
+    yield
+  rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
+    raise e.class, "#{e.message}\nWindow trace: #{(@window_trace || []).to_json}\nShell state: #{shell_state}"
+  end
 
   # Test-driver diagnostics for lost clicks (the recurring Cancel failure).
   # Native Selenium clicks stay as they are. Install the log before the
@@ -102,6 +156,9 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
           outer: [outerWidth, outerHeight],
           dpr: devicePixelRatio,
           focus: document.hasFocus(),
+          active: document.activeElement ? document.activeElement.tagName + "#" + document.activeElement.id : "none",
+          fields: [...document.querySelectorAll("input.field__input")].map((i) => i.id + "=" + JSON.stringify(i.value) + " invalid=" + i.getAttribute("aria-invalid")),
+          buttons: [...document.querySelectorAll("form button")].map((b) => b.textContent.trim() + ":" + (b.disabled ? "disabled" : "enabled")),
           visibility: document.visibilityState,
           readyState: document.readyState,
           scrollY: Math.round(scrollY),
@@ -134,12 +191,26 @@ const mark = (what) => { if (window.__lifecycle.length < 200) window.__lifecycle
 ["pagehide", "pageshow", "beforeunload", "scroll", "resize", "focus", "blur"].forEach((type) => window.addEventListener(type, () => mark(type + " scrollY=" + Math.round(scrollY) + " inner=" + innerWidth + "x" + innerHeight), true));
 ["visibilitychange", "turbo:before-visit", "turbo:before-render", "turbo:render", "turbo:load", "readystatechange"].forEach((type) => document.addEventListener(type, () => mark(type + " " + document.visibilityState + "/" + document.readyState), true));
 try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("layout-shift " + e.value.toFixed(4)))).observe({ type: "layout-shift", buffered: true }); } catch (e) { mark("layout-shift observer unavailable"); }
-["keydown", "keyup", "toggle"].forEach((type) => {
+["keydown", "keyup", "beforeinput", "input", "toggle"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
     window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
   }, true);
 });
+const log = (what) => window.__inputLog.push(Math.round(performance.now()) + "ms " + what);
+if (!window.__fetchWrapped) {
+  window.__fetchWrapped = true;
+  const originalFetch = window.fetch;
+  window.fetch = function (input, init) { log("fetch " + ((init && init.method) || "GET") + " " + (typeof input === "string" ? input : (input && input.url))); return originalFetch.apply(this, arguments); };
+  const originalOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url) { log("xhr " + method + " " + url); return originalOpen.apply(this, arguments); };
+}
+["turbo:click", "turbo:before-fetch-request", "turbo:before-fetch-response", "turbo:visit", "turbo:submit-start", "turbo:submit-end", "turbo:frame-load"].forEach((type) => {
+  document.addEventListener(type, (e) => log(type + " " + ((e.detail && (e.detail.url || (e.detail.fetchOptions && e.detail.fetchOptions.method))) || "")), true);
+});
+document.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a"); if (a) setTimeout(() => log("after click link href=" + a.getAttribute("href") + " defaultPrevented=" + e.defaultPrevented), 0); }, false);
+window.addEventListener("beforeunload", () => log("beforeunload"), true);
+if (window.navigation) window.navigation.addEventListener("navigate", (e) => log("navigate " + e.navigationType + " " + e.destination.url + " userInitiated=" + e.userInitiated), true);
 ["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;

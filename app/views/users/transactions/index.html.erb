@@ -1,0 +1,45 @@
+<% content_for :title, "#{@account.name} register" %>
+<% fmt = @budget.currency_format %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow">Register</p>
+    <h1 class="app-shell-page-title"><%= @account.name %></h1>
+  </div>
+  <div class="shell-toolbar">
+    <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), class: "shell-button shell-button--primary" %>
+    <%= link_to "Back to the plan", users_budget_path(@budget.public_id, account: @account.public_id), class: "shell-button" %>
+  </div></div></div>
+<% end %>
+
+<section class="plan-settings register-page">
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+  <% if alert %><div class="plan-settings__errors" role="alert"><p><%= alert %></p></div><% end %>
+  <% if @transactions.empty? %>
+    <p>No transactions in this account yet.</p>
+  <% else %>
+    <div class="data-table-wrap">
+      <table class="data-table" aria-label="Register">
+        <thead>
+          <tr>
+            <th>Date</th><th>Payee</th><th>Category</th><th>Memo</th>
+            <th class="data-table__money">Outflow</th><th class="data-table__money">Inflow</th><th><span class="data-table__sr">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @transactions.each do |transaction| %>
+            <% amount = transaction.amount.to_i %>
+            <tr class="data-table__row">
+              <td data-label="Date"><%= transaction.date.iso8601 %></td>
+              <td data-label="Payee"><%= transaction.payee&.name %></td>
+              <td data-label="Category"><%= transaction.sub_transactions.any? ? "Split" : transaction.category&.name %></td>
+              <td data-label="Memo"><%= transaction.memo %></td>
+              <td class="data-table__money" data-label="Outflow"><%= money_with_exact(fmt, -amount) if amount.negative? %></td>
+              <td class="data-table__money" data-label="Inflow"><%= money_with_exact(fmt, amount) if amount.positive? %></td>
+              <td><%= link_to "Edit", edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id), class: "budget-back-link", "aria-label": "Edit transaction #{transaction.date.iso8601} #{transaction.payee&.name}" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

@@ -25,6 +25,45 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     find_field("Assigned for Zebra fund")
   end
 
+  GRID_FIELD_STATE_JS = <<~JS
+    (() => {
+      const label = [...document.querySelectorAll("label")].find((l) => l.textContent.trim() === "Assigned for Zebra fund");
+      const el = label ? document.getElementById(label.htmlFor) : [...document.querySelectorAll("input")].find((i) => (i.getAttribute("aria-label") || "").includes("Zebra fund"));
+      const host = el && el.closest("[data-controller~=field]");
+      const active = document.activeElement;
+      return JSON.stringify({
+        field: el ? { value: el.value, connected: el.isConnected, focused: el === active, ready: host ? host.getAttribute("data-field-ready") : "no host", invalid: el.getAttribute("aria-invalid") } : "not found",
+        active: active ? active.tagName + "#" + active.id : "none"
+      });
+    })()
+  JS
+
+  def grid_state
+    page.evaluate_script(GRID_FIELD_STATE_JS)
+  rescue => e
+    "unavailable: #{e.class}"
+  end
+
+  # Observation only. Native Capybara set and Enter, with the input log
+  # installed first and a before, after-set and after-Enter record of the
+  # document identity, field value and focus. Appended to a failing
+  # expectation by with_grid_diagnostics. Nothing is retried or replaced.
+  def grid_enter(field, text)
+    install_input_log
+    @grid_trace = [ { step: "before", doc: doc_state, state: grid_state } ]
+    field.set(text)
+    @grid_trace << { step: "after set", doc: doc_state, state: grid_state }
+    field.send_keys(:enter)
+    @grid_trace << { step: "after Enter", doc: doc_state, state: grid_state }
+  end
+
+  def with_grid_diagnostics
+    yield
+  rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
+    log = (page.evaluate_script("window.__inputLog") rescue "unavailable")
+    raise e.class, "#{e.message}\nGrid trace: #{(@grid_trace || []).to_json}\nNow: #{grid_state}\nDocument now: #{doc_state}\nInput log (last 60): #{Array(log).last(60).to_json}"
+  end
+
   # With an error showing, a long message wraps and never pushes Available or
   # any amount out of the table at desktop, tablet and phone widths.
   def assert_grid_fits_with_error(text)
@@ -53,9 +92,8 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
 
   test "Enter commits an expression and saves it" do
     field = grid_field
-    field.set("10+5*2")
-    field.send_keys(:enter)
-    assert_text "Zebra fund assigned $20.00."
+    grid_enter(field, "10+5*2")
+    with_grid_diagnostics { assert_text "Zebra fund assigned $20.00." }
     assert_equal 20_000, assigned
 
     # Aborted request: outcome unknown, text kept, visible failure, Enter retries once, then it works.
@@ -139,8 +177,9 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_operator link.native.rect.height, :>=, 44
     # Native click, but with the link centred so it is not at the window edge.
     page.execute_script("arguments[0].scrollIntoView({ block: 'center' })", link)
-    link.click
-    assert_text "overspent by $43.21"
+    install_input_log
+    diag_click(link, "Cover overspending link")
+    with_input_diagnostics("Cover overspending for Overspent fund") { assert_text "overspent by $43.21" }
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     [ "select#cover_source", "button", "a.btn" ].each do |selector|
       all("main #{selector}, .plan-settings #{selector}").each { |element| assert_operator element.native.rect.height, :>=, 44, selector }

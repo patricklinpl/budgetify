@@ -1,0 +1,58 @@
+<%# Ordinary transaction editor: date, payee, category, memo, one of outflow or
+    inflow. Money fields use the shared field controller (#70): client commit,
+    adjacent error, aria-invalid, and submit disabled while invalid. %>
+<% url = transaction ? users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id) : users_budget_account_transactions_path(@budget.public_id, @account.public_id) %>
+<% if @errors.any? || @field_errors.any? %>
+  <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
+    <% @errors.each do |message| %><p><%= message %></p><% end %>
+    <p>Nothing was changed.</p>
+  </div>
+<% end %>
+<%= form_with url: url, method: (transaction ? :patch : :post), scope: :transaction, class: "plan-settings__form",
+      data: { controller: "form submit", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
+  <div class="field">
+    <label class="field__label" for="transaction_date">Date</label>
+    <input class="field__input" type="date" id="transaction_date" name="transaction[date]" value="<%= @form[:date] %>" required>
+  </div>
+  <% transfer_labels = transfer_accounts.group_by { |account| account.name.downcase }.values.select(&:one?).flatten.to_h { |account| [ "#{Users::TransactionsController::TRANSFER_PREFIX}#{account.name}", transfer_category_label(account) ] } %>
+  <% current_transfer = transfer_labels.find { |name, _| name.casecmp?(@form[:payee].to_s) }&.last %>
+  <div data-controller="transfer-payee" data-transfer-payee-labels-value="<%= transfer_labels.to_json %>">
+    <div class="field">
+      <label class="field__label" for="transaction_payee">Payee</label>
+      <input class="field__input" id="transaction_payee" name="transaction[payee]" value="<%= @form[:payee] %>" maxlength="200" autocomplete="off" list="transaction_payee_options" aria-describedby="transaction_payee_hint" data-transfer-payee-target="payee" data-action="input->transfer-payee#sync change->transfer-payee#sync">
+      <datalist id="transaction_payee_options">
+        <% transfer_labels.each_key do |name| %><option value="<%= name %>"></option><% end %>
+      </datalist>
+      <span class="field__hint" id="transaction_payee_hint">Choose "To/From" and an account to record a transfer or card payment. It adds a matching row in that account and replaces the category.</span>
+    </div>
+    <div class="field">
+      <label class="field__label" for="transaction_category_id">Category</label>
+      <select class="field__input" id="transaction_category_id" name="transaction[category_id]" data-transfer-payee-target="category"<%= " disabled" if current_transfer %>>
+        <option value="">No category</option>
+        <option value="" data-transfer-payee-target="replacement"<%= current_transfer ? " selected" : " hidden" %>><%= current_transfer %></option>
+        <% category_options.each do |category| %>
+          <option value="<%= category.public_id %>"<%= " selected" if category.public_id == @form[:category_id] && !current_transfer %>><%= category.name %></option>
+        <% end %>
+      </select>
+      <span class="data-table__sr" aria-live="polite" data-transfer-payee-target="status"><%= "Category: #{current_transfer}" if current_transfer %></span>
+    </div>
+  </div>
+  <div class="field">
+    <label class="field__label" for="transaction_memo">Memo</label>
+    <input class="field__input" id="transaction_memo" name="transaction[memo]" value="<%= @form[:memo] %>" autocomplete="off">
+  </div>
+  <% { outflow: "Outflow", inflow: "Inflow" }.each do |key, label| %>
+    <% err = @field_errors[key] %>
+    <div class="field<%= ' field--invalid' if err %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
+      <label class="field__label" for="transaction_<%= key %>"><%= label %></label>
+      <input class="field__input field__input--money" id="transaction_<%= key %>" name="transaction[<%= key %>]" value="<%= @form[key] %>" inputmode="decimal" autocomplete="off" aria-describedby="transaction_<%= key %>-err"<%= raw(' aria-invalid="true"') if err %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+      <span class="field__error" id="transaction_<%= key %>-err" data-field-target="error" role="alert"<%= ' hidden' unless err %>><%= err %></span>
+      <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
+    </div>
+  <% end %>
+  <div class="plan-settings__actions">
+    <button type="submit" class="btn btn--primary" data-form-target="submit">Save</button>
+    <% unless transaction %><button type="submit" class="btn btn--secondary" name="commit_action" value="another" data-form-target="submit">Save and add another</button><% end %>
+    <%= link_to "Cancel", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "btn btn--secondary" %>
+  </div>
+<% end %>
