@@ -58,7 +58,7 @@
               <td class="data-table__money">
                 <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned do %>
                   <label class="data-table__sr" for="assigned_<%= category.public_id %>">Assigned for <%= category.name %></label>
-                  <input class="field__input" id="assigned_<%= category.public_id %>" name="assigned[amount]" value="<%= row[:assigned] / 1000.0 %>" inputmode="decimal" autocomplete="off" size="9">
+                  <input class="field__input" id="assigned_<%= category.public_id %>" name="assigned[amount]" value="<%= format(row[:assigned] % 10 == 0 ? "%.2f" : "%.3f", row[:assigned] / 1000.0) %>" inputmode="decimal" autocomplete="off" size="9">
                   <button type="submit" class="btn btn--secondary">Set</button>
                 <% end %>
               </td>
