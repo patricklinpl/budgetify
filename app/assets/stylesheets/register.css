@@ -1,0 +1,13 @@
+/* Register list (issue #60). Desktop is a table. On narrow screens each row
+   becomes a stacked block with labelled values, so Outflow, Inflow and Edit
+   stay on screen without sideways page scrolling. */
+@media (max-width: 1200px) {
+  .register-page .data-table-wrap { overflow-x: visible; }
+  .register-page .data-table, .register-page .data-table tbody, .register-page .data-table tr, .register-page .data-table td { display: block; }
+  .register-page .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .register-page .data-table tr { padding: 0.5rem 0.5rem 0.25rem; border-bottom: 1px solid var(--color-border); }
+  .register-page .data-table td { padding: 0.25rem 0; text-align: left; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  .register-page .data-table td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: right; }
+  .register-page .data-table td[data-label]::before { content: attr(data-label); font-size: var(--font-size-sm); font-weight: normal; color: var(--color-text-secondary); text-align: left; }
+  .register-page .data-table td a.budget-back-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+}
