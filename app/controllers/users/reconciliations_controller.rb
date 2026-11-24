@@ -22,7 +22,7 @@ module Users
       return refuse("This account is closed. Reopen it before reconciling.") if @account.closed?
 
       if params[:answer] == "yes"
-        return finish(@account.reconcile!)
+        return finish { @account.reconcile! }
       end
 
       @entered = params[:balance].to_s.strip
@@ -30,7 +30,7 @@ module Users
       return fail_with([ parsed.error ]) if parsed.error
 
       @review = { entered: parsed.milliunits, difference: parsed.milliunits - @account.cleared_balance }
-      return finish(@account.reconcile!(entered: parsed.milliunits)) if params[:step] == "finish"
+      return finish { @account.reconcile!(entered: parsed.milliunits) } if params[:step] == "finish"
 
       @errors = []
       render :show
@@ -45,7 +45,8 @@ module Users
         @account = @budget.accounts.not_deleted.find_by!(public_id: params[:account_public_id])
       end
 
-      def finish(result)
+      def finish
+        result = yield
         notice = if result.adjustment
           "Reconciled. One adjustment of #{milliunits_text(result.difference)} was recorded."
         else
