@@ -14,6 +14,7 @@ export default class extends Controller {
 
   connect() {
     if (!this.hasCommittedValue) this.committedValue = this.inputTarget.value
+    this.element.dataset.fieldReady = "true"
   }
 
   keydown(event) {
