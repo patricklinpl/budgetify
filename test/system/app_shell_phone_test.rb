@@ -24,10 +24,11 @@ class AppShellPhoneTest < ApplicationSystemTestCase
     find(".app-shell-phone-accounts summary").send_keys(:enter)
     assert_selector ".app-shell-phone-accounts__link", count: 2
     link = find(".app-shell-phone-accounts__link", text: "Everyday")
+    install_input_log
     assert_operator link.native.rect.width, :>=, 44
     assert_operator link.native.rect.height, :>=, 44
-    link.click
-    assert_current_path users_budget_path(@plan.public_id, account: checking.public_id)
+    diag_click(link, "account link Everyday")
+    with_input_diagnostics("Everyday") { assert_current_path users_budget_path(@plan.public_id, account: checking.public_id) }
     assert_selector ".app-shell-phone-accounts summary", text: "Everyday"
     find(".app-shell-phone-accounts summary").send_keys(:enter)
     assert_selector ".app-shell-phone-accounts__link[aria-current=page]", text: "Everyday"
