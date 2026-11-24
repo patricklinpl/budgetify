@@ -10,16 +10,6 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # the window, focus, ready state and what sits at the center of each named
   # control. That separates "the click never reached the page" (no events),
   # "it hit another element" (target differs), and "the page was not ready".
-  INPUT_LOG_JS = <<~JS
-    window.__inputLog = [];
-    ["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
-      document.addEventListener(type, (e) => {
-        const el = e.target;
-        window.__inputLog.push(Math.round(performance.now()) + "ms " + type + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "' @" + Math.round(e.clientX) + "," + Math.round(e.clientY));
-      }, true);
-    });
-  JS
-
   def install_input_log
     page.execute_script(INPUT_LOG_JS)
   end
@@ -61,4 +51,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
     raise e.class, "#{e.message}\nInput diagnostics: #{input_diagnostics(*labels)}"
   end
+
+  INPUT_LOG_JS = <<JS
+window.__inputLog = [];
+["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
+  document.addEventListener(type, (e) => {
+    const el = e.target;
+    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "' @" + Math.round(e.clientX) + "," + Math.round(e.clientY));
+  }, true);
+});
+JS
   end
