@@ -166,8 +166,8 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     "cleared balance is positive" => [ [ 5_000, "cleared" ], [ -20_000, "uncleared" ] ], # working -15, entered -1 => working -21
     "working balance is positive before" => [ [ -5_000, "cleared" ], [ 20_000, "uncleared" ] ], # working +15, entered -30 => working -10
     "working balance would become positive" => [ [ -5_000, "cleared" ], [ 3_000, "uncleared" ] ], # working -2, entered -1 => working +2
-    "entered balance is positive" => [ [ -5_000, "cleared" ], [ -20_000, "uncleared" ] ] # cleared -5, working -25, entered +10 => working -15
-  }.zip([ "-1", "-30", "-1", "10" ]).each do |(name, rows), entered|
+    "entered balance is positive" => [ [ -95_000, "cleared" ], [ -50_000, "uncleared" ] ] # cleared -95, working -145, entered +5 => difference 100, working -45
+  }.zip([ "-1", "-30", "-1", "5" ]).each do |(name, rows), entered|
     test "a card whose #{name} is refused with no write (isolated condition)" do
       @account = @budget.accounts.create!(name: "Card", type: "creditCard")
       rows.each { |amount, cleared| add(amount, cleared) }
