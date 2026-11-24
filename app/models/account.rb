@@ -102,8 +102,17 @@ class Account < ApplicationRecord
   def reconcile!(entered: nil)
     raise Blocked, "This account is closed. Reopen it before reconciling." if closed?
 
+    # SQLite takes the write lock when this transaction opens, so nothing else
+    # writes between the reads and writes below. Everything is read again
+    # inside it, from a fresh copy of the account: the instance the request
+    # loaded can be stale, and rows or balances changed since then must be
+    # reflected in both the marked set and the adjustment. A repeat of the same
+    # request finds the cleared balance already equal to the entered one and
+    # writes no second adjustment.
     transaction do
-      current = self.class.lock.find(id)
+      current = self.class.find(id)
+      raise Blocked, "This account is closed. Reopen it before reconciling." if current.closed?
+
       difference = entered.nil? ? 0 : entered - current.cleared_balance
       rows = budget.transactions.not_deleted.where(account_id: id, cleared: "cleared").to_a
       rows.each { |row| row.update!(cleared: "reconciled") }
@@ -112,9 +121,9 @@ class Account < ApplicationRecord
       unless difference.zero?
         payee = budget.payees.not_deleted.where("LOWER(name) = ?", RECONCILIATION_PAYEE_NAME.downcase).first ||
           budget.payees.create!(name: RECONCILIATION_PAYEE_NAME)
-        adjustment = budget.transactions.create!(account: self, payee: payee, date: Date.current, amount: difference,
+        adjustment = budget.transactions.create!(account: current, payee: payee, date: Date.current, amount: difference,
           cleared: "reconciled", approved: true, memo: RECONCILIATION_MEMO,
-          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if reconciliation_moves_ready_to_assign?))
+          category: (budget.categories.not_deleted.find_by!(internal: true, name: Budget::INFLOW_CATEGORY_NAME) if current.reconciliation_moves_ready_to_assign?))
         adjustment.apply_amounts!(+1)
       end
       reload
