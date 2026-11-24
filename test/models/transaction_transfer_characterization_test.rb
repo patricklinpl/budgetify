@@ -36,17 +36,23 @@ class TransactionTransferCharacterizationTest < ActiveSupport::TestCase
     assert_equal(-out.amount, pair.amount)
     assert_equal @cash.id, pair.account_id
     assert_equal out.id, pair.transfer_transaction_id
+    assert_equal "Top up", pair.memo
     assert_equal pair.id, out.transfer_transaction_id
   end
 
-  # Audit gap, pinned as today's behaviour and not as a decision: TX-CASH-01 and
-  # TX-PAY-01 observed the same memo on both rows. sync_transfer! does not copy
-  # the memo, so the counterpart row has none. Whoever closes this gap flips
-  # this assertion on purpose.
-  test "the counterpart row does not carry the memo today (audit observed it matching)" do
+  # The audit observed the same memo on both rows (TX-CASH-01, TX-PAY-01). The
+  # counterpart gets the memo on create and follows later edits, including
+  # clearing it.
+  test "the counterpart row carries the same memo and follows memo edits" do
     out = put(@savings, -25_000, "transfer_account_id" => @cash.public_id, "memo" => "Top up")
-    assert_equal "Top up", out.reload.memo
-    assert_nil out.transfer_transaction.memo
+    pair = out.reload.transfer_transaction
+    assert_equal "Top up", pair.memo
+
+    Transaction.transaction { @writer.update!(out, { "memo" => "Rent top up" }, rebuild_subs: false) }
+    assert_equal "Rent top up", pair.reload.memo
+
+    Transaction.transaction { @writer.update!(out, { "memo" => nil }, rebuild_subs: false) }
+    assert_nil pair.reload.memo
   end
 
   # TX-PAY-01 (T): Cash 965, CardA -100, payment 40 => 925 / -60; edit to 35 =>
