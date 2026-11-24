@@ -21,8 +21,11 @@ class AppShellPhoneTest < ApplicationSystemTestCase
     page.driver.browser.manage.window.resize_to(390, 844)
     visit users_budget_path(@plan.public_id)
     assert_selector ".app-shell-phone-accounts summary", text: "Accounts"
-    find(".app-shell-phone-accounts summary").send_keys(:enter)
-    assert_selector ".app-shell-phone-accounts__link", count: 2
+    install_input_log
+    with_input_diagnostics do
+      find(".app-shell-phone-accounts summary").send_keys(:enter)
+      assert_selector ".app-shell-phone-accounts__link", count: 2
+    end
     link = find(".app-shell-phone-accounts__link", text: "Everyday")
     install_input_log
     assert_operator link.native.rect.width, :>=, 44

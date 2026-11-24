@@ -106,6 +106,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
           readyState: document.readyState,
           scrollY: Math.round(scrollY),
           openDialogs: document.querySelectorAll("dialog[open]").length,
+          details: [...document.querySelectorAll("details")].map((d) => (d.className || "details") + " open=" + d.open),
           controls,
           inputLog: window.__inputLog || "not installed",
           lifecycle: window.__lifecycle || "not installed"
@@ -133,6 +134,12 @@ const mark = (what) => { if (window.__lifecycle.length < 200) window.__lifecycle
 ["pagehide", "pageshow", "beforeunload", "scroll", "resize", "focus", "blur"].forEach((type) => window.addEventListener(type, () => mark(type + " scrollY=" + Math.round(scrollY) + " inner=" + innerWidth + "x" + innerHeight), true));
 ["visibilitychange", "turbo:before-visit", "turbo:before-render", "turbo:render", "turbo:load", "readystatechange"].forEach((type) => document.addEventListener(type, () => mark(type + " " + document.visibilityState + "/" + document.readyState), true));
 try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("layout-shift " + e.value.toFixed(4)))).observe({ type: "layout-shift", buffered: true }); } catch (e) { mark("layout-shift observer unavailable"); }
+["keydown", "keyup", "toggle"].forEach((type) => {
+  document.addEventListener(type, (e) => {
+    const el = e.target;
+    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
+  }, true);
+});
 ["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
