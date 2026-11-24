@@ -14,6 +14,66 @@
   <% end %>
 <% end %>
 
+<% if @grid %>
+<section class="budget-grid" aria-label="Budget for <%= Date.current.strftime("%B %Y") %>">
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+  <% if alert %><p class="plan-settings__errors" role="alert"><%= alert %></p><% end %>
+  <p>
+    <% if @show_hidden %>
+      <%= link_to "Hide hidden categories", users_budget_path(@budget.public_id), class: "budget-back-link" %>
+    <% elsif @hidden_count.positive? %>
+      <%= link_to "Show #{@hidden_count} hidden #{'category'.pluralize(@hidden_count)}", users_budget_path(@budget.public_id, hidden: 1), class: "budget-back-link" %>
+    <% end %>
+  </p>
+  <% if @grid.empty? %>
+    <p>This plan has no categories yet.</p>
+  <% else %>
+  <div class="data-table-wrap" data-controller="data-table">
+    <table class="data-table" aria-label="Budget grid">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th class="data-table__money">Assigned</th>
+          <th class="data-table__money">Activity</th>
+          <th class="data-table__money">Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @grid.each do |entry| %>
+          <% group = entry[:group] %>
+          <tr class="data-table__group" data-group-id="<%= group.public_id %>">
+            <td><button type="button" class="data-table__chevron" aria-expanded="true" aria-label="Toggle group <%= group.name %>" data-action="data-table#toggleGroup"></button> <%= group.name %><%= " (hidden)" if group.hidden %></td>
+            <td class="data-table__money"><%= data_table_money(entry[:assigned]) %></td>
+            <td class="data-table__money"><%= data_table_money(entry[:activity]) %></td>
+            <td class="data-table__money"><%= data_table_money(entry[:available]) %></td>
+          </tr>
+          <% entry[:rows].each do |row| %>
+            <% category = row[:category] %>
+            <% pill = row[:available].negative? ? :negative : (row[:available].zero? ? :zero : :positive) %>
+            <tr class="data-table__row" data-group="<%= group.public_id %>">
+              <td>
+                <%= category.name %><%= " (hidden)" if category.hidden %>
+                <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
+              </td>
+              <td class="data-table__money">
+                <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned do %>
+                  <label class="data-table__sr" for="assigned_<%= category.public_id %>">Assigned for <%= category.name %></label>
+                  <input class="field__input" id="assigned_<%= category.public_id %>" name="assigned[amount]" value="<%= row[:assigned] / 1000.0 %>" inputmode="decimal" autocomplete="off" size="9">
+                  <button type="submit" class="btn btn--secondary">Set</button>
+                <% end %>
+              </td>
+              <td class="data-table__money"><%= data_table_money(row[:activity]) %></td>
+              <td class="data-table__money"><%= status_pill(pill, row[:available]) %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <% end %>
+</section>
+<% end %>
+
 <section class="shell-card">
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <p class="shell-eyebrow">Budget owner</p>
