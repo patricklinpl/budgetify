@@ -124,5 +124,25 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
       element = first(selector)
       assert_operator element.native.rect.height, :>=, 44, selector
     end
+
+    # Cover Overspending (#57 MONEY-04) on the phone: the link is a 44px target and
+    # a native click through the cover page moves the whole deficit.
+    month = Date.current.beginning_of_month
+    group = @plan.category_groups.find_by!(name: "Everyday")
+    over = group.categories.create!(budget: @plan, name: "Overspent fund")
+    source = group.categories.create!(budget: @plan, name: "Source fund")
+    account = @plan.accounts.create!(name: "Checking", type: "checking", balance: 1_000_000)
+    @plan.transactions.create!(account: account, date: month, amount: -43_210, category: over).apply_amounts!(1)
+    MonthAssignment.set!(budget: @plan, category: source, month: month, amount: 100_000, user: @user)
+    visit users_budget_path(@plan.public_id)
+    link = find("a[aria-label='Cover overspending for Overspent fund']")
+    assert_operator link.native.rect.height, :>=, 44
+    link.click
+    assert_text "overspent by $43.21"
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > document.documentElement.clientWidth")
+    click_button "Cover $43.21"
+    assert_text "Overspent fund overspending of $43.21 covered from Source fund."
+    assert_equal [ 43_210, 0 ], [ over.month_category_for(month).reload.budgeted, CoverOverspending.deficit(@plan, over, month) ]
+    assert_equal 56_790, source.month_category_for(month).reload.budgeted
   end
 end
