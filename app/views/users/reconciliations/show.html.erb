@@ -1,0 +1,58 @@
+<% content_for :title, "Reconcile #{@account.name}" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Reconcile</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings reconcile-page">
+  <% if @errors.any? %>
+    <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
+      <% @errors.each do |message| %><p><%= message %></p><% end %>
+      <p>Nothing was changed.</p>
+    </div>
+  <% end %>
+  <p class="reconcile-page__summary" aria-label="Balance summary">
+    Cleared balance <strong><%= milliunits_text(@account.cleared_balance) %></strong>
+    (uncleared <%= milliunits_text(@account.uncleared_balance) %>, working <%= milliunits_text(@account.balance) %>)
+  </p>
+  <% if @review %>
+    <h2>Difference</h2>
+    <dl class="reconcile-page__difference">
+      <dt>Your balance</dt><dd><%= milliunits_text(@review[:entered]) %></dd>
+      <dt>Cleared balance</dt><dd><%= milliunits_text(@account.cleared_balance) %></dd>
+      <dt>Difference</dt><dd><%= milliunits_text(@review[:difference]) %></dd>
+    </dl>
+    <%= form_with url: users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), method: :post, class: "plan-settings__form", data: { turbo: false } do %>
+      <input type="hidden" name="answer" value="no">
+      <input type="hidden" name="step" value="finish">
+      <input type="hidden" name="balance" value="<%= @entered %>">
+      <% if @review[:difference].zero? %>
+        <p>The balances match. No adjustment is needed.</p>
+        <button class="btn" type="submit">Finish reconciling</button>
+      <% else %>
+        <p>One adjustment for the difference is recorded as reconciled, with no category.</p>
+        <button class="btn" type="submit">Create Adjustment &amp; Finish</button>
+      <% end %>
+      <%= link_to "Cancel", users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), class: "budget-back-link" %>
+    <% end %>
+  <% else %>
+    <h2>Is your account balance <%= milliunits_text(@account.cleared_balance) %>?</h2>
+    <%= form_with url: users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), method: :post, class: "plan-settings__form", data: { turbo: false } do %>
+      <input type="hidden" name="answer" value="yes">
+      <button class="btn" type="submit">Yes, reconcile</button>
+    <% end %>
+    <%= form_with url: users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), method: :post, class: "plan-settings__form", data: { turbo: false, controller: "form", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" } do %>
+      <input type="hidden" name="answer" value="no">
+      <input type="hidden" name="step" value="review">
+      <div class="field<%= ' field--invalid' if @errors.any? %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
+        <label class="field__label" for="reconcile_balance">No, my balance is</label>
+        <input class="field__input field__input--money" id="reconcile_balance" name="balance" value="<%= @entered %>" inputmode="decimal" autocomplete="off" aria-describedby="reconcile_balance-err"<%= raw(' aria-invalid="true"') if @errors.any? %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+        <span class="field__error" id="reconcile_balance-err" data-field-target="error" role="alert"<%= ' hidden' unless @errors.any? %>><%= @errors.first %></span>
+        <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
+      </div>
+      <button class="btn" type="submit" data-form-target="submit">Review difference</button>
+    <% end %>
+    <%= link_to "Back to the register", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "budget-back-link" %>
+  <% end %>
+</section>
