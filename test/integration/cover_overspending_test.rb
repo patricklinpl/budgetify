@@ -97,6 +97,8 @@ class CoverOverspendingTest < ActionDispatch::IntegrationTest
     assert_equal 43_205, CoverOverspending.deficit(@budget, @groceries, @month)
     get cover_users_budget_category_path(@budget.public_id, @groceries.public_id)
     assert_select "input[name=expected_deficit][value='43205']"
+    assert_select "button", text: "Cover $43.21 (exact 43.205)"
+    assert_select "p", text: /overspent by \$43.21 \(exact 43.205\)/
     post cover_users_budget_category_path(@budget.public_id, @groceries.public_id), params: { source_id: @source.public_id, expected_deficit: 43_210 }
     assert_response :unprocessable_entity
     post cover_users_budget_category_path(@budget.public_id, @groceries.public_id), params: { source_id: @source.public_id, expected_deficit: 43_205 }
@@ -108,6 +110,13 @@ class CoverOverspendingTest < ActionDispatch::IntegrationTest
     MonthAssignment.set!(budget: @budget, category: @groceries, month: @month, amount: 0, user: @user)
     get cover_users_budget_category_path(@budget.public_id, @groceries.public_id)
     assert_select "input[name=expected_deficit][value='#{CoverOverspending.deficit(@budget, @groceries, @month)}']"
+    assert_select "button", text: "Cover \u00a543 (exact 43.210)"
+    MonthAssignment.set!(budget: @budget, category: @groceries, month: @month, amount: -90, user: @user)
+    get cover_users_budget_category_path(@budget.public_id, @groceries.public_id)
+    assert_select "button", text: "Cover \u00a543 (exact 43.300)"
+    MonthAssignment.set!(budget: @budget, category: @source, month: @month, amount: 100_005, user: @user)
+    get cover_users_budget_category_path(@budget.public_id, @groceries.public_id)
+    assert_select "option", text: "Rainy day, \u00a5100 (exact 100.005)"
   end
 
   test "hidden categories and categories in hidden groups are not offered and are refused as a source" do
