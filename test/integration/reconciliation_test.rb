@@ -125,6 +125,26 @@ class ReconciliationTest < ActionDispatch::IntegrationTest
     assert_equal before, rta.call
   end
 
+  test "a repeated finish writes no second adjustment" do
+    add(950_000, "cleared")
+    2.times { post path, params: { answer: "no", step: "finish", balance: "945" } }
+    assert_equal 1, @account.transactions.where(memo: Account::RECONCILIATION_MEMO).count
+    assert_equal [ 945_000, 0, 945_000 ], balances
+  end
+
+  test "a stale account instance reconciles against the current rows and balances" do
+    add(950_000, "cleared")
+    stale = Account.find(@account.id)
+    add(20_000, "cleared") # changes the balances after the instance was loaded
+    add(-10_000, "uncleared")
+    stale.reconcile!(entered: 955_000)
+    assert_equal [ 955_000, -10_000, 945_000 ], balances
+    adjustment = @account.transactions.find_by!(memo: Account::RECONCILIATION_MEMO)
+    assert_equal(-15_000, adjustment.amount)
+    assert_equal 2, @account.transactions.where(cleared: "reconciled").where.not(id: adjustment.id).count
+    assert_equal 1, @account.transactions.where(cleared: "uncleared").count
+  end
+
   test "matching entered balance needs no adjustment" do
     seed_rec01
     post path, params: { answer: "no", step: "finish", balance: "1000" }
