@@ -89,7 +89,7 @@ module Users
       end
 
       def writer
-        @writer ||= TransactionWriter.new(@budget)
+        @writer ||= TransactionWriter.new(@budget, free_payee_names: true)
       end
 
       def render_form(template)
@@ -145,15 +145,11 @@ module Users
         end
         errors << "Enter an outflow or an inflow, not both." if form[:outflow].present? && form[:inflow].present?
         errors << "Choose a category from the list." if form[:category_id].present? && category_options.none? { |category| category.public_id == form[:category_id] }
-        errors << "A transfer or card payment does not use a category. Clear the category or choose a payee instead." if transfer_target(form) && form[:category_id].present?
         errors << "Payee must be 200 characters or fewer." if form[:payee].length > 200
-        # The writer rejects other names with an exception (a 500 here before this check).
-        if form[:payee].present? && transfer_target(form).nil?
-          if form[:payee].downcase.start_with?(TRANSFER_PREFIX.downcase)
-            errors << "There is no other open account with that name. Choose a To/From entry from the list."
-          elsif !Payee::NAME_FORMAT.match?(form[:payee])
-            errors << "Payee may only contain letters, numbers and spaces."
-          end
+        if form[:payee].downcase.start_with?(TRANSFER_PREFIX.downcase)
+          matches = transfer_matches(form)
+          errors << "There is no other open account with that name. Choose a To/From entry from the list." if matches.empty?
+          errors << "More than one open account has that name, so the transfer would be ambiguous. Rename one of the accounts first." if matches.size > 1
         end
         errors
       end
@@ -166,7 +162,10 @@ module Users
           "category_id" => form[:category_id].presence
         }.tap do |attributes|
           if (target = transfer_target(form))
+            # The category is replaced, as in the reference: a card payment uses
+            # the card's Credit Card Payments category, other transfers need none.
             attributes["transfer_account_id"] = target.public_id
+            attributes["category_id"] = nil
             attributes.delete("payee_name")
           end
           # Editing: an emptied payee or category clears it.
@@ -186,12 +185,25 @@ module Users
       # "To/From <account>" names another open account of this plan. Text that
       # starts with "To/From " and names none is refused, not saved as a payee.
       def transfer_target(form)
+        matches = transfer_matches(form)
+        matches.first if matches.one?
+      end
+
+      def transfer_matches(form)
         text = form[:payee].to_s
-        return unless text.downcase.start_with?(TRANSFER_PREFIX.downcase)
+        return [] unless text.downcase.start_with?(TRANSFER_PREFIX.downcase)
 
         wanted = text[TRANSFER_PREFIX.length..].strip.downcase
-        transfer_accounts.find { |account| account.name.downcase == wanted }
+        transfer_accounts.select { |account| account.name.downcase == wanted }
       end
+
+      # What the Category field shows for a transfer: the card's payment
+      # category (from either side) or "Category not needed".
+      def transfer_category_label(target)
+        card = [ target, @account ].find(&:credit?)
+        card ? "Credit Card Payments: #{card.name}" : "Category not needed"
+      end
+      helper_method :transfer_category_label
 
       def transfer_accounts
         @transfer_accounts ||= @budget.accounts.not_deleted.where.not(id: @account.id).order(:name).to_a
