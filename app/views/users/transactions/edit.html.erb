@@ -8,6 +8,11 @@
 <section class="plan-settings">
   <%= render "form", transaction: @transaction %>
   <section class="plan-settings__fresh">
+    <h2>Split</h2>
+    <p>Divide this transaction across several categories.</p>
+    <%= link_to "Split this transaction", edit_users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, @transaction.public_id), class: "btn btn--secondary" %>
+  </section>
+  <section class="plan-settings__fresh">
     <h2>Delete transaction</h2>
     <p>Deleting reverses its effect on the account and the category.<%= " It also removes the matching row in #{@transaction.transfer_account.name}." if @transaction.transfer_account %> Undo is not built.</p>
     <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete do %>
