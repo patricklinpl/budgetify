@@ -29,6 +29,24 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     field.send_keys(:enter)
     assert_text "Zebra fund assigned $20.00."
     assert_equal 20_000, assigned
+
+    # Yen plan: no dollar "Saved" announcement before the server answers; one request.
+    @plan.update!(currency_format: @plan.currency_format.as_json.merge("decimal_digits" => 0, "currency_symbol" => "\u00a5", "symbol_first" => true))
+    visit users_budget_path(@plan.public_id)
+    field = find_field("Assigned for Zebra fund")
+    field.set("1200")
+    # Hold the request to look at the page before the server answers.
+    page.execute_script("window.__subs = 0; document.querySelectorAll('form[data-controller=submit]').forEach(f => f.addEventListener('submit', e => { window.__subs++; e.preventDefault() }))")
+    field.send_keys(:enter, :enter, :tab)
+    assert_equal 1, page.evaluate_script("window.__subs")
+    assert_field "Assigned for Zebra fund", with: "1200"
+    assert_equal "Saving", field.find(:xpath, "ancestor::div[@data-controller='field']").find("[data-field-target=status]", visible: :all).text(:all)
+    visit users_budget_path(@plan.public_id)
+    field = find_field("Assigned for Zebra fund")
+    field.set("1200")
+    field.send_keys(:enter)
+    assert_text "Zebra fund assigned \u00a51,200"
+    assert_equal 1_200_000, assigned
   end
 
   test "invalid text is kept with an inline error and nothing is saved; Escape restores" do
@@ -41,6 +59,16 @@ class BudgetGridSystemTest < ApplicationSystemTestCase
     assert_equal 0, assigned
     find_field("Assigned for Zebra fund").send_keys(:escape)
     assert_field "Assigned for Zebra fund", with: "0.00"
+
+    # Client and server share one amount ceiling.
+    field = find_field("Assigned for Zebra fund")
+    field.set("1000000000")
+    field.send_keys(:enter)
+    assert_text "That amount is too large"
+    assert_field "Assigned for Zebra fund", with: "1000000000"
+    assert_equal 0, assigned
+    assert_nil AssignedExpression.parse("999999999.99").error
+    assert_equal "That amount is too large", AssignedExpression.parse("1000000000").error
   end
 
   test "phone layout keeps Activity visible with 44px controls and no sideways scroll" do
