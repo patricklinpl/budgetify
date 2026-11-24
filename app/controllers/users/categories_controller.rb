@@ -44,6 +44,38 @@ module Users
         notice: "#{@category.name} overspending of #{fmt.format_milliunits(amount)} covered from #{source.name}."
     end
 
+    # Monthly target (#58 TARGET-01, partial): set the amount, assign the
+    # remaining amount, delete the target. Current month only.
+    def target
+      load_target
+    end
+
+    def target_update
+      @amount_text = params.dig(:target, :amount).to_s
+      parsed = AssignedExpression.parse(@amount_text)
+      return render_target_error(parsed.error) if parsed.error
+
+      begin
+        MonthlyTarget.set!(@category, parsed.milliunits, month: cover_month)
+      rescue MonthlyTarget::Refused => e
+        return render_target_error(e.message)
+      end
+      redirect_to target_users_budget_category_path(@budget.public_id, @category.public_id), notice: "Target saved."
+    end
+
+    def target_assign
+      expected = params[:expected_remaining].to_s.match?(/\A\d{1,15}\z/) ? params[:expected_remaining].to_i : nil
+      amount = MonthlyTarget.assign_remaining!(budget: @budget, category: @category, month: cover_month, user: Current.user, expected_remaining: expected)
+      redirect_to users_budget_path(@budget.public_id), notice: "#{@category.name} assigned #{helpers.money_with_exact(@budget.currency_format, amount)} more to meet its target."
+    rescue MonthlyTarget::Refused => e
+      render_target_error(e.message)
+    end
+
+    def target_destroy
+      MonthlyTarget.clear!(@category)
+      redirect_to target_users_budget_category_path(@budget.public_id, @category.public_id), notice: "Target removed."
+    end
+
     def edit
       @errors = []
       @name = @category.name
@@ -93,6 +125,18 @@ module Users
         @grid, @hidden_count = PlanGrid.build(@budget)
         @assign_error = { id: @category.public_id, text: text, message: "#{message} Nothing was changed." }
         render "users/budgets/show", status: :unprocessable_entity
+      end
+
+      def load_target
+        @month = cover_month
+        @assigned = MonthlyTarget.assigned(@category, @month)
+        @remaining = MonthlyTarget.remaining(@category, @month)
+      end
+
+      def render_target_error(message)
+        load_target
+        @target_error = "#{message} Nothing was changed."
+        render :target, status: :unprocessable_entity
       end
 
       def cover_month
