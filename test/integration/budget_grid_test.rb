@@ -1,8 +1,8 @@
 require "test_helper"
 
 class BudgetGridTest < ActionDispatch::IntegrationTest
-  EXPRESSIONS = { "100" => 100_000, "10+5*2" => 20_000, "(10+5)*2" => 30_000, "-5" => -5_000, "12.345" => 12_345, "10/4" => 2_500, " 7 + 3 " => 10_000 }.freeze
-  INVALID = [ "", "abc", "10+", "1/0", "1.2345", "((1)", "1 2", "$5", "1e3", "10/3" ].freeze
+  EXPRESSIONS = { "100" => 100_000, "10+5*2" => 20_000, "(10+5)*2" => 30_000, "-5" => -5_000, "12.34" => 12_340, "10/4" => 2_500, " 7 + 3 " => 10_000 }.freeze
+  INVALID = [ "", "abc", "10+", "1/0", "1.2345", "12.345", "0.004", "((1)", "1 2", "$5", "1e3", "10/3" ].freeze
 
   test "expressions evaluate with precedence and exact amounts" do
     EXPRESSIONS.each { |text, milli| assert_equal milli, AssignedExpression.parse(text).milliunits, text }
@@ -14,6 +14,27 @@ class BudgetGridTest < ActionDispatch::IntegrationTest
       assert_nil result.milliunits, text.inspect
       assert result.error.present?, text.inspect
     end
+  end
+
+  test "precision follows the plan currency digits" do
+    assert_equal 12_000, AssignedExpression.parse("12", digits: 0).milliunits
+    assert_nil AssignedExpression.parse("12.5", digits: 0).milliunits
+    assert_match(/at most 0 decimal places/, AssignedExpression.parse("12.5", digits: 0).error)
+    assert_equal 12_345, AssignedExpression.parse("12.345", digits: 3).milliunits
+    assert_nil AssignedExpression.parse("12.3456", digits: 3).milliunits
+  end
+
+  test "grid shows amounts in the plan currency format and rejects finer input" do
+    user, budget, category = sign_in_with_category
+    budget.update!(currency_format: budget.currency_format.as_json.merge("decimal_digits" => 0, "currency_symbol" => "\u00a5", "symbol_first" => true))
+    patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "1200" } }
+    follow_redirect!
+    assert_select "td", text: /\u00a51,200/
+    assert_select "input[name='assigned[amount]'][value='1200']"
+    patch assign_users_budget_category_path(budget.public_id, category.public_id), params: { assigned: { amount: "1.5" } }
+    follow_redirect!
+    assert_select "[role=alert]", text: /at most 0 decimal places.*Nothing was changed/
+    assert_equal 1_200_000, category.reload.month_category_for(Date.current.beginning_of_month).budgeted
   end
 
   test "grid lists categories and assigns from an expression" do
