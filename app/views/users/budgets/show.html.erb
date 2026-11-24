@@ -58,7 +58,7 @@
               <td class="data-table__money" data-label="Assigned">
                 <% err = @assign_error if @assign_error && @assign_error[:id] == category.public_id %>
                 <% input_id = "assigned_#{category.public_id}" %>
-                <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned, data: { controller: "submit", action: "field:commit->submit#submit" } do %>
+                <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned, data: { controller: "submit", action: "field:commit->submit#submit turbo:submit-end->submit#end" } do %>
                   <div class="field<%= ' field--invalid' if err %>" data-controller="field" data-field-kind-value="currency" data-field-defer-value="true">
                     <label class="data-table__sr" for="<%= input_id %>">Assigned for <%= category.name %></label>
                     <input class="field__input field__input--money" id="<%= input_id %>" name="assigned[amount]" value="<%= err ? err[:text] : format("%.#{(row[:assigned] % 10).zero? ? 2 : 3}f", row[:assigned] / 1000.0) %>" inputmode="decimal" autocomplete="off" aria-describedby="<%= input_id %>-err"<%= raw(' aria-invalid="true" autofocus') if err %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
