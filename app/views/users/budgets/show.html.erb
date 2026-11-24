@@ -16,10 +16,8 @@
 
 <% if @grid %>
 <% fmt = @budget.currency_format %>
-<% digits = fmt.decimal_digits.to_i.clamp(0, 3) %>
 <section class="budget-grid" aria-label="Budget for <%= Date.current.strftime("%B %Y") %>">
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
-  <% if alert %><p class="plan-settings__errors" role="alert"><%= alert %></p><% end %>
   <p>
     <% if @show_hidden %>
       <%= link_to "Hide hidden categories", users_budget_path(@budget.public_id), class: "budget-back-link" %>
@@ -44,29 +42,34 @@
         <% @grid.each do |entry| %>
           <% group = entry[:group] %>
           <tr class="data-table__group" data-group-id="<%= group.public_id %>">
-            <td><button type="button" class="data-table__chevron" aria-expanded="true" aria-label="Toggle group <%= group.name %>" data-action="data-table#toggleGroup"></button> <%= group.name %><%= " (hidden)" if group.hidden %></td>
-            <td class="data-table__money"><%= fmt.format_milliunits(entry[:assigned]) %></td>
-            <td class="data-table__money"><%= fmt.format_milliunits(entry[:activity]) %></td>
-            <td class="data-table__money"><%= fmt.format_milliunits(entry[:available]) %></td>
+            <td class="budget-grid__name"><button type="button" class="data-table__chevron" aria-expanded="true" aria-label="Toggle group <%= group.name %>" data-action="data-table#toggleGroup"></button> <%= group.name %><%= " (hidden)" if group.hidden %></td>
+            <td class="data-table__money" data-label="Assigned"><%= grid_money(fmt, entry[:assigned]) %></td>
+            <td class="data-table__money" data-label="Activity"><%= grid_money(fmt, entry[:activity]) %></td>
+            <td class="data-table__money" data-label="Available"><%= grid_money(fmt, entry[:available]) %></td>
           </tr>
           <% entry[:rows].each do |row| %>
             <% category = row[:category] %>
             <% pill = row[:available].negative? ? :negative : (row[:available].zero? ? :zero : :positive) %>
             <tr class="data-table__row" data-group="<%= group.public_id %>">
-              <td>
+              <td class="budget-grid__name">
                 <%= category.name %><%= " (hidden)" if category.hidden %>
-                <span class="budget-grid__activity-inline">Activity <%= fmt.format_milliunits(row[:activity]) %></span>
                 <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
               </td>
-              <td class="data-table__money">
-                <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned do %>
-                  <label class="data-table__sr" for="assigned_<%= category.public_id %>">Assigned for <%= category.name %></label>
-                  <input class="field__input" id="assigned_<%= category.public_id %>" name="assigned[amount]" value="<%= format("%.#{(row[:assigned] % (10**(3 - digits))).zero? ? digits : 3}f", row[:assigned] / 1000.0) %>" inputmode="decimal" autocomplete="off" size="9">
-                  <button type="submit" class="btn btn--secondary">Set</button>
+              <td class="data-table__money" data-label="Assigned">
+                <% err = @assign_error if @assign_error && @assign_error[:id] == category.public_id %>
+                <% input_id = "assigned_#{category.public_id}" %>
+                <%= form_with url: assign_users_budget_category_path(@budget.public_id, category.public_id), method: :patch, scope: :assigned, data: { controller: "submit", action: "field:commit->submit#submit" } do %>
+                  <div class="field<%= ' field--invalid' if err %>" data-controller="field" data-field-kind-value="currency">
+                    <label class="data-table__sr" for="<%= input_id %>">Assigned for <%= category.name %></label>
+                    <input class="field__input field__input--money" id="<%= input_id %>" name="assigned[amount]" value="<%= err ? err[:text] : format("%.#{(row[:assigned] % 10).zero? ? 2 : 3}f", row[:assigned] / 1000.0) %>" inputmode="decimal" autocomplete="off" aria-describedby="<%= input_id %>-err"<%= raw(' aria-invalid="true" autofocus') if err %> data-field-target="input" data-action="keydown->field#keydown blur->field#blur input->field#typing">
+                    <span class="field__error" id="<%= input_id %>-err" data-field-target="error" role="alert"<%= ' hidden' unless err %>><%= err[:message] if err %></span>
+                    <span class="field__status data-table__sr" data-field-target="status" aria-live="polite"></span>
+                  </div>
+                  <button type="submit" class="btn btn--secondary" aria-label="Set assigned for <%= category.name %>">Set</button>
                 <% end %>
               </td>
-              <td class="data-table__money"><%= fmt.format_milliunits(row[:activity]) %></td>
-              <td class="data-table__money"><%= status_pill(pill, row[:available], text: fmt.format_milliunits(row[:available])) %></td>
+              <td class="data-table__money" data-label="Activity"><%= grid_money(fmt, row[:activity]) %></td>
+              <td class="data-table__money" data-label="Available"><%= status_pill(pill, row[:available], text: grid_money(fmt, row[:available])) %></td>
             </tr>
           <% end %>
         <% end %>
