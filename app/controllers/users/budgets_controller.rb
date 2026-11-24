@@ -25,7 +25,9 @@ module Users
     # movements, newest first. The reference tabs and actor filter were only
     # inspected (predicates unknown), so none are built here.
     def moves
-      @moves = @budget.money_movements.not_deleted.includes(:from_category, :to_category, :performed_by_user)
+      scope = @budget.money_movements.not_deleted
+      @moves_total = scope.count
+      @moves = scope.includes(:from_category, :to_category, :performed_by_user)
         .order(moved_at: :desc, id: :desc).limit(100)
     end
 
