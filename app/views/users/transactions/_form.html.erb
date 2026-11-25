@@ -10,7 +10,7 @@
   </div>
 <% end %>
 <%= form_with url: url, method: (transaction ? :patch : :post), scope: :transaction, class: "plan-settings__form",
-      data: { controller: (reconciled_edit ? "form submit dialog" : "form submit"), action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
+      data: { controller: (reconciled_edit ? "form submit dialog reconcile-guard" : "form submit"), "reconcile-guard-initial-value": (reconciled_edit ? stored_form.slice(:date, :payee, :category_id, :outflow, :inflow).transform_keys { |k| "transaction[#{k}]" } : nil), action: "#{"keydown->reconcile-guard#enter " if reconciled_edit}input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
   <div class="field">
     <label class="field__label" for="transaction_date">Date</label>
     <input class="field__input" type="date" id="transaction_date" name="transaction[date]" value="<%= @form[:date] %>" required>
@@ -63,7 +63,7 @@
   <% end %>
   <div class="plan-settings__actions"<%= raw(" hidden") if @reconciled_warning %>>
     <% if reconciled_edit %>
-      <button type="button" class="btn btn--primary" data-form-target="submit" data-dialog-id="dlg-reconciled-save" data-action="dialog#open">Save</button>
+      <button type="button" class="btn btn--primary" data-form-target="submit" data-dialog-id="dlg-reconciled-save" data-reconcile-guard-save data-action="click->reconcile-guard#check click->dialog#open">Save</button>
     <% else %>
       <button type="submit" class="btn btn--primary" data-form-target="submit">Save</button>
     <% end %>
