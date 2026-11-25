@@ -94,11 +94,26 @@ module Api
         attributes = permitted_transaction_params(:transaction)
         return if attributes.nil?
 
-        transaction = writer.build(attributes)
+        # The payee lookup in build and the insert in persist_new! are one write
+        # transaction. Rails' SQLite adapter opens it with BEGIN IMMEDIATE
+        # (default_transaction_mode :immediate), which takes the database write
+        # lock up front, so a payee combine or delete on another connection
+        # waits for this request instead of committing between them.
+        transaction = nil
+        duplicate = false
+        Transaction.transaction do
+          transaction = writer.build(attributes)
 
-        # import_id dedupe is per account (spec: NewTransaction.import_id).
-        if attributes["import_id"].present? &&
-           plan.transactions.not_deleted.exists?(account: transaction.account, import_id: attributes["import_id"])
+          # import_id dedupe is per account (spec: NewTransaction.import_id).
+          if attributes["import_id"].present? &&
+             plan.transactions.not_deleted.exists?(account: transaction.account, import_id: attributes["import_id"])
+            duplicate = true
+          else
+            writer.persist_new!(transaction)
+          end
+        end
+
+        if duplicate
           return render json: { data: {
             transaction_ids: [],
             duplicate_import_ids: [ attributes["import_id"] ],
@@ -106,7 +121,6 @@ module Api
           } }, status: :created
         end
 
-        writer.persist_new!(transaction)
         render json: { data: {
           transaction_ids: [ transaction.public_id ],
           duplicate_import_ids: [],
@@ -197,19 +211,30 @@ module Api
           created = []
           duplicate_import_ids = []
           attributes_list.each do |attributes|
-            transaction = writer.build(attributes)
-
-            # import_id dedupe is per account, including repeats within
-            # the same bulk request (spec: NewTransaction.import_id).
             import_id = attributes["import_id"]
-            if import_id.present? &&
-               (seen.include?([ transaction.account_id, import_id ]) ||
-                plan.transactions.not_deleted.exists?(account: transaction.account, import_id: import_id))
+            transaction = nil
+            duplicate = false
+            # One write transaction per entry, as in single create: the payee
+            # lookup and the insert cannot straddle a concurrent payee write.
+            # Entries still succeed or fail one at a time, as before.
+            Transaction.transaction do
+              transaction = writer.build(attributes)
+
+              # import_id dedupe is per account, including repeats within
+              # the same bulk request (spec: NewTransaction.import_id).
+              if import_id.present? &&
+                 (seen.include?([ transaction.account_id, import_id ]) ||
+                  plan.transactions.not_deleted.exists?(account: transaction.account, import_id: import_id))
+                duplicate = true
+              else
+                writer.persist_new!(transaction)
+              end
+            end
+
+            if duplicate
               duplicate_import_ids << import_id
               next
             end
-
-            writer.persist_new!(transaction)
 
             seen << [ transaction.account_id, import_id ] if import_id.present?
             created << transaction
