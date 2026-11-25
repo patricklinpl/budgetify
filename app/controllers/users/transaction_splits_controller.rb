@@ -76,7 +76,9 @@ module Users
           return fail_with(e.message)
         end
         announce_undo_notice
-        redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Split saved."
+        register_path = users_budget_account_transactions_path(@budget.public_id, @account.public_id)
+        keep_undo_history_for(register_path)
+        redirect_to register_path, notice: "Split saved."
       end
 
       def attributes_for(total, entries)
