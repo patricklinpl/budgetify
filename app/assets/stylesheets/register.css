@@ -12,3 +12,10 @@
   .register-page .data-table td[data-label] > * { min-width: 0; }
   .register-page .data-table td a.budget-back-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
 }
+
+/* #62 register search and date presets */
+.register-page__search { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0.5rem; }
+.register-page__search label { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.register-page__search input[type="search"] { flex: 1 1 14rem; min-width: 0; max-width: 24rem; padding: 0.4rem 0.6rem; border: 1px solid var(--color-border); border-radius: 6px; }
+.register-page__periods { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.register-page__periods a[aria-current="true"] { background: var(--color-primary, #4f4fff); color: #fff; }
