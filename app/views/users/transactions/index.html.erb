@@ -52,7 +52,7 @@
               <td data-label="Date"><%= transaction.date.iso8601 %></td>
               <td data-label="Status"><%= transaction.cleared.capitalize %></td>
               <td data-label="Payee"><%= transaction.payee&.name %></td>
-              <td data-label="Category"><%= transaction.sub_transactions.any? ? "Split" : (transaction.category&.name || (@account.on_budget? && transaction.transfer_account_id.nil? && transaction.amount.to_i <= 0 ? "Needs a category" : nil)) %></td>
+              <td data-label="Category"><%= transaction.sub_transactions.any? ? "Split" : (transaction.category&.name || (@account.on_budget? && transaction.transfer_account_id.nil? && transaction.amount.to_i <= 0 ? tag.span("Needs a category", class: "register-chip register-chip--attention") : nil)) %></td>
               <td data-label="Memo"><%= transaction.memo %></td>
               <td class="data-table__money" data-label="Outflow"><%= money_with_exact(fmt, -amount) if amount.negative? %></td>
               <td class="data-table__money" data-label="Inflow"><%= money_with_exact(fmt, amount) if amount.positive? %></td>
