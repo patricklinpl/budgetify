@@ -69,7 +69,7 @@ class UndoHistory
 
   private
     def label(step)
-      { "create" => "adding the transaction", "edit" => "the transaction edit", "delete" => "deleting the transaction" }.fetch(step.kind)
+      { "create" => "adding the transaction", "edit" => "the transaction edit", "delete" => "deleting the transaction", "enter" => "entering the scheduled transaction" }.fetch(step.kind)
     end
 
     def apply!(step, from:, to:, undone:)
@@ -79,11 +79,14 @@ class UndoHistory
         sub_ids = from["sub"].keys.map(&:to_i)
         live = @budget.transactions.where(id: tx_ids).lock.index_by(&:id)
         live_subs = SubTransaction.where(id: sub_ids).lock.index_by(&:id)
+        live_sched = @budget.scheduled_transactions.where(id: (from["sched"] || {}).keys.map(&:to_i)).lock.index_by(&:id)
         check_current!(from, live, live_subs)
+        check_scheduled!(from, live_sched)
         check_accounts!(to)
 
         live.values.reject(&:deleted).each { |transaction| writer.effects!(transaction, -1) }
         restore!(to, live, live_subs)
+        restore_scheduled!(to, live_sched)
         @budget.transactions.where(id: tx_ids, deleted: false).find_each { |transaction| writer.effects!(transaction, +1) }
         step.update!(undone: undone)
       end
@@ -109,6 +112,19 @@ class UndoHistory
           raise Refused, STALE
         end
       end
+    end
+
+    # An Enter Now step also holds the schedule's date_next. The same
+    # field-level refusal applies when the schedule changed since.
+    def check_scheduled!(from, live_sched)
+      (from["sched"] || {}).each do |id, attrs|
+        row = live_sched[id.to_i]
+        raise Refused, STALE if row.nil? || row.attributes.slice(*UndoSnapshot::SCHED_FIELDS).as_json != attrs
+      end
+    end
+
+    def restore_scheduled!(to, live_sched)
+      (to["sched"] || {}).each { |id, attrs| live_sched.fetch(id.to_i).update!(attrs) }
     end
 
     def check_accounts!(to)

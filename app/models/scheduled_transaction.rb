@@ -39,6 +39,20 @@ class ScheduledTransaction < ApplicationRecord
     first
   end
 
+  # Next date after a twiceAMonth schedule's current date_next, as the YNAB
+  # reference advances it when an occurrence is entered (SCHED-03 vectors,
+  # observed 2026-11-23). On or before the 15th the next date is 15 days
+  # later, held to the month end (Feb 15 -> Feb 28). After the 15th it is the
+  # day minus 15 in the following month (Dec 16 -> Jan 1, Dec 31 -> Jan 16).
+  # This steps from the current date and does not use the anchored
+  # occurrence() cadence above; the two differ for first dates after the 15th.
+  def self.next_twice_a_month(date)
+    return date + 15 if date.day <= 15 && (date + 15).month == date.month
+    return date.end_of_month if date.day <= 15
+
+    (date.beginning_of_month.next_month) + (date.day - 16)
+  end
+
   def recompute_date_next!
     return if date_first.nil?
 

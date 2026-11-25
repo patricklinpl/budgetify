@@ -6,6 +6,10 @@ module UndoSnapshot
     public_id account_id date amount memo cleared approved flag_color flag_name payee_id category_id
     transfer_account_id transfer_transaction_id matched_transaction_id debt_transaction_type opening_balance deleted
   ].freeze
+  # Scheduled-transaction fields an Enter Now step guards and restores (#61).
+  # Every field the entry copies or relies on, so an edit of any of them after
+  # the step makes Undo refuse instead of silently reverting around it.
+  SCHED_FIELDS = %w[account_id payee_id category_id transfer_account_id amount memo flag_color frequency date_next deleted].freeze
   SUB_FIELDS = %w[public_id transaction_id amount memo payee_id category_id transfer_account_id deleted].freeze
 
   Ids = Struct.new(:tx, :sub) do
