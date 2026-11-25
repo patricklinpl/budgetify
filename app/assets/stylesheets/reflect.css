@@ -18,4 +18,4 @@
 .reflect-swatch--3 { background: var(--color-status-negative); }
 .reflect-swatch--4 { background: var(--color-accent-light); }
 .reflect-swatch--5 { background: var(--color-border-strong); }
-@media (max-width: 640px) { .reflect-filters select[multiple] { min-width: 100%; } .reflect-donut { width: 9rem; height: 9rem; } .reflect-donut__hole { width: 5.5rem; height: 5.5rem; } }
+@media (max-width: 640px) { .reflect-filters select[multiple] { min-width: 100%; } .reflect-donut { width: 10rem; height: 10rem; } .reflect-donut__hole { width: 6.75rem; height: 6.75rem; } }
