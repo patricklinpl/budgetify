@@ -209,12 +209,19 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
           openDialogs: document.querySelectorAll("dialog[open]").length,
           details: [...document.querySelectorAll("details")].map((d) => (d.className || "details") + " open=" + d.open),
           controls,
+          // Probe-local try/catch: a throw here must not black out the rest of
+          // the dump. Read it as state at failure time, after the wait expired;
+          // an unconnected controller narrows the state, it does not prove why.
           stimulus: (() => {
-            const app = window.Stimulus;
-            if (!app) return "window.Stimulus missing";
-            const registered = app.router.modules.map((m) => m.definition.identifier).sort();
-            const pending = [...document.querySelectorAll("[data-controller]")].flatMap((el) => el.dataset.controller.split(/\s+/).filter(Boolean).filter((id) => !app.getControllerForElementAndIdentifier(el, id)));
-            return { registered: registered.length, notConnected: [...new Set(pending)], turbo: typeof window.Turbo };
+            try {
+              const app = window.Stimulus;
+              if (!app) return "window.Stimulus missing";
+              const registered = app.router.modules.map((m) => m.definition.identifier).sort();
+              const pending = [...document.querySelectorAll("[data-controller]")].flatMap((el) => el.dataset.controller.split(/\s+/).filter(Boolean).filter((id) => !app.getControllerForElementAndIdentifier(el, id)));
+              return { registered, notConnected: [...new Set(pending)], turbo: typeof window.Turbo };
+            } catch (e) {
+              return "stimulus probe failed: " + String(e && e.message || e).slice(0, 200);
+            }
           })(),
           inputLog: window.__inputLog || "not installed",
           lifecycle: window.__lifecycle || "not installed"
