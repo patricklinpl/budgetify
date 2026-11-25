@@ -46,6 +46,7 @@ module Authentication
     end
 
     def terminate_session
+      UndoStep.where(session_key: Current.session.id.to_s).delete_all
       Current.session.destroy
       cookies.delete(:session_id)
     end
