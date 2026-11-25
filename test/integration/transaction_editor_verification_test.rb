@@ -79,6 +79,10 @@ class TransactionEditorVerificationTest < ActionDispatch::IntegrationTest
       add(outflow: "2.50", payee: "Cafe", extra: { commit_action: "another" })
     end
     assert_equal 42_500, @account.reload.balance
+    # Omitted category is allowed and flagged for categorization (engineering placement).
+    get list_path, headers: TURBO
+    assert_select "p[role=status]", text: "1 transaction needs a category."
+    assert_select "td[data-label=Category]", text: "Needs a category", count: 1
 
     get new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), headers: TURBO
     assert_response :success
@@ -92,15 +96,45 @@ class TransactionEditorVerificationTest < ActionDispatch::IntegrationTest
     get list_path, headers: TURBO
     assert_select "body", text: /Start/
     assert_select "body", text: /Cafe/, count: 0
+    assert_select "p[role=status]", text: /needs a category/, count: 0
   end
 
-  test "[reference T] TX-EMPTY-01: Undo removes the blank zero-amount row (Peter chose to match the reference)" do
+  test "[reference T] TX-EMPTY-01: the blank zero-amount row is flagged as needing a category and Undo removes it (Peter chose to match the reference)" do
     assert_difference -> { @account.transactions.count }, 1 do
       add
     end
     assert_equal 0, @account.reload.balance
+    get list_path, headers: TURBO
+    assert_select "p[role=status]", text: "1 transaction needs a category."
+    assert_select "td[data-label=Category]", text: "Needs a category", count: 1
     post users_budget_undo_path(@budget.public_id), headers: TURBO
+    get list_path, headers: TURBO
+    assert_select "p[role=status]", text: /needs a category/, count: 0
     assert_equal 0, @account.transactions.not_deleted.count
     assert_equal 0, @account.reload.balance
+  end
+  test "[engineering] categorized rows, inflows, splits and transfers are not flagged; an uncategorized outflow is, and a tracking account never is" do
+    savings = @budget.accounts.create!(name: "Savings", type: "savings")
+    add(outflow: "5", category: @groceries, payee: "Categorized")
+    add(inflow: "20", payee: "Refund")
+    split_parent = add(outflow: "30", category: @groceries, payee: "Parent")
+    patch split_path(split_parent), params: split_params(rows: [ row(@groceries, outflow: "10"), row(@dining, outflow: "20") ])
+    add(outflow: "1", payee: "To/From Savings")
+    assert_equal savings.id, @account.transactions.not_deleted.order(:id).last.transfer_account_id
+    get list_path, headers: TURBO
+    assert_select "p[role=status]", text: /needs a category/, count: 0
+    assert_select "td[data-label=Category]", text: "Needs a category", count: 0
+
+    add(outflow: "2", payee: "Plain")
+    get list_path, headers: TURBO
+    assert_select "p[role=status]", text: "1 transaction needs a category."
+    assert_select "td[data-label=Category]", text: "Needs a category", count: 1
+
+    tracking = @budget.accounts.create!(name: "House", type: "otherAsset", on_budget: false)
+    assert tracking.tracking?
+    post users_budget_account_transactions_path(@budget.public_id, tracking.public_id), params: { transaction: { date: @today.iso8601, payee: "Bill", category_id: "", memo: "", outflow: "3", inflow: "" } }, headers: TURBO
+    get users_budget_account_transactions_path(@budget.public_id, tracking.public_id), headers: TURBO
+    assert_select "p[role=status]", text: /needs a category/, count: 0
+    assert_select "td[data-label=Category]", text: "Needs a category", count: 0
   end
 end
