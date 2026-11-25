@@ -61,6 +61,13 @@
                   <%# Same condition as the Cover link below: a negative payment category is not overspending.
                       The chip is CSS-only (the Available pill already carries "Overspent" for assistive tech). %>
                   <span class="budget-grid__label<%= ' budget-grid__label--overspent' if row[:available].negative? && category.payment_account_id.nil? %>"><%= category.name %><%= " (hidden)" if category.hidden %></span>
+                  <% need = target_need(category, row[:assigned]) %>
+                  <% if need %>
+                    <span class="budget-grid__need">
+                      <meter class="budget-grid__meter" min="0" max="<%= need[:target] %>" value="<%= need[:assigned] %>" aria-label="Assigned toward target for <%= category.name %>"><%= grid_money(fmt, need[:assigned]) %> of <%= grid_money(fmt, need[:target]) %></meter>
+                      <% if need[:remaining].positive? %><span class="budget-grid__need-text"><%= grid_money(fmt, need[:remaining]) %> more needed</span><% end %>
+                    </span>
+                  <% end %>
                   <span class="budget-grid__actions">
                     <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
                     <%= link_to "Target", target_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Target for #{category.name}" %>
