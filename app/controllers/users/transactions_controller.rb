@@ -59,6 +59,15 @@ module Users
       @errors = validate(@form)
       return render_form(:edit) if @errors.any? || @field_errors.any?
 
+      # Saving a reconciled row can put the reconciliation out of balance (the
+      # reference asks first). The first Save writes nothing and shows the
+      # warning with the typed values; Cancel on the warning keeps the editor
+      # and the values; Save on the warning writes. Status stays reconciled.
+      if @transaction.cleared == "reconciled" && params[:confirm_reconciled] != "1"
+        @reconciled_warning = params[:confirm_reconciled] != "0"
+        return render :edit, status: :unprocessable_entity
+      end
+
       begin
         Transaction.transaction { writer.update!(@transaction, attributes_for(@form).merge(unexposed_attributes), rebuild_subs: false) }
       rescue TransactionWriter::Invalid => e
@@ -70,6 +79,10 @@ module Users
     end
 
     def destroy
+      if @transaction.cleared == "reconciled" && params[:confirm_reconciled] != "1"
+        return render :confirm_delete, status: :unprocessable_entity
+      end
+
       Transaction.transaction { writer.destroy!(@transaction) }
       redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Transaction deleted."
     end

@@ -1,0 +1,16 @@
+<% content_for :title, "Delete Reconciled Transaction?" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Delete Reconciled Transaction?</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings">
+  <section class="plan-settings__warning" role="alert" tabindex="-1" data-controller="focus">
+    <p>Deleting a reconciled transaction will bring the reconciliation out of balance.</p>
+    <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete, class: "plan-settings__actions" do %>
+      <button type="submit" class="btn btn--destructive" name="confirm_reconciled" value="1">Delete</button>
+      <%= link_to "Cancel", edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), class: "btn btn--secondary" %>
+    <% end %>
+  </section>
+</section>
