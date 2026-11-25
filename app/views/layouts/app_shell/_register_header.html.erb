@@ -1,9 +1,6 @@
 <%# Register header shell (LAY-04). Account title, balance summary, toolbar and
     search slot. Styling and structure only; controls are disabled until the
     register issue wires them. Expects local `account` (and @budget). %>
-<%# Show the cleared and uncleared parts only when they add up to the stored
-    balance; otherwise show dashes rather than a misleading equation. %>
-<% consistent = account.cleared_balance + account.uncleared_balance == account.balance %>
 <div class="shell-header shell-header--register">
   <div class="shell-header-row">
     <div class="shell-header-title">
@@ -18,14 +15,7 @@
       <%= link_to "Edit", edit_users_budget_account_path(@budget.public_id, account.public_id), class: "shell-button" %>
     </div>
   </div>
-  <p class="shell-balance-summary" aria-label="Balance summary">
-    <span class="shell-balance"><span class="shell-balance-label">Cleared</span> <% if consistent %><span class="<%= shell_money_class(account.cleared_balance) %>"><%= shell_money(account.cleared_balance) %></span><% else %><span class="money">&mdash;</span><% end %></span>
-    <span aria-hidden="true">+</span>
-    <span class="shell-balance"><span class="shell-balance-label">Uncleared</span> <% if consistent %><span class="<%= shell_money_class(account.uncleared_balance) %>"><%= shell_money(account.uncleared_balance) %></span><% else %><span class="money">&mdash;</span><% end %></span>
-    <span aria-hidden="true">=</span>
-    <span class="shell-balance"><span class="shell-balance-label">Working</span> <span class="<%= shell_money_class(account.balance) %>"><%= shell_money(account.balance) %></span></span>
-    <button type="button" class="shell-icon-button" disabled aria-label="Balance details"><span aria-hidden="true">i</span></button>
-  </p>
+  <%= render "layouts/app_shell/balance_summary", account: account %>
   <div class="shell-toolbar" role="toolbar" aria-label="Register actions">
     <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, account.public_id), class: "shell-button" %>
     <%= link_to "Register", users_budget_account_transactions_path(@budget.public_id, account.public_id), class: "shell-button" %>
