@@ -137,4 +137,31 @@ class TransactionEditorVerificationTest < ActionDispatch::IntegrationTest
     assert_select "p[role=status]", text: /needs a category/, count: 0
     assert_select "td[data-label=Category]", text: "Needs a category", count: 0
   end
+
+  def edit_params(transaction, **fields)
+    { transaction: { date: @today.iso8601, payee: transaction.payee.to_s, category_id: transaction.category&.public_id.to_s, memo: "" }.merge(fields) }
+  end
+
+  test "[engineering] TX-01 Cancel: the new and edit forms link back to the register, and leaving them writes nothing" do
+    transaction = add(outflow: "12", category: @groceries, payee: "Keep")
+    before = [ @account.reload.balance, @account.transactions.not_deleted.count, activity(@groceries) ]
+    get new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), headers: TURBO
+    assert_select "a.btn[href=?]", list_path, text: "Cancel"
+    get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id), headers: TURBO
+    assert_select "a.btn[href=?]", list_path, text: "Cancel"
+    get list_path, headers: TURBO
+    assert_response :success
+    assert_equal before, [ @account.reload.balance, @account.transactions.not_deleted.count, activity(@groceries) ]
+  end
+
+  test "[engineering] TX-01 edit directions: outflow to inflow and inflow to outflow reverse and reapply with exact balances" do
+    transaction = add(outflow: "20", category: @groceries, payee: "Flip")
+    assert_equal [ -20_000, -20_000 ], [ @account.reload.balance, activity(@groceries) ]
+    patch users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id), params: edit_params(transaction, outflow: "", inflow: "8"), headers: TURBO
+    assert_equal [ 8_000, 8_000 ], [ @account.reload.balance, activity(@groceries) ]
+    assert_equal 8_000, transaction.reload.amount
+    patch users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id), params: edit_params(transaction, outflow: "5", inflow: ""), headers: TURBO
+    assert_equal [ -5_000, -5_000 ], [ @account.reload.balance, activity(@groceries) ]
+    assert_equal(-5_000, transaction.reload.amount)
+  end
 end
