@@ -92,7 +92,16 @@ class TransactionTransferCharacterizationTest < ActiveSupport::TestCase
     available = -> { CategorySerializer.as_json(payment_category.reload, month: month)[:balance] }
     assert_equal 100_000, available.call
 
-    put(@cash, -40_000, "transfer_account_id" => @card.public_id)
+    payment = put(@cash, -40_000, "transfer_account_id" => @card.public_id)
     assert_equal 60_000, available.call
+
+    # Edit to 35 gives 65 available; deleting the cash side puts it back to 100
+    # and the card purchase remains (engineering extension of the same fixture).
+    Transaction.transaction { @writer.update!(payment, { "amount" => -35_000 }, rebuild_subs: false) }
+    assert_equal 65_000, available.call
+    Transaction.transaction { @writer.destroy!(payment) }
+    assert_equal 100_000, available.call
+    assert_equal(-100_000, @card.reload.balance)
+    assert_equal 1, @plan.transactions.not_deleted.where(account: @card).count, "the card purchase remains"
   end
 end
