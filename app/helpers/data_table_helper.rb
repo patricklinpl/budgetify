@@ -21,6 +21,18 @@ module DataTableHelper
     end
   end
 
+  # Plan grid: Assigned this month against the plan's monthly target amount, only
+  # for the built monthly target (MonthlyTarget.monthly?). It states two existing
+  # facts and makes no claim about funding, carryover or the target mode. The
+  # meter value is clamped for display; assigned is the actual amount.
+  def target_need(category, assigned, format)
+    return unless MonthlyTarget.monthly?(category)
+
+    target = category.goal_target.to_i
+    { target: target, shown: assigned.to_i.clamp(0, target),
+      text: safe_join([ grid_money(format, assigned.to_i), " assigned of ", grid_money(format, target), " monthly target" ]) }
+  end
+
   # Budget grid amount in the plan's currency format. When the stored value is
   # finer than the display digits (possible through the API), the exact value is
   # printed next to it so rounding never hides money.
