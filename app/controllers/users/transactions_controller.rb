@@ -20,6 +20,12 @@ module Users
       @hidden_reconciled = @show_reconciled ? 0 : scope.where(cleared: "reconciled").count
       scope = scope.where.not(cleared: "reconciled") unless @show_reconciled
       @transactions = scope.order(date: :desc, created_at: :desc).includes(:payee, :category)
+      # #60 TX-EMPTY-01 / TX-ADD-ANOTHER-01: a row saved without a category is
+      # allowed and flagged for categorization. Transfers, splits, inflows (reference
+      # behavior for an uncategorized inflow is unverified) and tracking
+      # accounts are not flagged. Engineering placement (register note and row cell);
+      # the reference's own placement is not verified.
+      @needs_category_count = @account.on_budget? ? @account.transactions.not_deleted.where(budget: @budget, category_id: nil, transfer_account_id: nil).where(amount: ..0).where.missing(:sub_transactions).count : 0
     end
 
     def new

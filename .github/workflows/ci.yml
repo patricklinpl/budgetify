@@ -148,7 +148,9 @@ jobs:
           # At 50+ tests Rails switches to one worker per CPU (4 Chrome + 4 servers
           # on the runner). The earlier 43-test runs were single process.
           PARALLEL_WORKERS: "1"
-        run: bin/rails db:test:prepare test:system
+          # Diagnostic, not a fix: -v prints each test name, time and result in run
+          # order so a red can be read against the tests before it.
+        run: bin/rails db:test:prepare && bin/rails test:system -v
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7
