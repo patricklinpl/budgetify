@@ -530,3 +530,9 @@ a.shell-button {
     min-width: 44px;
   }
 }
+
+/* Undo and Redo controls (Undo slice 1): the forms sit inline in the toolbar. */
+.shell-inline-form { display: contents; }
+.shell-undo { display: contents; }
+.shell-undo-status { margin: 0; padding: 0 var(--space-4, 16px); min-height: 0; font-size: 0.875rem; }
+.shell-undo-status:empty { display: none; }
