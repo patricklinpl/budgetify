@@ -105,8 +105,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # visibility) appended. Observation only: the assertion is unchanged.
   def with_shell_diagnostics
     yield
-  rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
-    raise e.class, "#{e.message}\nWindow trace: #{(@window_trace || []).to_json}\nShell state: #{shell_state}"
+  rescue Minitest::Assertion, Capybara::ExpectationNotMet => e
+    raise e.class, "#{e.message}\nWindow trace: #{(@window_trace || []).to_json}\nShell state: #{shell_state}", e.backtrace
   end
 
   # Test-driver diagnostics for lost clicks (the recurring Cancel failure).
@@ -222,8 +222,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # Re-raises an expectation failure with the diagnostics appended.
   def with_input_diagnostics(*labels)
     yield
-  rescue Minitest::Assertion, Capybara::ExpectationNotFound => e
-    raise e.class, "#{e.message}\nInput diagnostics: #{input_diagnostics(*labels)}"
+  rescue Minitest::Assertion, Capybara::ExpectationNotMet => e
+    raise e.class, "#{e.message}\nInput diagnostics: #{input_diagnostics(*labels)}", e.backtrace
   end
 
   INPUT_LOG_JS = <<JS
