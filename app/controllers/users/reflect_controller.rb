@@ -68,11 +68,16 @@ module Users
         else
           rows.group_by(&:category)
         end
-        total = @report.spending_total
+        # A category or group whose refunds exceed its spending nets below zero.
+        # Shares and the donut use only net-spending slices over their own sum,
+        # so no share passes 100 percent and no gradient stop is negative; a
+        # net-refund slice stays in the table with no share [engineering].
+        sums = grouped.transform_values { |slice_rows| slice_rows.sum(&:amount) }
+        @chart_total = sums.values.select(&:positive?).sum
         grouped.map do |record, slice_rows|
-          amount = slice_rows.sum(&:amount)
+          amount = sums.fetch(record)
           { key: record.public_id, name: record.name, amount: amount, count: slice_rows.size, rows: slice_rows,
-            percent: ReportQuery::Rounding.percent_tenths(amount, total) }
+            percent: (amount.positive? ? ReportQuery::Rounding.percent_tenths(amount, @chart_total) : nil) }
         end.sort_by { |slice| [ -slice[:amount], slice[:name] ] }
       end
   end
