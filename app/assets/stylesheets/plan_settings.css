@@ -55,3 +55,11 @@
 .plan-settings__warning:focus { outline: 2px solid var(--color-border-input-active); outline-offset: 2px; }
 .plan-settings__warning h2 { margin-top: 0; }
 .plan-settings__warning .btn { box-sizing: border-box; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Reconciled-row warning dialogs: 44px touch targets on phones. */
+@media (max-width: 600px) {
+  #dlg-reconciled-save .dialog__footer .btn,
+  #dlg-reconciled-delete .dialog__footer .btn {
+    min-height: 44px;
+  }
+}
