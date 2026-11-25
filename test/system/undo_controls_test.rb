@@ -100,6 +100,20 @@ class UndoControlsSystemTest < ApplicationSystemTestCase
     assert_equal 100_000, balance
   end
 
+  # The reconciled-edit warning is a server-rendered section, not a <dialog>.
+  # The register page carries the controls but not that section, so a section
+  # with the same class is added to the page; without the guard Ctrl+Z fires.
+  test "the shortcut is inert while a plan-settings warning section is on the page" do
+    register
+    add_transaction("warning section", "10")
+    page.execute_script("const s = document.createElement('section'); s.className = 'plan-settings__warning'; s.id = 'probe-warning'; s.textContent = 'Warning'; document.body.appendChild(s)")
+    assert_selector "#probe-warning"
+    find("body").send_keys([ :control, "z" ])
+    assert_no_text "Undid adding the transaction."
+    assert_equal 90_000, balance
+    assert_equal 1, UndoStep.where(undone: false).count
+  end
+
   test "Undo of a reconciled row memo edit restores it and keeps it reconciled" do
     visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @reconciled.public_id)
     assert_selector "[data-controller~=field][data-field-ready=true]"
