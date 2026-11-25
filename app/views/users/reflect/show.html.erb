@@ -61,23 +61,31 @@
   <% else %>
     <% colors = %w[var(--color-accent) var(--color-status-positive) var(--color-status-warning-strong) var(--color-status-negative) var(--color-accent-light) var(--color-border-strong)] %>
     <% total_amount = report.spending_total %>
+    <% chart_slices = @slices.select { |slice| slice[:amount].positive? } %>
     <% running = Rational(0) %>
-    <% stops = @slices.each_with_index.map do |slice, i|
+    <% stops = chart_slices.each_with_index.map do |slice, i|
          from = running
-         running += Rational(slice[:amount] * 100, total_amount)
+         running += Rational(slice[:amount] * 100, @chart_total)
          "#{colors[i % colors.size]} #{from.to_f.round(4)}% #{running.to_f.round(4)}%"
        end.join(", ") %>
     <div class="reflect-chart">
-      <div class="reflect-donut" id="reflect-chart" role="img" style="background: conic-gradient(<%= stops %>);"
-           aria-label="Spending breakdown chart: <%= @slices.map { |s| "#{s[:name]} #{money.call(s[:amount])}" }.join(', ') %>. Total <%= money.call(total_amount) %>.">
-        <div class="reflect-donut__hole"><span>Total Spending<strong><%= money.call(total_amount) %></strong></span></div>
-      </div>
+      <% if chart_slices.any? %>
+        <div class="reflect-donut" id="reflect-chart" role="img" style="background: conic-gradient(<%= stops %>);"
+             aria-label="Spending breakdown chart: <%= chart_slices.map { |s| "#{s[:name]} #{money.call(s[:amount])}" }.join(', ') %>. Total <%= money.call(total_amount) %>.">
+          <div class="reflect-donut__hole"><span>Total Spending<strong><%= money.call(total_amount) %></strong></span></div>
+        </div>
+      <% else %>
+        <p role="status">No category has net spending in this range, so there is no chart.</p>
+      <% end %>
       <ul class="reflect-legend" aria-label="Chart legend">
-        <% @slices.each_with_index do |slice, i| %>
+        <% chart_slices.each_with_index do |slice, i| %>
           <li><span class="reflect-swatch reflect-swatch--<%= i % colors.size %>" aria-hidden="true"></span><%= slice[:name] %>: <%= money.call(slice[:amount]) %> (<%= slice[:percent] %>%)</li>
         <% end %>
       </ul>
     </div>
+    <% if chart_slices.size < @slices.size %>
+      <p>Net refunds are listed in the table with no share and are not drawn in the chart. Total spending is net of refunds.</p>
+    <% end %>
     <div class="data-table-wrap">
       <table class="data-table" aria-label="Spending by <%= @by == 'groups' ? 'group' : 'category' %>">
         <thead>
@@ -88,7 +96,7 @@
             <tr class="data-table__row">
               <td data-label="Name"><%= link_to slice[:name], users_budget_reflect_path(@budget.public_id, request.query_parameters.merge("drill" => slice[:key])) %></td>
               <td class="data-table__money" data-label="Amount"><%= money.call(slice[:amount]) %></td>
-              <td class="data-table__money" data-label="Share"><%= slice[:percent] ? "#{slice[:percent]}%" : "" %></td>
+              <td class="data-table__money" data-label="Share"><%= slice[:percent] ? "#{slice[:percent]}%" : "Refund" %></td>
               <td class="data-table__money" data-label="Transactions"><%= slice[:count] %></td>
             </tr>
           <% end %>
