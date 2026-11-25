@@ -73,6 +73,32 @@ class ReportQuery
     spending_rows.group_by { |row| row.date.beginning_of_month }.transform_values { |rows| rows.sum(&:amount) }
   end
 
+  # Every month in the range, in order, with its spending (0 for a month with
+  # no rows) and its deviation from the range average. Deviation is exact
+  # (Rational milliunits); percent is tenths via Rounding.percent_tenths, nil
+  # when the average is zero. Engineering: the audit pins the two numbers for
+  # Oct/Nov only, the base (range average) is inferred from them.
+  TrendMonth = Struct.new(:month, :amount, :deviation, :percent, keyword_init: true)
+
+  def trend
+    by_month = spending_by_month
+    average = monthly_average
+    (0...months).map do |offset|
+      month = @start_month.next_month(offset)
+      amount = by_month.fetch(month, 0)
+      deviation = amount - average
+      TrendMonth.new(month: month, amount: amount, deviation: deviation, percent: Rounding.percent_tenths(deviation, average))
+    end
+  end
+
+  # category => { month => spending } for cells that have rows. Rows that net to
+  # zero keep their cell; months with no rows have no key.
+  def spending_by_category_month
+    spending_rows.group_by(&:category).transform_values do |rows|
+      rows.group_by { |row| row.date.beginning_of_month }.transform_values { |r| r.sum(&:amount) }
+    end
+  end
+
   # Signed income (an outflow into the inflow category is negative).
   def income_total
     income_rows.sum(&:amount)
