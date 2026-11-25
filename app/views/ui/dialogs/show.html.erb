@@ -3,7 +3,7 @@
 <div class="ui-preview" data-controller="dialog">
   <h1>Dialogs, menus and confirmation primitives</h1>
   <p>Presentation and dismissal conventions only (#71). Theme: <%= link_to "light", ui_dialogs_path %> | <%= link_to "dark", ui_dialogs_path(theme: "dark") %></p>
-  <p class="form-affordances">Contract: Escape and Cancel close the top-most dialog with no side effect. Each dialog says what survives dismissal. Transient undo or toast notifications are not included: a product decision is still open.</p>
+  <p class="form-affordances">Contract: Escape and Cancel close the top-most dialog with no side effect. Each dialog says what survives dismissal. Transient undo or toast notifications are not included: Undo stays in the toolbar controls only (decided).</p>
   <p id="dialog-status" class="field__status" aria-live="polite"></p>
 
   <h2>Modal dialogs</h2>
