@@ -31,6 +31,7 @@ class AppShellPhoneTest < ApplicationSystemTestCase
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     ms = -> { ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0) * 1000).round }
     diag = { prev: $diag_prev.inspect }
+    tl_mark = ChromedriverTimeline.enabled? ? ChromedriverTimeline.mark : nil
     win = page.driver.browser.manage.window
     diag[:size_before_resize] = "#{win.size.width}x#{win.size.height}"
     win.resize_to(390, 844)
@@ -56,7 +57,20 @@ class AppShellPhoneTest < ApplicationSystemTestCase
       rescue StandardError => e
         "eval failed #{e.class}"
       end
+      diag[:input_log] = begin
+        page.evaluate_script("JSON.stringify(window.__inputLog || [])")
+      rescue StandardError => e
+        "eval failed #{e.class}"
+      end
       puts "DIAGORIG #{diag.inspect}"
+      begin
+        if tl_mark
+          result = ChromedriverTimeline.skeleton(ChromedriverTimeline.current_path, from: tl_mark)
+          warn ChromedriverTimeline.report("AppShellPhoneTest accounts (printed on pass and fail)", result)
+        end
+      rescue StandardError => e
+        warn "CHROMEDRIVER_TIMELINE unavailable: #{e.class}"
+      end
     end
     link = find(".app-shell-phone-accounts__link", text: "Everyday")
     install_input_log
