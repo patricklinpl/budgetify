@@ -84,11 +84,25 @@ class TransactionEditorVerificationTest < ActionDispatch::IntegrationTest
     assert_select "p[role=status]", text: "1 transaction needs a category."
     assert_select "td[data-label=Category]", text: "Needs a category", count: 1
 
-    get new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), headers: TURBO
-    assert_response :success
+    # The fresh form after Save and add another: date kept, everything else reset.
+    kept = (@today - 3).iso8601
+    post list_path, params: { transaction: { date: kept, payee: "Second", category_id: @dining.public_id.to_s, memo: "note", outflow: "1", inflow: "" }, commit_action: "another" }, headers: TURBO
+    assert_equal 41_500, @account.reload.balance
+    assert_redirected_to new_users_budget_account_transaction_path(@budget.public_id, @account.public_id, date: kept)
+    get response.location, headers: TURBO
+    assert_select "input[name='transaction[date]'][value=?]", kept
+    assert_select "input[name='transaction[payee]'][value='']"
+    assert_select "input[name='transaction[memo]'][value='']"
+    assert_select "input[name='transaction[outflow]'][value='']"
+    assert_select "input[name='transaction[inflow]'][value='']"
+    assert_select "select[name='transaction[category_id]'] option[selected][value]:not([value=''])", count: 0
+    # Leave the blank editor: nothing extra is written.
     get list_path, headers: TURBO
+    assert_equal 3, @account.transactions.not_deleted.count
+    # Undo steps back through "Second" first, then "Cafe".
+    post users_budget_undo_path(@budget.public_id), headers: TURBO
     assert_equal 42_500, @account.reload.balance
-    assert_equal 2, @account.transactions.count
+    assert_equal 2, @account.transactions.not_deleted.count
 
     post users_budget_undo_path(@budget.public_id), headers: TURBO
     assert_equal 45_000, @account.reload.balance
