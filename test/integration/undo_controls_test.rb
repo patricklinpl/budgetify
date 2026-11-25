@@ -148,4 +148,83 @@ class UndoControlsTest < ActionDispatch::IntegrationTest
     assert_equal original, tx.reload.sub_transactions.pluck(:id).sort
     assert_equal(-30_000, @account.reload.balance)
   end
+
+  # Real browser path for the split editor: its form is not a Turbo form, so
+  # neither the PATCH nor the redirect GET carries X-Turbo-Request-Id.
+  def seeded_split
+    category = @budget.categories.not_deleted.where(internal: false, payment_account_id: nil).first
+    writer = TransactionWriter.new(@budget)
+    tx = writer.persist_new!(writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => -30_000,
+      "payee_name" => "Store", "subtransactions" => [ { "amount" => -10_000, "category_id" => category.public_id }, { "amount" => -20_000, "category_id" => category.public_id } ]))
+    [ tx, category ]
+  end
+
+  def plain_split_patch(tx, category, total: "30")
+    patch users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, tx.public_id), params: { split: {
+      outflow: total, inflow: "", rows: { "0" => { category_id: category.public_id, memo: "a", outflow: total, inflow: "" } } } }
+  end
+
+  test "a split save from the non-Turbo form keeps its step across the plain redirect, and Undo works" do
+    tx, category = seeded_split
+    original = tx.sub_transactions.pluck(:id).sort
+    get register_path
+    plain_split_patch(tx, category)
+    assert_redirected_to register_path
+    follow_redirect!
+    undo_button(disabled: false)
+    post users_budget_undo_path(@budget.public_id), headers: TURBO
+    assert_equal original, tx.reload.sub_transactions.pluck(:id).sort
+  end
+
+  test "reloading or replaying the register after a non-Turbo split save still clears history" do
+    tx, category = seeded_split
+    get register_path
+    plain_split_patch(tx, category)
+    follow_redirect!
+    undo_button(disabled: false)
+    get register_path
+    undo_button(disabled: true)
+  end
+
+  test "the keep marker is for the exact redirect path only: another full page load clears history" do
+    tx, category = seeded_split
+    get register_path
+    plain_split_patch(tx, category)
+    get users_budget_path(@budget.public_id)
+    undo_button(disabled: true)
+  end
+
+  test "a refused or re-rendered non-Turbo split save sets no keep marker and nothing is recorded" do
+    tx, category = seeded_split
+    get register_path
+    patch users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, tx.public_id), params: { split: {
+      outflow: "99", inflow: "", rows: { "0" => { category_id: category.public_id, memo: "a", outflow: "30", inflow: "" } } } }
+    assert_response :unprocessable_entity
+    assert_equal 0, UndoStep.count
+    get register_path
+    undo_button(disabled: true)
+  end
+
+  test "a non-Turbo reconciliation post is not recorded and its redirect clears existing history" do
+    add_tx
+    get register_path, headers: TURBO
+    undo_button(disabled: false)
+    steps_before = UndoStep.count
+    post users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), params: { answer: "yes" }
+    assert_response :redirect
+    assert_equal steps_before, UndoStep.count, "reconciliation records no step"
+    follow_redirect!
+    undo_button(disabled: true)
+  end
+
+  test "a document load purges steps older than a day from any session and keeps recent ones" do
+    make = ->(session_key, age) { UndoStep.create!(user: @user, budget: @budget, session_key: session_key, token: "t", position: 1, kind: "create", before_json: "{}", after_json: "{}", byte_size: 4, created_at: age) }
+    old = make.call("other-session", 2.days.ago)
+    recent = make.call("another-session", 1.hour.ago)
+    get register_path, headers: TURBO
+    assert UndoStep.exists?(old.id), "a Turbo visit does not purge"
+    get register_path
+    assert_not UndoStep.exists?(old.id)
+    assert UndoStep.exists?(recent.id)
+  end
 end
