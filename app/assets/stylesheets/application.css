@@ -9,6 +9,15 @@
  * Consider organizing styles into separate files for maintainability.
  */
 
+/* Form controls do not inherit the page font by default; make them use it so the
+   whole interface is one face. Size, weight and colour stay as each component sets. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 body {
   margin: 0;
   color: var(--color-text-primary);
