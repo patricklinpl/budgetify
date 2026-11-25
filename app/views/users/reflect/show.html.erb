@@ -63,7 +63,7 @@
     <% total_amount = report.spending_total %>
     <% chart_slices = @slices.select { |slice| slice[:amount].positive? } %>
     <% refunds_omitted = chart_slices.size < @slices.size %>
-    <% chart_total_label = refunds_omitted ? "Charted spending" : "Total Spending" %>
+    <% chart_total_label = refunds_omitted ? "Spending excluding refunds" : "Total Spending" %>
     <% running = Rational(0) %>
     <% stops = chart_slices.each_with_index.map do |slice, i|
          from = running
