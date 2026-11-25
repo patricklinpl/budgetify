@@ -5,8 +5,11 @@
 #   Spending: category activity of on-budget accounts in ordinary categories
 #     (not internal, not a Credit Card Payment category). Outflows are
 #     positive spending; a refund into the same category reduces it. A split
-#     counts through its sub-transactions. Transfers carry no category, so a
-#     card payment is not spending.
+#     counts through its sub-transactions. A transfer normally carries no
+#     category, so a card payment is not spending. The writer does allow a
+#     transfer row to carry an ordinary category (user-picked); such a row
+#     counts as spending here because the category is what is summed. Whether
+#     the reference does the same is unpinned [engineering, open].
 #   Income: signed rows in the internal "Inflow: Ready to Assign" category,
 #     excluding opening balances. A reconciliation adjustment on an on-budget
 #     account lands there, which is how a reconciliation difference shows as
