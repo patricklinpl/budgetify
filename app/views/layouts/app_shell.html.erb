@@ -66,6 +66,7 @@
         <% if content_for?(:shell_header) %>
           <header class="app-shell-header"><%= yield :shell_header %></header>
         <% end %>
+        <p class="shell-undo-status" role="status" aria-live="polite"><%= flash[:undo_status] %></p>
         <main class="app-shell-content"><%= yield %></main>
       </div>
 
