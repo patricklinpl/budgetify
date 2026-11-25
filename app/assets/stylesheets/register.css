@@ -19,3 +19,17 @@
 .register-page__search input[type="search"] { flex: 1 1 8rem; min-width: 0; max-width: 24rem; padding: 0.4rem 0.6rem; border: 1px solid var(--color-border); border-radius: 6px; }
 .register-page__periods { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
 .register-page__periods a[aria-current="true"] { background: var(--color-primary, #4f4fff); color: #fff; }
+
+/* Register layout, desktop only. Body text keeps the base 14px size and the
+   base cell padding, so rows are about 36px. Dates stay on one line and long
+   Payee, Memo and Category text wraps inside its own column. The stacked
+   layout above is unchanged below 1201px. */
+@media (min-width: 1201px) {
+  .plan-settings.register-page { max-width: min(72rem, 100%); }
+  .register-page .data-table { table-layout: auto; }
+  .register-page .data-table td { line-height: 1.4; }
+  .register-page .data-table td[data-label="Date"], .register-page .data-table td[data-label="Status"] { white-space: nowrap; }
+  .register-page .data-table td[data-label="Payee"], .register-page .data-table td[data-label="Memo"] { max-width: 16rem; overflow-wrap: anywhere; }
+  .register-page .data-table td[data-label="Category"] { max-width: 14rem; overflow-wrap: anywhere; }
+  .register-page .data-table td a.budget-back-link { white-space: nowrap; }
+}
