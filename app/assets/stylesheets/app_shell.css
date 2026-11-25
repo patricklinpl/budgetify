@@ -556,3 +556,98 @@ a.shell-chip { text-decoration: none; }
 .payee-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3, 0.75rem); max-width: 40rem; }
 .payee-list__form { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; }
 .payee-list__form .field { flex: 1 1 14rem; min-width: 0; }
+
+/* Plan header layout slice: no eyebrow, h1 drawn only where the sidebar rail
+   hides the plan name, month and Ready to Assign grouped on the left. The
+   Ready to Assign block stays neutral: its amount is a placeholder, so no
+   green or other status color implies known funds. */
+.shell-header--plan .shell-header-row {
+  justify-content: flex-start;
+  gap: var(--space-5);
+}
+
+.shell-plan-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Drawn whenever the sidebar is the icon rail (it hides the plan name): the
+   collapsed class covers phones, the narrow-screen default and a rail the user
+   collapsed on a wide screen. The 600px query is a no-script fallback. */
+.app-shell--collapsed .shell-plan-title {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  flex-basis: 100%;
+  font-size: var(--font-size-lg);
+}
+
+@media (max-width: 600px) {
+  .shell-plan-title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    flex-basis: 100%;
+    font-size: var(--font-size-lg);
+  }
+}
+
+.shell-header--plan .shell-pill {
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+/* Column allocation: the inspector takes a third column only while the main
+   column keeps about 500px or more. Below that it stacks under the content, so
+   the main column is never squeezed behind it and the inspector panels stay
+   reachable. The threshold depends on the rail: expanded sidebar 260px, rail
+   56px. Phones (600px and below) already stack, above. */
+@media (max-width: 1100px) {
+  .app-shell:not(.app-shell--collapsed) {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .app-shell:not(.app-shell--collapsed) .app-shell-sidebar {
+    grid-row: 1 / span 2;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .app-shell-inspector {
+    grid-column: 2;
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell--collapsed {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .app-shell--collapsed .app-shell-sidebar {
+    grid-row: 1 / span 2;
+  }
+
+  .app-shell--collapsed .app-shell-inspector {
+    grid-column: 2;
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
