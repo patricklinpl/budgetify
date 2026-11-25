@@ -209,6 +209,13 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
           openDialogs: document.querySelectorAll("dialog[open]").length,
           details: [...document.querySelectorAll("details")].map((d) => (d.className || "details") + " open=" + d.open),
           controls,
+          stimulus: (() => {
+            const app = window.Stimulus;
+            if (!app) return "window.Stimulus missing";
+            const registered = app.router.modules.map((m) => m.definition.identifier).sort();
+            const pending = [...document.querySelectorAll("[data-controller]")].flatMap((el) => el.dataset.controller.split(/\s+/).filter(Boolean).filter((id) => !app.getControllerForElementAndIdentifier(el, id)));
+            return { registered: registered.length, notConnected: [...new Set(pending)], turbo: typeof window.Turbo };
+          })(),
           inputLog: window.__inputLog || "not installed",
           lifecycle: window.__lifecycle || "not installed"
         });
