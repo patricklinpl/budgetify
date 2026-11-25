@@ -144,6 +144,10 @@ jobs:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
+          # Operating choice, not a fix: run the system tests in one process.
+          # At 50+ tests Rails switches to one worker per CPU (4 Chrome + 4 servers
+          # on the runner). The earlier 43-test runs were single process.
+          PARALLEL_WORKERS: "1"
         run: bin/rails db:test:prepare test:system
 
       - name: Keep screenshots from failed system tests
