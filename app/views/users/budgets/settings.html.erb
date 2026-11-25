@@ -77,6 +77,12 @@
     </div>
   <% end %>
 
+  <section class="plan-settings__fresh">
+    <h2>Payees</h2>
+    <p>Rename the payees in this plan.</p>
+    <%= link_to "Manage payees", users_budget_payees_path(@budget.public_id), class: "btn btn--secondary" %>
+  </section>
+
   <section class="plan-settings__fresh" data-controller="dialog">
     <h2>Fresh Start</h2>
     <p>Create a new plan from this one and keep the original as an archived plan.</p>

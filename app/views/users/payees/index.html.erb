@@ -1,0 +1,32 @@
+<% content_for :title, "Payees" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @budget.name %></p>
+    <h1 class="app-shell-page-title">Payees</h1>
+  </div></div></div>
+<% end %>
+
+<section class="budget-grid" aria-label="Payees">
+  <p><%= link_to "Back to settings", settings_users_budget_path(@budget.public_id), class: "budget-back-link" %></p>
+  <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
+  <% if @payees.empty? %>
+    <p>This plan has no payees yet.</p>
+  <% else %>
+    <ul class="payee-list">
+      <% @payees.each do |payee| %>
+        <% err = @error if @error && @error[:id] == payee.public_id %>
+        <% input_id = "payee_name_#{payee.public_id}" %>
+        <li class="payee-list__row">
+          <%= form_with url: users_budget_payee_path(@budget.public_id, payee.public_id), method: :patch, scope: :payee, class: "payee-list__form" do %>
+            <div class="field<%= ' field--invalid' if err %>">
+              <label class="field__label" for="<%= input_id %>">Name of payee <%= payee.name %></label>
+              <input class="field__input" id="<%= input_id %>" name="payee[name]" value="<%= err ? err[:text] : payee.name %>" maxlength="500" required autocomplete="off"<%= raw(' aria-invalid="true" aria-describedby="' + input_id + '-err"') if err %>>
+              <% if err %><span class="field__error" id="<%= input_id %>-err" role="alert"><%= err[:message] %></span><% end %>
+            </div>
+            <button type="submit" class="btn btn--secondary" aria-label="Save name for <%= payee.name %>">Save</button>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
