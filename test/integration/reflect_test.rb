@@ -177,7 +177,7 @@ class ReflectTest < ActionDispatch::IntegrationTest
     assert_select "table[aria-label='Spending by category'] tbody tr:last-child", text: /Returns.*\$-?20\.00.*Refund/m
     assert_select "table[aria-label='Spending by category'] tbody tr", count: 3
     assert_select "#reflect-refund-note", text: /\$333\.21.*\$313\.21/m
-    assert_select ".reflect-donut__hole", text: /Charted spending\s*\$333\.21/
+    assert_select ".reflect-donut__hole", text: /Spending excluding refunds\s*\$333\.21/
     assert_equal "$313.21", text("#reflect-total")
     assert_select "table[aria-label='Spending by category'] tbody tr:first-child", text: /Loan payment.*\$300\.00.*90\.0%/m
   end
@@ -210,7 +210,7 @@ class ReflectTest < ActionDispatch::IntegrationTest
     page
     assert_response :success
     assert_equal "-$66.79", text("#reflect-total").sub("$-", "-$")
-    assert_select ".reflect-donut__hole", text: /Charted spending\s*\$333\.21/
+    assert_select ".reflect-donut__hole", text: /Spending excluding refunds\s*\$333\.21/
     assert_match(/Net total after refunds/, css_select("#reflect-chart").first["aria-label"])
     assert_no_match(/-\d/, css_select("#reflect-chart").first["style"])
   end
