@@ -47,5 +47,6 @@ class DiagnosticWrappersTest < ApplicationSystemTestCase
   test "input wrapper appends the diagnostics and survives a dead page" do
     raised = raised_through(:input, Minitest::Assertion.new("boom"))
     assert_match(/Input diagnostics: /, raised.message)
+    assert_match(/"stimulus":/, raised.message)
   end
 end
