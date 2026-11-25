@@ -265,4 +265,15 @@ class UndoHistoryTest < ActiveSupport::TestCase
     Transaction.transaction { plain.persist_new!(plain.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => -1_000, "payee_name" => "Api")) }
     assert_equal 0, @history.steps.count
   end
+
+  test "purge_stale! deletes steps older than a day, at most one batch" do
+    user = users(:one)
+    budget = PlanLifecycle.create_plan(user, name: "Purge plan")
+    make = ->(age, pos) { UndoStep.create!(user: user, budget: budget, session_key: "s", token: "t", position: pos, kind: "create", before_json: "{}", after_json: "{}", byte_size: 4, created_at: age) }
+    old = make.call(2.days.ago, 1)
+    fresh = make.call(1.hour.ago, 2)
+    UndoStep.purge_stale!
+    assert_not UndoStep.exists?(old.id)
+    assert UndoStep.exists?(fresh.id)
+  end
 end
