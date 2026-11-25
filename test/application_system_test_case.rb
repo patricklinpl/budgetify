@@ -61,12 +61,29 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       end
       warn "NODE_LOST_DIAGNOSTIC test=#{self.class}##{name} error=#{lost.class}"
       warn "NODE_LOST_DIAGNOSTIC test-frames:\n#{frames.grep(%r{/test/|^test/}).first(15).join("\n")}"
-      warn "NODE_LOST_DIAGNOSTIC raw-frames-total=#{frames.size} first-frames:\n#{frames.first(8).join("\n")}"
+      warn "NODE_LOST_DIAGNOSTIC raw-frames-total=#{frames.size} all-frames(bounded 40):\n#{frames.first(40).join("\n")}"
+      warn "NODE_LOST_DIAGNOSTIC lifecycle=#{lost_node_lifecycle(lost)}"
       warn "NODE_LOST_DIAGNOSTIC doc-state=#{doc_state}"
       warn "NODE_LOST_DIAGNOSTIC page=#{snapshot}"
     end
   rescue => e
     warn "NODE_LOST_DIAGNOSTIC unavailable: #{e.class}"
+  end
+
+  # Where in the test lifecycle the error was raised, from state the test
+  # object already holds. Bounded, no retry, no rescue of the original error.
+  def lost_node_lifecycle(error)
+    {
+      failure_count: failures.size,
+      current_url: (page.current_url rescue "unavailable"),
+      window_handles: (page.driver.browser.window_handles.size rescue "unavailable"),
+      click_trace_entries: (@click_trace || []).size,
+      window_trace_entries: (@window_trace || []).size,
+      error_cause: error.cause&.class&.name,
+      time: Time.now.utc.iso8601(3)
+    }.to_json
+  rescue => e
+    "unavailable: #{e.class}"
   end
 
   SHELL_STATE_JS = <<~JS
