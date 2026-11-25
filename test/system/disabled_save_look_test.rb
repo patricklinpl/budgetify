@@ -21,10 +21,13 @@ class DisabledSaveLookTest < ApplicationSystemTestCase
       page.execute_script("document.documentElement.setAttribute('data-theme','#{theme}')")
       look = "(function(){var b=[...document.querySelectorAll('form button, form input[type=submit]')].find(function(e){return (e.value||e.textContent).trim()==='Save'});var s=getComputedStyle(b);return [s.backgroundColor,s.color,s.borderTopStyle].join('|')})()"
       enabled = page.evaluate_script(look)
+      # Instrumentation only: page-side event log, installed right before the target lookup.
+      install_input_log
       find_field("Outflow").send_keys("abc", :enter)
       # Observation only: if this assertion fails, the message also carries the
       # page state (field values, aria-invalid, button disabled states, focus).
-      # Same steps, same assertion, no listeners, no retry.
+      # Same steps, same assertion, no retry. The event log installed above adds
+      # one script evaluation before the lookup and wraps fetch/XHR for logging only.
       with_input_diagnostics("Save") { assert_button "Save", disabled: true, exact: true }
       disabled = page.evaluate_script(look)
       assert_not_equal enabled, disabled
