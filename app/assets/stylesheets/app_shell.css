@@ -540,5 +540,11 @@ a.shell-button {
   border-style: dashed;
   opacity: 0.6;
 }
+@media (max-width: 1200px) {
+  .shell-button--history {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 .shell-undo-status { margin: 0; padding: var(--space-2, 8px) var(--space-4, 16px); min-height: 0; font-size: 0.875rem; }
 .shell-undo-status:empty { display: none; }
