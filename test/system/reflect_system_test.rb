@@ -135,4 +135,16 @@ class ReflectSystemTest < ApplicationSystemTestCase
     assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth + 1"), "refund case scrolls sideways at phone width"
     shot "13-phone-net-negative"
   end
+
+  test "[engineering] refunds netting total spending to zero: chart and signed table stay honest" do
+    cash = @plan.accounts.find_by!(name: "Cash")
+    returns = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    writer = TransactionWriter.new(@plan)
+    writer.persist_new!(writer.build("account_id" => cash.public_id, "date" => "2026-11-14", "amount" => 333_210, "category_id" => returns.public_id, "payee_name" => "Shop"))
+    visit users_budget_reflect_path(@plan.public_id)
+    assert_selector "#reflect-total", text: "$0.00"
+    assert_selector ".reflect-donut__hole", text: "Spending excluding refunds"
+    assert_selector "#reflect-refund-note"
+    shot "14-zero-net-total"
+  end
 end
