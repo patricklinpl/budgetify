@@ -62,6 +62,8 @@
     <% colors = %w[var(--color-accent) var(--color-status-positive) var(--color-status-warning-strong) var(--color-status-negative) var(--color-accent-light) var(--color-border-strong)] %>
     <% total_amount = report.spending_total %>
     <% chart_slices = @slices.select { |slice| slice[:amount].positive? } %>
+    <% refunds_omitted = chart_slices.size < @slices.size %>
+    <% chart_total_label = refunds_omitted ? "Charted spending" : "Total Spending" %>
     <% running = Rational(0) %>
     <% stops = chart_slices.each_with_index.map do |slice, i|
          from = running
@@ -71,8 +73,8 @@
     <div class="reflect-chart">
       <% if chart_slices.any? %>
         <div class="reflect-donut" id="reflect-chart" role="img" style="background: conic-gradient(<%= stops %>);"
-             aria-label="Spending breakdown chart: <%= chart_slices.map { |s| "#{s[:name]} #{money.call(s[:amount])}" }.join(', ') %>. Total <%= money.call(total_amount) %>.">
-          <div class="reflect-donut__hole"><span>Total Spending<strong><%= money.call(total_amount) %></strong></span></div>
+             aria-label="Spending breakdown chart: <%= chart_slices.map { |s| "#{s[:name]} #{money.call(s[:amount])}" }.join(', ') %>. <%= chart_total_label %> <%= money.call(@chart_total) %><%= ". Net total after refunds #{money.call(total_amount)}" if refunds_omitted %>.">
+          <div class="reflect-donut__hole"><span><%= chart_total_label %><strong><%= money.call(@chart_total) %></strong></span></div>
         </div>
       <% else %>
         <p role="status">No category has net spending in this range, so there is no chart.</p>
@@ -83,8 +85,8 @@
         <% end %>
       </ul>
     </div>
-    <% if chart_slices.size < @slices.size %>
-      <p>Net refunds are listed in the table with no share and are not drawn in the chart. Total spending is net of refunds.</p>
+    <% if refunds_omitted %>
+      <p id="reflect-refund-note">Net refunds are listed in the table with no share and are not drawn in the chart. The chart and its percentages cover categories with net spending only (<%= money.call(@chart_total) %>). Total spending above is net of refunds (<%= money.call(total_amount) %>).</p>
     <% end %>
     <div class="data-table-wrap">
       <table class="data-table" aria-label="Spending by <%= @by == 'groups' ? 'group' : 'category' %>">
