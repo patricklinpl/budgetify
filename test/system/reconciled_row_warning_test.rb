@@ -25,29 +25,30 @@ class ReconciledRowWarningSystemTest < ApplicationSystemTestCase
     visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @opening.public_id)
     assert_selector "[data-controller~=field][data-field-ready=true]"
     fill_in "Inflow", with: "101"
-    click_button "Save"
-    assert_text "Save Changes to Reconciled Transaction"
+    click_button "Save", exact: true
+    assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
     assert_equal [ 100_000, -55_000, 45_000 ], balances
-    within("[role=alert]") { click_button "Cancel" }
-    assert_no_text "Save Changes to Reconciled Transaction"
+    within("dialog[open]") { click_button "Cancel" }
+    assert_no_selector "dialog[open]"
     assert_field "Inflow", with: "101"
     assert_equal [ 100_000, -55_000, 45_000 ], balances
 
-    click_button "Save"
-    assert_text "Save Changes to Reconciled Transaction"
-    within("[role=alert]") { click_button "Save" }
+    click_button "Save", exact: true
+    assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
+    within("dialog[open]") { click_button "Save" }
     assert_text "Transaction saved."
     assert_equal [ 101_000, -55_000, 46_000 ], balances
     assert_equal "reconciled", @opening.reload.cleared
 
     visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @opening.public_id)
     click_button "Delete transaction"
-    assert_text "Delete Reconciled Transaction?"
+    assert_selector "dialog[open] h2", text: "Delete Reconciled Transaction?"
     assert_equal [ 101_000, -55_000, 46_000 ], balances
-    click_link "Cancel"
+    within("dialog[open]") { click_button "Cancel" }
+    assert_no_selector "dialog[open]"
     assert_selector "h1", text: "Edit transaction"
     click_button "Delete transaction"
-    click_button "Delete"
+    within("dialog[open]") { click_button "Delete" }
     assert_text "Transaction deleted."
     assert_equal [ 0, -55_000, -55_000 ], balances
   end
