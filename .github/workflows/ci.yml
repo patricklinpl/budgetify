@@ -148,9 +148,25 @@ jobs:
           # At 50+ tests Rails switches to one worker per CPU (4 Chrome + 4 servers
           # on the runner). The earlier 43-test runs were single process.
           PARALLEL_WORKERS: "1"
+          # Diagnostic, not a fix: ChromeDriver's own verbose log goes to this
+          # private directory and is never printed or uploaded; a failed test
+          # prints only a sanitized timing skeleton (test/test_helpers/
+          # chromedriver_timeline.rb). Removed on any exit of this step and by
+          # the always() step below.
+          CHROMEDRIVER_TIMELINE_DIR: ${{ runner.temp }}/chromedriver-timeline
           # Diagnostic, not a fix: -v prints each test name, time and result in run
           # order so a red can be read against the tests before it.
-        run: bin/rails db:test:prepare && bin/rails test:system -v
+        run: |
+          trap 'rm -rf "$CHROMEDRIVER_TIMELINE_DIR"' EXIT
+          trap 'exit 143' TERM
+          trap 'exit 130' INT
+          bin/rails db:test:prepare && bin/rails test:system -v
+
+      - name: Remove raw ChromeDriver logs
+        if: always()
+        env:
+          CHROMEDRIVER_TIMELINE_DIR: ${{ runner.temp }}/chromedriver-timeline
+        run: rm -rf "$CHROMEDRIVER_TIMELINE_DIR"
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7
