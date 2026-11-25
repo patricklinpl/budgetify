@@ -41,6 +41,8 @@ class AppShellTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Household"
+    assert_select ".shell-header--plan .shell-eyebrow", count: 0
+    assert_select ".shell-header--plan h1.shell-plan-title", "Household"
     assert_select ".shell-header--plan .shell-month-label"
     assert_select ".shell-header--plan .shell-pill", /Ready to Assign/
     assert_select ".shell-header--plan .shell-chip", count: 6
