@@ -556,3 +556,44 @@ a.shell-chip { text-decoration: none; }
 .payee-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3, 0.75rem); max-width: 40rem; }
 .payee-list__form { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; }
 .payee-list__form .field { flex: 1 1 14rem; min-width: 0; }
+
+/* Plan header layout slice: no eyebrow, h1 drawn only where the sidebar hides
+   the plan name (phones), month and Ready to Assign grouped on the left. The
+   Ready to Assign block stays neutral: its amount is a placeholder, so no
+   green or other status color implies known funds. */
+.shell-header--plan .shell-header-row {
+  justify-content: flex-start;
+  gap: var(--space-5);
+}
+
+.shell-plan-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 600px) {
+  .shell-plan-title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    flex-basis: 100%;
+    font-size: var(--font-size-lg);
+  }
+}
+
+.shell-header--plan .shell-pill {
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+}
