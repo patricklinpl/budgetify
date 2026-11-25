@@ -30,6 +30,8 @@ Rails.application.routes.draw do
   root "landing_pages#show"
   namespace :users do
     resources :budgets, only: %i[index show create update], param: :public_id do
+      post "undo", to: "undo#undo", as: :undo
+      post "redo", to: "undo#redo", as: :redo
       member do
         get :settings
         post :fresh_start
