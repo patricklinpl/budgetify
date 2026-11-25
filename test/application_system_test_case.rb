@@ -1,5 +1,6 @@
 require "test_helper"
 require_relative "test_helpers/chromedriver_timeline"
+require_relative "test_helpers/chrome_reset_compat"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   DESKTOP_WINDOW = [ 1400, 1400 ].freeze
