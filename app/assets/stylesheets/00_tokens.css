@@ -33,6 +33,8 @@
   --color-status-warning: #f6c91d;
   --color-status-warning-text: #362c05;
   --color-status-warning-strong: #daac00;
+  --color-chip-attention-bg: #f6c91d;
+  --color-chip-attention-text: #362c05;
   --color-pill-positive-bg: #b9e48d;
   --color-pill-positive-text: #1f3a0a;
   --color-pill-negative-bg: #bf2e3b;
@@ -83,6 +85,8 @@
   --color-status-warning: #f6c91d;
   --color-status-warning-text: #f6c91d;
   --color-status-warning-strong: #daac00;
+  --color-chip-attention-bg: #f6c91d;
+  --color-chip-attention-text: #362c05;
   --color-pill-positive-bg: #4f7f24;
   --color-pill-positive-text: #f4ffe8;
   --color-pill-negative-bg: #b8323f;

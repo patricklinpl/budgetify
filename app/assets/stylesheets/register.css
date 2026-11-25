@@ -33,3 +33,7 @@
   .register-page .data-table td[data-label="Category"] { max-width: 14rem; overflow-wrap: anywhere; }
   .register-page .data-table td a.budget-back-link { white-space: nowrap; }
 }
+
+/* A transaction with no category shows its existing "Needs a category" text as an amber chip, so it stands out in the list. The text and the status line above the table are unchanged. */
+.register-chip { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0.1rem 0.6rem; border-radius: var(--radius-pill); font-weight: var(--font-weight-semibold); line-height: 1.4; overflow-wrap: anywhere; }
+.register-chip--attention { background: var(--color-chip-attention-bg); color: var(--color-chip-attention-text); }
