@@ -144,7 +144,13 @@ jobs:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test:system
+          # DIAGNOSTIC ONLY (proof branch, never merged): force one worker.
+          PARALLEL_WORKERS: "1"
+          TESTOPTS: "-v"
+        run: |
+          echo "nproc=$(nproc) PARALLEL_WORKERS=$PARALLEL_WORKERS TESTOPTS=$TESTOPTS"
+          grep -c processor /proc/cpuinfo; free -m | head -2
+          bin/rails db:test:prepare test:system
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v7
