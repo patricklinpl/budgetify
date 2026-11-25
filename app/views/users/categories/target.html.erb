@@ -49,7 +49,7 @@
   <% if MonthlyTarget.any?(@category) %>
     <section class="plan-settings__fresh">
       <h2>Remove target</h2>
-      <p>Removing the target does not change Assigned or Available. Undo is not built.</p>
+      <p>Removing the target does not change Assigned or Available. Undo does not cover target changes yet.</p>
       <%= form_with url: target_destroy_users_budget_category_path(@budget.public_id, @category.public_id), method: :delete do %>
         <button type="submit" class="btn btn--destructive">Remove target</button>
       <% end %>
