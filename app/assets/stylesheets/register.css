@@ -37,3 +37,13 @@
 /* A transaction with no category shows its existing "Needs a category" text as an amber chip, so it stands out in the list. The text and the status line above the table are unchanged. */
 .register-chip { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0.1rem 0.6rem; border-radius: var(--radius-pill); font-weight: var(--font-weight-semibold); line-height: 1.4; overflow-wrap: anywhere; }
 .register-chip--attention { background: var(--color-chip-attention-bg); color: var(--color-chip-attention-text); }
+
+/* The wrapper may shrink with the page. */
+.register-page__controls { min-width: 0; max-width: 100%; }
+
+/* Desktop: the date presets and the payee search share one row, presets at the left and search at the right. Narrower screens keep the stacked order. The form, its parameters and its label are unchanged. */
+@media (min-width: 1201px) {
+  .register-page__controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0.75rem 0 0.5rem; }
+  .register-page__controls .register-page__periods { order: 1; margin: 0; }
+  .register-page__controls .register-page__search { order: 2; width: auto; flex: 0 1 28rem; margin: 0; flex-wrap: nowrap; }
+}
