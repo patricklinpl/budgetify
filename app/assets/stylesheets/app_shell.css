@@ -612,3 +612,42 @@ a.shell-chip { text-decoration: none; }
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-lg);
 }
+
+/* Column allocation: the inspector takes a third column only while the main
+   column keeps about 500px or more. Below that it stacks under the content, so
+   the main column is never squeezed behind it and the inspector panels stay
+   reachable. The threshold depends on the rail: expanded sidebar 260px, rail
+   56px. Phones (600px and below) already stack, above. */
+@media (max-width: 1100px) {
+  .app-shell:not(.app-shell--collapsed) {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .app-shell:not(.app-shell--collapsed) .app-shell-sidebar {
+    grid-row: 1 / span 2;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .app-shell-inspector {
+    grid-column: 2;
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell--collapsed {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .app-shell--collapsed .app-shell-sidebar {
+    grid-row: 1 / span 2;
+  }
+
+  .app-shell--collapsed .app-shell-inspector {
+    grid-column: 2;
+    width: auto;
+    border-left: 0;
+    border-top: var(--border-width) solid var(--color-border);
+  }
+}
