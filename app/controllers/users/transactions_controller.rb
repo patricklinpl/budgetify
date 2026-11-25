@@ -8,6 +8,9 @@ module Users
     layout "app_shell"
 
     TRANSFER_PREFIX = "To/From ".freeze
+    # #62 REG-DATE-01: the two relative periods that were checked in the reference.
+    # Custom bounds and years were not tested and are not built.
+    PERIODS = { "all" => "All dates", "this_month" => "This month", "last_month" => "Last month" }.freeze
 
     before_action :set_budget
     before_action :set_account
@@ -19,6 +22,7 @@ module Users
       @show_reconciled = params[:reconciled] == "1"
       @hidden_reconciled = @show_reconciled ? 0 : scope.where(cleared: "reconciled").count
       scope = scope.where.not(cleared: "reconciled") unless @show_reconciled
+      scope = apply_register_filters(scope)
       @transactions = scope.order(date: :desc, created_at: :desc).includes(:payee, :category)
       # #60 TX-EMPTY-01 / TX-ADD-ANOTHER-01: a row saved without a category is
       # allowed and flagged for categorization. Transfers, splits, inflows (reference
@@ -27,6 +31,38 @@ module Users
       # the reference's own placement is not verified.
       @needs_category_count = @account.on_budget? ? @account.transactions.not_deleted.where(budget: @budget, category_id: nil, transfer_account_id: nil).where(amount: ..0).where.missing(:sub_transactions).count : 0
     end
+
+    # #62 REG-01 / REG-DATE-01. The search is a plain GET form, so it applies on
+    # Enter or the button, never while typing (typing alone did not filter in the
+    # reference). [engineering] Case-insensitive substring match on the payee name
+    # only: other fields, syntax and combined predicates were not tested. The
+    # opening balance row is an ordinary row here and hides when its payee does not
+    # match. Filters only change what is listed: balances, the database and the
+    # reconciled hiding are untouched, and the number of rows they hide is reported.
+    def apply_register_filters(scope)
+      @search = params[:q].to_s.strip.first(200)
+      @period = PERIODS.key?(params[:period]) ? params[:period] : "all"
+      before = scope.count
+      range = period_range(@period)
+      scope = scope.where(date: range) if range
+      if @search.present?
+        pattern = "%#{ActiveRecord::Base.sanitize_sql_like(@search.downcase)}%"
+        scope = scope.where(payee_id: @budget.payees.where("lower(payees.name) LIKE ? ESCAPE '\\'", pattern).select(:id))
+      end
+      @hidden_by_filters = before - scope.count
+      @filtered = @search.present? || range.present?
+      scope
+    end
+    private :apply_register_filters
+
+    def period_range(period)
+      today = Date.current
+      case period
+      when "this_month" then today.beginning_of_month..today.end_of_month
+      when "last_month" then (today.beginning_of_month - 1.month)..(today.beginning_of_month - 1.day)
+      end
+    end
+    private :period_range
 
     def new
       @form = blank_form(date: params[:date])
