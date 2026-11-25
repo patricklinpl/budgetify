@@ -551,3 +551,8 @@ a.shell-button {
 
 /* #59 filter chips that are links look like the button chips */
 a.shell-chip { text-decoration: none; }
+
+/* Payees manager (#65): one rename form per row. */
+.payee-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3, 0.75rem); max-width: 40rem; }
+.payee-list__form { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; }
+.payee-list__form .field { flex: 1 1 14rem; min-width: 0; }
