@@ -5,6 +5,7 @@
     <h1 class="app-shell-page-title">Split transaction</h1>
   </div></div></div>
 <% end %>
+<% reconciled_edit = @transaction.cleared == "reconciled" && !@reconciled_warning %>
 <section class="plan-settings split-editor">
   <% if @errors.any? || @field_errors.any? || @row_errors.any? || @mismatch %>
     <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
@@ -24,7 +25,7 @@
     <p class="plan-settings__notice" role="status"><%= @notice %></p>
   <% end %>
   <%= form_with url: users_budget_account_transaction_split_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :patch, scope: :split, class: "plan-settings__form",
-        data: { turbo: false, controller: "form", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" } do %>
+        data: { turbo: false, controller: (reconciled_edit ? "form dialog reconcile-guard" : "form"), "reconcile-guard-initial-value": (reconciled_edit ? { "split[outflow]" => stored_total[:outflow], "split[inflow]" => stored_total[:inflow] } : nil), action: "#{"keydown->reconcile-guard#enter " if reconciled_edit}input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update" } do %>
     <h2>Total</h2>
     <% { outflow: "Total outflow", inflow: "Total inflow" }.each do |key, label| %>
       <% err = @field_errors[key] %>
@@ -64,8 +65,22 @@
         <% end %>
       </fieldset>
     <% end %>
-    <div class="plan-settings__actions">
-      <button type="submit" class="btn btn--primary" name="split_action" value="save" data-form-target="submit">Save split</button>
+    <% if @reconciled_warning %>
+      <section class="plan-settings__warning" role="alert" tabindex="-1" data-controller="focus" aria-labelledby="reconciled-warning-title">
+        <h2 id="reconciled-warning-title">Save Changes to Reconciled Transaction</h2>
+        <p>Saving your changes to this reconciled transaction may bring your reconciliation out of balance.</p>
+        <div class="plan-settings__actions">
+          <button type="submit" class="btn btn--primary" name="confirm_reconciled" value="1">Save</button>
+          <button type="submit" class="btn btn--secondary" name="confirm_reconciled" value="0" formnovalidate>Cancel</button>
+        </div>
+      </section>
+    <% end %>
+    <div class="plan-settings__actions"<%= raw(" hidden") if @reconciled_warning %>>
+      <% if reconciled_edit %>
+        <button type="button" class="btn btn--primary" data-form-target="submit" data-dialog-id="dlg-reconciled-save" data-reconcile-guard-save data-action="click->reconcile-guard#check click->dialog#open">Save split</button>
+      <% else %>
+        <button type="submit" class="btn btn--primary" name="split_action" value="save" data-form-target="submit">Save split</button>
+      <% end %>
       <button type="submit" class="btn btn--secondary" name="split_action" value="add_row" formnovalidate>Add row</button>
       <% if @mismatch %>
         <button type="submit" class="btn btn--secondary" name="split_action" value="update_total">Update Total</button>
@@ -73,6 +88,19 @@
       <% end %>
       <%= link_to "Cancel", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "btn btn--secondary" %>
     </div>
+    <% if reconciled_edit %>
+      <dialog id="dlg-reconciled-save" class="dialog dialog--warning" role="alertdialog" aria-labelledby="dlg-reconciled-save-t" data-dialog-name="Reconciled transaction warning" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+        <div class="dialog__header"><h2 class="dialog__title" id="dlg-reconciled-save-t">Save Changes to Reconciled Transaction</h2></div>
+        <div class="dialog__body">
+          <p>Saving your changes to this reconciled transaction may bring your reconciliation out of balance.</p>
+          <p class="dialog__survives">Survives Cancel: the editor stays open with your typed values and nothing is saved.</p>
+        </div>
+        <div class="dialog__footer">
+          <button type="button" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
+          <button type="submit" class="btn btn--primary" name="confirm_reconciled" value="1">Save</button>
+        </div>
+      </dialog>
+    <% end %>
   <% end %>
   <p class="form-affordances">Auto-Distribute, split-transfer rows and undo are not built.</p>
 </section>

@@ -15,8 +15,24 @@
   <section class="plan-settings__fresh">
     <h2>Delete transaction</h2>
     <p>Deleting reverses its effect on the account and the category.<%= " It also removes the matching row in #{@transaction.transfer_account.name}." if @transaction.transfer_account %> Undo is not built.</p>
-    <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete do %>
-      <button type="submit" class="btn btn--destructive">Delete transaction</button>
+    <% reconciled = @transaction.cleared == "reconciled" %>
+    <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete, data: (reconciled ? { controller: "dialog" } : {}) do %>
+      <% if reconciled %>
+        <button type="button" class="btn btn--destructive" data-dialog-id="dlg-reconciled-delete" data-action="dialog#open">Delete transaction</button>
+        <dialog id="dlg-reconciled-delete" class="dialog dialog--destructive" role="alertdialog" aria-labelledby="dlg-reconciled-delete-t" data-dialog-name="Delete reconciled transaction" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+          <div class="dialog__header"><h2 class="dialog__title" id="dlg-reconciled-delete-t">Delete Reconciled Transaction?</h2></div>
+          <div class="dialog__body">
+            <p>Deleting a reconciled transaction will bring the reconciliation out of balance.</p>
+            <p class="dialog__survives">Survives Cancel: the transaction is unchanged.</p>
+          </div>
+          <div class="dialog__footer">
+            <button type="button" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
+            <button type="submit" class="btn btn--destructive" name="confirm_reconciled" value="1">Delete</button>
+          </div>
+        </dialog>
+      <% else %>
+        <button type="submit" class="btn btn--destructive">Delete transaction</button>
+      <% end %>
     <% end %>
   </section>
 </section>
