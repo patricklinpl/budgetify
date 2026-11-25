@@ -83,7 +83,7 @@ class TransactionTransferCharacterizationTest < ActiveSupport::TestCase
   # TX-PAY-01 (T): the payment category had 100 available from funded card
   # spending and 60 after the 40 payment. Setup: Groceries has 100 assigned, a
   # 100 card purchase in Groceries funds the card's payment category, then pay 40.
-  test "the card payment category goes from 100 available to 60 after a 40 payment" do
+  test "[reference T 100 to 60; engineering 65 and 100 after edit and delete] the card payment category after a 40 payment, its edit and its delete" do
     month = @today.beginning_of_month
     @groceries.month_category_for(month).update!(budgeted: 100_000)
     put(@cash, 965_000)
