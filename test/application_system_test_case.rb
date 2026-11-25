@@ -1,8 +1,23 @@
 require "test_helper"
+require_relative "test_helpers/chromedriver_timeline"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   DESKTOP_WINDOW = [ 1400, 1400 ].freeze
-  driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_WINDOW
+  # Diagnostics only (see ChromedriverTimeline): on CI the driver writes its own
+  # verbose log to a private temp file; only a sanitized timing skeleton of it is
+  # ever printed, and only for a failed test. No wait, retry or classification.
+  driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_WINDOW,
+            options: ChromedriverTimeline.driver_options
+
+  if ChromedriverTimeline.enabled?
+    ActiveSupport::Testing::Parallelization.after_fork_hook { |worker| ChromedriverTimeline.after_fork(worker) }
+    Minitest.after_run { ChromedriverTimeline.cleanup }
+  end
+
+  def before_setup
+    @driver_log_mark = ChromedriverTimeline.enabled? ? ChromedriverTimeline.mark : nil
+    super
+  end
 
   # Every system test signs in through the real form, and sessions#create is
   # rate limited to 10 per 3 minutes per process (the counter lives in the
@@ -35,8 +50,20 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def before_teardown
     report_lost_node
+    report_driver_timeline
   ensure
     super
+  end
+
+  # Failed tests only. Prints the sanitized skeleton of the driver log written
+  # during this test; the real failure is reported by minitest as before.
+  def report_driver_timeline
+    return unless @driver_log_mark && failures.any?
+
+    result = ChromedriverTimeline.skeleton(ChromedriverTimeline.current_path, from: @driver_log_mark)
+    warn ChromedriverTimeline.report("#{self.class}##{name}", result)
+  rescue StandardError => e
+    warn "CHROMEDRIVER_TIMELINE unavailable: #{e.class}"
   end
 
   def report_lost_node
