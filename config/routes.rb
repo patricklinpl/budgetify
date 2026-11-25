@@ -38,6 +38,7 @@ Rails.application.routes.draw do
         get :moves
       end
       resource :reflect, only: :show, controller: "reflect"
+      resources :payees, only: %i[index update], param: :public_id
       resources :categories, only: %i[edit update destroy], param: :public_id do
         member do
           patch :assign
