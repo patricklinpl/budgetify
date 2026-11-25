@@ -651,3 +651,39 @@ a.shell-chip { text-decoration: none; }
     border-top: var(--border-width) solid var(--color-border);
   }
 }
+
+/* Plan toolbar and filter chips, visual foundation. Same controls and
+   behavior; layout and touch size only. Chips are filled pills (no outline),
+   the reference's look, with the active chip keeping the accent. Where the
+   shell uses larger tap targets (1200px and below), every control in the
+   header row is at least 44px, not just Undo, Redo and Recent Moves. */
+.shell-chip {
+  border-color: transparent;
+  background: var(--color-surface-sunken);
+}
+
+.shell-chip--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.shell-toolbar {
+  align-content: flex-start;
+}
+
+@media (max-width: 1200px) {
+  .shell-chip,
+  .shell-header .shell-button,
+  .shell-icon-button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .shell-chips {
+    gap: var(--space-2);
+  }
+}
