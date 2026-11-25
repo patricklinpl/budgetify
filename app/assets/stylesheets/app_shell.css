@@ -548,3 +548,6 @@ a.shell-button {
 }
 .shell-undo-status { margin: 0; padding: var(--space-2, 8px) var(--space-4, 16px); min-height: 0; font-size: 0.875rem; }
 .shell-undo-status:empty { display: none; }
+
+/* #59 filter chips that are links look like the button chips */
+a.shell-chip { text-decoration: none; }
