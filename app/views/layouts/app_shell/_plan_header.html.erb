@@ -17,8 +17,15 @@
     </div>
   </div>
   <ul class="shell-chips" aria-label="Filters">
-    <% ["All", "Overspent", "Underfunded", "Overfunded", "Money Available", "Snoozed"].each_with_index do |chip, i| %>
-      <li><button type="button" class="shell-chip<%= ' shell-chip--active' if i.zero? %>" disabled><%= chip %></button></li>
+    <% active = (@filter || "all") %>
+    <% [["All", "all"], ["Overspent", "overspent"], ["Underfunded", nil], ["Overfunded", nil], ["Money Available", "money_available"], ["Snoozed", nil]].each do |chip, key| %>
+      <li>
+        <% if key && @budget %>
+          <%= link_to chip, users_budget_path(@budget.public_id, { filter: (key unless key == "all"), hidden: (1 if @show_hidden) }.compact), class: "shell-chip#{' shell-chip--active' if active == key}", "aria-current": (active == key ? "true" : nil) %>
+        <% else %>
+          <button type="button" class="shell-chip<%= ' shell-chip--active' if key == "all" %>" disabled><%= chip %></button>
+        <% end %>
+      </li>
     <% end %>
   </ul>
   <div class="shell-toolbar" role="toolbar" aria-label="Plan actions">
