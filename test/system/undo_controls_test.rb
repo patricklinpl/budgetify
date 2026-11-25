@@ -1,0 +1,115 @@
+require "application_system_test_case"
+
+# Real browser run of Undo slice 1: header buttons, enabled states, the
+# keyboard shortcut, shortcut suppression in text fields and while a dialog is
+# open, and a page reload.
+class UndoControlsSystemTest < ApplicationSystemTestCase
+  setup do
+    @user = users(:one)
+    @plan = PlanLifecycle.create_plan(@user, name: "Undo plan")
+    @account = @plan.accounts.create!(name: "Savings", type: "savings")
+    writer = TransactionWriter.new(@plan)
+    @reconciled = writer.persist_new!(writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601,
+      "amount" => 100_000, "payee_name" => "Opening", "cleared" => "reconciled"))
+    visit users_sign_in_path
+    fill_in "Email", with: @user.email_address
+    fill_in "Password", with: "password"
+    click_button "Log in"
+    assert_no_current_path users_sign_in_path
+  end
+
+  def balance = @account.reload.balance
+  def register = visit(users_budget_account_transactions_path(@plan.public_id, @account.public_id))
+
+  def add_transaction(memo, outflow)
+    click_link "Add Transaction"
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "Memo", with: memo
+    fill_in "Outflow", with: outflow
+    click_button "Save", exact: true
+    assert_text "Transaction saved."
+  end
+
+  test "buttons start disabled, Undo and Redo work, a new action drops Redo and a reload disables both" do
+    register
+    assert_button "Undo", disabled: true
+    assert_button "Redo", disabled: true
+    add_transaction("first", "10")
+    assert_equal 90_000, balance
+    assert_button "Undo", disabled: false
+    assert_button "Redo", disabled: true
+
+    click_button "Undo"
+    assert_text "Undid adding the transaction."
+    assert_equal 100_000, balance
+    assert_button "Redo", disabled: false
+    assert_button "Undo", disabled: true
+
+    click_button "Redo"
+    assert_text "Redid adding the transaction."
+    assert_equal 90_000, balance
+
+    click_button "Undo"
+    assert_text "Undid adding the transaction."
+    add_transaction("second", "5")
+    assert_button "Redo", disabled: true
+
+    page.refresh
+    assert_button "Undo", disabled: true
+    assert_button "Redo", disabled: true
+  end
+
+  test "Ctrl+Z undoes and Ctrl+Y redoes outside text fields" do
+    register
+    add_transaction("kb", "10")
+    assert_selector "[data-controller~=undo-shortcuts]"
+    find("body").send_keys([ :control, "z" ])
+    assert_text "Undid adding the transaction."
+    assert_equal 100_000, balance
+    find("body").send_keys([ :control, "y" ])
+    assert_text "Redid adding the transaction."
+    assert_equal 90_000, balance
+  end
+
+  # The controls live on the register and plan pages. A real open <dialog> and a
+  # real text input are added to the page so the guard is tested where the
+  # shortcut is active; without the guard these tests fail.
+  test "the shortcut is inert inside a text field" do
+    register
+    add_transaction("field", "10")
+    page.execute_script("const i = document.createElement('input'); i.id = 'probe'; document.body.appendChild(i); i.focus()")
+    find("#probe").send_keys([ :control, "z" ])
+    assert_no_text "Undid adding the transaction."
+    assert_equal 90_000, balance
+    assert_equal 1, UndoStep.where(undone: false).count
+  end
+
+  test "the shortcut is inert while any dialog is open" do
+    register
+    add_transaction("before dialog", "10")
+    page.execute_script("const d = document.createElement('dialog'); d.id = 'probe-dialog'; d.innerHTML = '<p>Warning</p><button id=\\'probe-close\\'>Close</button>'; document.body.appendChild(d); d.showModal()")
+    assert_selector "dialog[open]#probe-dialog"
+    page.driver.browser.action.key_down(:control).send_keys("z").key_up(:control).perform
+    assert_selector "dialog[open]#probe-dialog"
+    assert_no_text "Undid adding the transaction."
+    assert_equal 90_000, balance
+    assert_equal 1, UndoStep.where(undone: false).count
+    page.execute_script("document.getElementById('probe-dialog').close()")
+    page.driver.browser.action.key_down(:control).send_keys("z").key_up(:control).perform
+    assert_text "Undid adding the transaction."
+    assert_equal 100_000, balance
+  end
+
+  test "Undo of a reconciled row memo edit restores it and keeps it reconciled" do
+    visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @reconciled.public_id)
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "Memo", with: "memo only"
+    click_button "Save", exact: true
+    assert_text "Transaction saved."
+    assert_equal "memo only", @reconciled.reload.memo
+    click_button "Undo"
+    assert_text "Undid the transaction edit."
+    assert_nil @reconciled.reload.memo
+    assert_equal "reconciled", @reconciled.cleared
+  end
+end
