@@ -10,6 +10,10 @@ module UndoSnapshot
   # Every field the entry copies or relies on, so an edit of any of them after
   # the step makes Undo refuse instead of silently reverting around it.
   SCHED_FIELDS = %w[account_id payee_id category_id transfer_account_id amount memo flag_color frequency date_next deleted].freeze
+  # Reset Available Amount (#58): the figures a reset step relies on, guarded
+  # but only "assigned" is ever written back. Available carries forward from
+  # earlier months, so it is guarded as well as assigned and activity.
+  RESET_FIELDS = %w[assigned activity available hidden internal payment_account_id deleted].freeze
   SUB_FIELDS = %w[public_id transaction_id amount memo payee_id category_id transfer_account_id deleted].freeze
 
   Ids = Struct.new(:tx, :sub) do
@@ -33,6 +37,15 @@ module UndoSnapshot
       "tx" => ids.tx.to_h { |id| [ id.to_s, txs[id]&.attributes&.slice(*TX_FIELDS)&.as_json ] },
       "sub" => ids.sub.to_h { |id| [ id.to_s, subs[id]&.attributes&.slice(*SUB_FIELDS)&.as_json ] }
     }
+  end
+
+  # Image of one category's reset figures for a month (see RESET_FIELDS).
+  def reset_image(category, month)
+    data = CategorySerializer.as_json(category.reload, month: month)
+    figures = { "assigned" => data[:budgeted].to_i, "activity" => data[:activity].to_i, "available" => data[:balance].to_i,
+                "hidden" => category.hidden, "internal" => category.internal, "payment_account_id" => category.payment_account_id,
+                "deleted" => category.deleted }
+    { "month" => month.iso8601, "cat" => { category.id.to_s => figures.slice(*RESET_FIELDS) } }
   end
 
   # Rows that did not exist when `before` was taken. A transaction is never
