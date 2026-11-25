@@ -2,10 +2,9 @@
     until the plan feature issues wire them. Expects @budget. %>
 <div class="shell-header shell-header--plan">
   <div class="shell-header-row">
-    <div class="shell-header-title">
-      <p class="shell-eyebrow">Selected budget</p>
-      <h1 class="app-shell-page-title"><%= @budget.name %></h1>
-    </div>
+    <%# The plan name is already in the sidebar on wider screens, so the h1 stays
+        in the document for headings and screen readers and is only drawn on phones. %>
+    <h1 class="app-shell-page-title shell-plan-title"><%= @budget.name %></h1>
     <div class="shell-month" role="group" aria-label="Month">
       <button type="button" class="shell-icon-button" disabled aria-label="Previous month"><span aria-hidden="true">&lsaquo;</span></button>
       <span class="shell-month-label"><%= Date.current.strftime("%B %Y") %> <span aria-hidden="true">&#9662;</span></span>
