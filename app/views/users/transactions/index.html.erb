@@ -1,5 +1,6 @@
 <% content_for :title, "#{@account.name} register" %>
 <% fmt = @budget.currency_format %>
+<% filter_params = { q: @search.presence, period: (@period == "all" ? nil : @period) }.compact %>
 <% content_for :shell_header do %>
   <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
     <p class="shell-eyebrow">Register</p>
@@ -8,7 +9,7 @@
   <div class="shell-toolbar">
     <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), class: "shell-button shell-button--primary" %>
     <%= link_to "Reconcile", users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), class: "shell-button" unless @account.closed? %>
-    <%= link_to(@show_reconciled ? "Hide Reconciled" : "Show Reconciled", users_budget_account_transactions_path(@budget.public_id, @account.public_id, reconciled: (@show_reconciled ? nil : "1")), class: "shell-button") %>
+    <%= link_to(@show_reconciled ? "Hide Reconciled" : "Show Reconciled", users_budget_account_transactions_path(@budget.public_id, @account.public_id, filter_params.merge(reconciled: (@show_reconciled ? nil : "1"))), class: "shell-button") %>
     <%= render "layouts/app_shell/undo_controls" %>
     <%= link_to "Back to the plan", users_budget_path(@budget.public_id, account: @account.public_id), class: "shell-button" %>
   </div></div></div>
@@ -17,10 +18,24 @@
 <section class="plan-settings register-page">
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <% if alert %><div class="plan-settings__errors" role="alert"><p><%= alert %></p></div><% end %>
+  <%= form_with url: users_budget_account_transactions_path(@budget.public_id, @account.public_id), method: :get, class: "register-page__search", html: { role: "search" } do |form| %>
+    <%= form.label :q, "Search payee" %>
+    <%= form.search_field :q, value: @search, maxlength: 200, autocomplete: "off" %>
+    <%= form.hidden_field :period, value: @period unless @period == "all" %>
+    <%= form.hidden_field :reconciled, value: "1" if @show_reconciled %>
+    <%= form.submit "Search", name: nil, class: "shell-button" %>
+    <% if @search.present? %><%= link_to "Clear search", users_budget_account_transactions_path(@budget.public_id, @account.public_id, { period: (@period == "all" ? nil : @period), reconciled: (@show_reconciled ? "1" : nil) }.compact), class: "shell-button" %><% end %>
+  <% end %>
+  <nav class="register-page__periods" aria-label="Dates">
+        <% Users::TransactionsController::PERIODS.each do |key, label| %>
+      <%= link_to label, users_budget_account_transactions_path(@budget.public_id, @account.public_id, { q: @search.presence, period: (key == "all" ? nil : key), reconciled: (@show_reconciled ? "1" : nil) }.compact), class: "shell-button", "aria-current": (@period == key ? "true" : nil) %>
+    <% end %>
+  </nav>
+  <% if @hidden_by_filters.to_i.positive? %><p class="register-page__hidden" role="status"><%= @hidden_by_filters %> <%= "transaction".pluralize(@hidden_by_filters) %> hidden by filters. Clear the search or choose All dates to see <%= @hidden_by_filters == 1 ? "it" : "them" %>.</p><% end %>
   <% if @hidden_reconciled.to_i.positive? %><p class="register-page__hidden" role="status"><%= @hidden_reconciled %> reconciled <%= "transaction".pluralize(@hidden_reconciled) %> hidden. Use Show Reconciled to see them.</p><% end %>
   <% if @needs_category_count.to_i.positive? %><p class="register-page__hidden" role="status"><%= @needs_category_count %> <%= "transaction".pluralize(@needs_category_count) %> <%= @needs_category_count == 1 ? "needs" : "need" %> a category.</p><% end %>
   <% if @transactions.empty? %>
-    <p><%= @hidden_reconciled.to_i.positive? ? "No other transactions to show." : "No transactions in this account yet." %></p>
+    <p><%= @filtered && @hidden_by_filters.to_i.positive? ? "No transactions match the current filters." : (@hidden_reconciled.to_i.positive? ? "No other transactions to show." : "No transactions in this account yet.") %></p>
   <% else %>
     <div class="data-table-wrap">
       <table class="data-table" aria-label="Register">
