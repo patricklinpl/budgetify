@@ -16,11 +16,13 @@ class BudgetGridTargetNeedTest < ActionDispatch::IntegrationTest
     @met = group.categories.create!(budget: @budget, name: "Met fund", goal_type: "NEED", goal_cadence: 1, goal_target: 50_000)
     @zero = group.categories.create!(budget: @budget, name: "Zero fund", goal_type: "NEED", goal_cadence: 1, goal_target: 50_000)
     @neg = group.categories.create!(budget: @budget, name: "Negative fund", goal_type: "NEED", goal_cadence: 1, goal_target: 50_000)
+    @fine = group.categories.create!(budget: @budget, name: "Fine fund", goal_type: "NEED", goal_cadence: 1, goal_target: 1_234_567_890)
     @plain = group.categories.create!(budget: @budget, name: "Plain fund")
     @other = group.categories.create!(budget: @budget, name: "Weekly fund", goal_type: "NEED", goal_cadence: 2, goal_target: 50_000)
     month = Date.current.beginning_of_month
     MonthAssignment.set!(budget: @budget, category: @short, month: month, amount: 20_000, user: @user)
     @neg_saved = MonthAssignment.set!(budget: @budget, category: @neg, month: month, amount: -5_000, user: @user)
+    MonthAssignment.set!(budget: @budget, category: @fine, month: month, amount: 987_654_321, user: @user)
     MonthAssignment.set!(budget: @budget, category: @met, month: month, amount: 60_000, user: @user)
   end
 
@@ -75,5 +77,15 @@ class BudgetGridTargetNeedTest < ActionDispatch::IntegrationTest
     get users_budget_path(@budget.public_id)
     assert_equal "-$5.00 assigned of $50.00 monthly target", row("Negative fund").at_css(".budget-grid__need-text").text.strip
     assert_equal "0", row("Negative fund").at_css(".budget-grid__meter")["value"]
+  end
+
+  # grid_money prints the exact value next to a rounded one; the sentence keeps that
+  # markup as markup (it must never show as literal tag text).
+  test "an amount finer than the display digits keeps the exact value and no literal markup" do
+    get users_budget_path(@budget.public_id)
+    node = row("Fine fund").at_css(".budget-grid__need-text")
+    assert_equal "$987,654.32 exact 987654.321 assigned of $1,234,567.89 monthly target", node.text.squish
+    assert node.at_css("span.budget-grid__exact"), "the exact value is a real element"
+    assert_no_match(/[<>]/, node.text)
   end
 end
