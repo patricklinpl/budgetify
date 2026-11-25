@@ -279,10 +279,10 @@ try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("l
 ["keydown", "keyup", "beforeinput", "input", "toggle"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
-    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
+    log(type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
   }, true);
 });
-const log = (what) => window.__inputLog.push(Math.round(performance.now()) + "ms " + what);
+const log = (what) => { if (window.__inputLog.length < 200) window.__inputLog.push(Math.round(performance.now()) + "ms " + what); };
 if (!window.__fetchWrapped) {
   window.__fetchWrapped = true;
   const originalFetch = window.fetch;
@@ -299,7 +299,7 @@ if (window.navigation) window.navigation.addEventListener("navigate", (e) => log
 ["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
   document.addEventListener(type, (e) => {
     const el = e.target;
-    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "' @" + Math.round(e.clientX) + "," + Math.round(e.clientY));
+    log(type + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "' @" + Math.round(e.clientX) + "," + Math.round(e.clientY));
   }, true);
 });
 JS
