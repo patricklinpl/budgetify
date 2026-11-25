@@ -39,7 +39,7 @@ class ReconciledRowWarningTest < ActionDispatch::IntegrationTest
     before = balances
     patch path(@opening), params: params_for(@opening, inflow: "101", extra: { confirm_reconciled: "0" })
     assert_response :unprocessable_entity
-    assert_select "h2", text: "Save Changes to Reconciled Transaction", count: 0
+    assert_select "section.plan-settings__warning", count: 0
     assert_select "input[name='transaction[inflow]'][value='101']"
     assert_equal before, balances
   end
@@ -56,7 +56,7 @@ class ReconciledRowWarningTest < ActionDispatch::IntegrationTest
     before = balances
     patch path(@opening), params: params_for(@opening, inflow: "1.005")
     assert_response :unprocessable_entity
-    assert_select "h2", text: "Save Changes to Reconciled Transaction", count: 0
+    assert_select "section.plan-settings__warning", count: 0
     assert_equal before, balances
   end
 
@@ -87,6 +87,17 @@ class ReconciledRowWarningTest < ActionDispatch::IntegrationTest
     delete path(@other)
     assert_redirected_to users_budget_account_transactions_path(@budget.public_id, @account.public_id)
     assert_equal [ 100_000, -55_000, 45_000 ], balances
+  end
+
+  test "the editor of a reconciled row carries the modal warning dialogs, other rows do not" do
+    get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @opening.public_id)
+    assert_select "dialog[role=alertdialog]#dlg-reconciled-save h2", text: "Save Changes to Reconciled Transaction"
+    assert_select "dialog#dlg-reconciled-save button[type=submit][name=confirm_reconciled][value='1']", text: "Save"
+    assert_select "dialog#dlg-reconciled-save button[data-dialog-close]", text: "Cancel"
+    assert_select "dialog#dlg-reconciled-delete h2", text: "Delete Reconciled Transaction?"
+    assert_select "dialog#dlg-reconciled-delete button[type=submit][name=confirm_reconciled][value='1']", text: "Delete"
+    get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @other.public_id)
+    assert_select "dialog", count: 0
   end
 
   test "another user's plan cannot reach the reconciled row, even with the confirmation" do
