@@ -19,8 +19,25 @@ module UndoTracking
     def rotate_undo_token
       return unless Current.session
 
+      UndoStep.purge_stale!
+      return if keep_undo_history_here?
+
       session[:undo_token] = SecureRandom.hex(8)
       UndoStep.where(session_key: Current.session.id.to_s).where.not(token: session[:undo_token]).delete_all
+    end
+
+    # A form that is not a Turbo form (the split editor) redirects with a plain
+    # document GET, which looks like a reload. After a successful write the
+    # controller names the one path it redirects to. The marker rides in flash,
+    # so it lives for exactly one following request: a failed or re-rendered
+    # write never sets it, a later reload or replay of the URL finds it gone,
+    # and it only applies to that exact path.
+    def keep_undo_history_for(path)
+      flash[:undo_keep] = path
+    end
+
+    def keep_undo_history_here?
+      flash[:undo_keep].present? && flash[:undo_keep] == request.path
     end
 
     def undo_history
