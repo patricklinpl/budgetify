@@ -687,3 +687,37 @@ a.shell-chip { text-decoration: none; }
     gap: var(--space-2);
   }
 }
+
+/* Flat plan toolbar actions. Add Category Group, Undo, Redo and Recent Moves
+   lose their raised outline and fill and read as accent-colored text actions,
+   the reference's flat toolbar. Same controls, same behavior. A disabled
+   action keeps a dashed outline and lower opacity so its state is not carried
+   by color alone. */
+.shell-toolbar .shell-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.shell-toolbar .shell-button:hover:not(:disabled) {
+  background: var(--color-accent-faint);
+  color: var(--color-accent-hover);
+}
+
+.shell-toolbar .shell-button:disabled {
+  border-style: dashed;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+/* The dark accent (#7a80ff) is 4.49:1 on the dark header, just under 4.5:1.
+   Enabled toolbar text uses the lighter dark-theme hover tone instead. */
+:root[data-theme="dark"] .shell-toolbar .shell-button:not(:disabled) {
+  color: var(--color-accent-hover);
+}
+
+:root[data-theme="dark"] .shell-toolbar .shell-button:hover:not(:disabled) {
+  color: var(--color-accent-active);
+}
