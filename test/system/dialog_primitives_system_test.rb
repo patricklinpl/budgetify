@@ -126,14 +126,27 @@ class DialogPrimitivesSystemTest < ApplicationSystemTestCase
     assert_no_selector "dialog[open]"
   end
 
-  test "DLG-06 [reference] the reference panel does not block the page and Escape closes it" do
+  test "DLG-06 [reference] the reference panel does not block the page" do
     click_button "Keyboard shortcuts"
     assert_selector "aside#shortcuts", visible: :visible
+    assert_selector "button[aria-expanded=true]", text: "Keyboard shortcuts"
     click_button "View options"
     assert_selector "[role=menu]"
     assert_no_selector "dialog[open]"
+    assert_selector "aside#shortcuts", visible: :visible
     click_button "Keyboard shortcuts"
     assert_no_selector "aside#shortcuts", visible: :visible
+  end
+
+  test "DLG-06 [engineering] Escape hides the panel, sets aria-expanded false and returns focus to the trigger" do
+    click_button "Keyboard shortcuts"
+    assert_selector "aside#shortcuts", visible: :visible
+    page.send_keys :escape
+    assert_no_selector "aside#shortcuts", visible: :visible
+    assert_selector "button[aria-expanded=false]", text: "Keyboard shortcuts"
+    assert page.evaluate_script("document.activeElement === document.querySelector('[data-panel-target=trigger]')"),
+      "focus did not return to the trigger"
+    assert page.evaluate_script("document.getElementById('shortcuts').hidden")
   end
 
   # The preview has no retry handler. "Try again" emits dialog:confirm (what a
