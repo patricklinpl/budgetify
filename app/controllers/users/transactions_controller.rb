@@ -41,6 +41,7 @@ module Users
         return render_form(:new)
       end
 
+      announce_undo_notice
       if params[:commit_action] == "another"
         redirect_to new_users_budget_account_transaction_path(@budget.public_id, @account.public_id, date: @form[:date]), notice: "Transaction saved."
       else
@@ -77,6 +78,7 @@ module Users
         @field_errors = {}
         return render_form(:edit)
       end
+      announce_undo_notice
       redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Transaction saved."
     end
 
@@ -86,6 +88,7 @@ module Users
       end
 
       Transaction.transaction { writer.destroy!(@transaction) }
+      announce_undo_notice
       redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Transaction deleted."
     end
 
@@ -108,7 +111,7 @@ module Users
       end
 
       def writer
-        @writer ||= TransactionWriter.new(@budget)
+        @writer ||= TransactionWriter.new(@budget, history: undo_history)
       end
 
       def render_form(template)

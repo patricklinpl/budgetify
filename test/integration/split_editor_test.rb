@@ -36,7 +36,7 @@ class SplitEditorTest < ActionDispatch::IntegrationTest
     assert_select "select[name='split[rows][0][category_id]']"
     assert_select "select[name='split[rows][1][category_id]']"
     assert_select "button[name=split_action][value=save]"
-    assert_select "p", text: /Auto-Distribute, split-transfer rows and undo are not built/
+    assert_select "p", text: /Auto-Distribute and split-transfer rows are not built/
   end
 
   test "TX-SPLIT-01: splitting moves the account once and each child its own category" do

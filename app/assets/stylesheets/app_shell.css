@@ -530,3 +530,21 @@ a.shell-button {
     min-width: 44px;
   }
 }
+
+/* Undo and Redo controls (Undo slice 1): the forms sit inline in the toolbar. */
+.shell-inline-form { display: contents; }
+.shell-undo { display: contents; }
+/* Disabled Undo and Redo carry a shape cue as well as lower contrast: a dashed
+   border against the solid border of an enabled button (not color alone). */
+.shell-button--history:disabled {
+  border-style: dashed;
+  opacity: 0.6;
+}
+@media (max-width: 1200px) {
+  .shell-button--history {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+.shell-undo-status { margin: 0; padding: var(--space-2, 8px) var(--space-4, 16px); min-height: 0; font-size: 0.875rem; }
+.shell-undo-status:empty { display: none; }

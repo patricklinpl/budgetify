@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_163600) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_190000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -292,6 +292,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_163600) do
     t.index ["transfer_account_id"], name: "index_transactions_on_transfer_account_id"
   end
 
+  create_table "undo_steps", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.integer "user_id", null: false
+    t.string "session_key", null: false
+    t.string "token", null: false
+    t.integer "position", null: false
+    t.string "kind", null: false
+    t.boolean "undone", default: false, null: false
+    t.text "before_json", null: false
+    t.text "after_json", null: false
+    t.integer "byte_size", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["budget_id"], name: "index_undo_steps_on_budget_id"
+    t.index ["user_id", "budget_id", "session_key", "token", "position"], name: "index_undo_steps_on_scope_and_position"
+    t.index ["user_id"], name: "index_undo_steps_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "public_id", null: false
     t.datetime "created_at", null: false
@@ -339,4 +357,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_163600) do
   add_foreign_key "transactions", "budgets"
   add_foreign_key "transactions", "categories"
   add_foreign_key "transactions", "payees"
+  add_foreign_key "undo_steps", "budgets"
+  add_foreign_key "undo_steps", "users"
 end

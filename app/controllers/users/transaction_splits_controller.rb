@@ -75,7 +75,10 @@ module Users
         rescue TransactionWriter::Invalid => e
           return fail_with(e.message)
         end
-        redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Split saved."
+        announce_undo_notice
+        register_path = users_budget_account_transactions_path(@budget.public_id, @account.public_id)
+        keep_undo_history_for(register_path)
+        redirect_to register_path, notice: "Split saved."
       end
 
       def attributes_for(total, entries)
@@ -197,7 +200,7 @@ module Users
       end
 
       def writer
-        @writer ||= TransactionWriter.new(@budget)
+        @writer ||= TransactionWriter.new(@budget, history: undo_history)
       end
 
       def category_options

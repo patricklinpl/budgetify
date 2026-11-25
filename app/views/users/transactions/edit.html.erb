@@ -14,7 +14,7 @@
   </section>
   <section class="plan-settings__fresh">
     <h2>Delete transaction</h2>
-    <p>Deleting reverses its effect on the account and the category.<%= " It also removes the matching row in #{@transaction.transfer_account.name}." if @transaction.transfer_account %> Undo is not built.</p>
+    <p>Deleting reverses its effect on the account and the category.<%= " It also removes the matching row in #{@transaction.transfer_account.name}." if @transaction.transfer_account %> Undo in the register reverses this until the page is reloaded.</p>
     <% reconciled = @transaction.cleared == "reconciled" %>
     <%= form_with url: users_budget_account_transaction_path(@budget.public_id, @account.public_id, @transaction.public_id), method: :delete, data: (reconciled ? { controller: "dialog" } : {}) do %>
       <% if reconciled %>

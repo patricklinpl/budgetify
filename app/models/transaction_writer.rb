@@ -11,8 +11,11 @@ class TransactionWriter
   BAD_DATE = "The transaction date is not valid; use ISO format (e.g. 2016-12-01).".freeze
   SUB_TOTAL = "The subtransactions must add up to the transaction amount.".freeze
 
-  def initialize(plan)
+  # `history` is an UndoHistory for the browser editors. The JSON API passes
+  # none, so API writes are not recorded (an Undo slice 1 limitation).
+  def initialize(plan, history: nil)
     @plan = plan
+    @history = history
   end
 
   # An unsaved transaction from permitted attributes, with unsaved split
@@ -36,11 +39,13 @@ class TransactionWriter
 
   # Saves a built transaction and applies its effects.
   def persist_new!(transaction)
-    raise Invalid, transaction.errors.full_messages.to_sentence unless transaction.save
+    track(:create, nil) do
+      raise Invalid, transaction.errors.full_messages.to_sentence unless transaction.save
 
-    sync_transfer!(transaction)
-    apply_all_amounts!(transaction, +1)
-    transaction
+      sync_transfer!(transaction)
+      apply_all_amounts!(transaction, +1)
+      transaction
+    end
   end
 
   # Reverses the old effects, assigns the attributes, saves, re-syncs the
@@ -50,20 +55,32 @@ class TransactionWriter
     check_date!(attributes["date"])
     raise Invalid, SUB_TOTAL if rebuild_subs && !sub_amounts_valid?(attributes, transaction.amount)
 
-    apply_all_amounts!(transaction, -1)
-    assign(transaction, attributes)
-    raise Invalid, transaction.errors.full_messages.to_sentence unless transaction.save
+    track(:edit, transaction) do
+      apply_all_amounts!(transaction, -1)
+      assign(transaction, attributes)
+      raise Invalid, transaction.errors.full_messages.to_sentence unless transaction.save
 
-    rebuild_sub_transactions(transaction, attributes["subtransactions"]) if rebuild_subs
-    sync_transfer!(transaction)
-    apply_all_amounts!(transaction, +1)
-    transaction
+      rebuild_sub_transactions(transaction, attributes["subtransactions"]) if rebuild_subs
+      sync_transfer!(transaction)
+      apply_all_amounts!(transaction, +1)
+      transaction
+    end
   end
 
   def destroy!(transaction)
-    apply_all_amounts!(transaction, -1)
-    transaction.transfer_transaction&.update!(deleted: true)
-    transaction.update!(deleted: true)
+    track(:delete, transaction) do
+      apply_all_amounts!(transaction, -1)
+      transaction.transfer_transaction&.update!(deleted: true)
+      transaction.update!(deleted: true)
+    end
+  end
+
+  # This transaction's own account and category effects and its non-deleted
+  # split children's, without the transfer pair. Undo and Redo use it per row.
+  def effects!(transaction, sign)
+    transaction.reload
+    transaction.apply_amounts!(sign)
+    transaction.sub_transactions.not_deleted.each { |sub| apply_sub_amounts(sub, sign) }
   end
 
   def check_date!(value)
@@ -201,6 +218,20 @@ class TransactionWriter
   end
 
   private
+    # Records an Undo step around a browser write. Runs inside the caller's
+    # database transaction, so a failed record rolls the write back too.
+    def track(kind, transaction)
+      return yield if @history.nil?
+
+      before_ids = UndoSnapshot.reachable(transaction)
+      before = UndoSnapshot.take(@plan, before_ids)
+      result = yield
+      ids = before_ids | UndoSnapshot.reachable(result.is_a?(Transaction) ? result : transaction)
+      after = UndoSnapshot.take(@plan, ids)
+      @history.record!(kind: kind, before: UndoSnapshot.blank_new_rows(before, after), after: after)
+      result
+    end
+
     def payee_named(name)
       # Matches an existing payee ignoring case, as payee names are unique that way.
       @plan.payees.not_deleted.where("LOWER(name) = ?", name.downcase).first ||

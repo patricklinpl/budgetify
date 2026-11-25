@@ -22,9 +22,10 @@
     <% end %>
   </ul>
   <div class="shell-toolbar" role="toolbar" aria-label="Plan actions">
-    <% ["Add Category Group", "Undo", "Redo"].each do |action| %>
+    <% ["Add Category Group"].each do |action| %>
       <button type="button" class="shell-button" disabled><%= action %></button>
     <% end %>
+    <%= render "layouts/app_shell/undo_controls" %>
     <% if @budget %>
       <%= link_to "Recent Moves", moves_users_budget_path(@budget.public_id), class: "shell-button" %>
     <% else %>
