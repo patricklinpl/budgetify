@@ -1,0 +1,129 @@
+head 2eed977200e4445bd563bfe0bb76fe593cd8657e (tree equals working tree at capture; verified by git diff against FETCH_HEAD for tracked files and git show diff for the 2 new files)
+=== baseline integration (reconciled files)
+Running 21 tests in a single process (parallelization threshold is 50)
+Run options: --seed 50093
+
+# Running:
+
+.....................
+
+Finished in 2.724038s, 7.7091 runs/s, 54.6982 assertions/s.
+21 runs, 149 assertions, 0 failures, 0 errors, 0 skips
+=== baseline system file
+Running 3 tests in a single process (parallelization threshold is 50)
+Run options: --seed 6586
+
+# Running:
+
+Capybara starting Puma...
+* Version 8.0.4, codename: Into the Arena
+* Min threads: 0, max threads: 4
+* Listening on http://127.0.0.1:37711
+...
+
+Finished in 4.441192s, 0.6755 runs/s, 8.5563 assertions/s.
+3 runs, 38 assertions, 0 failures, 0 errors, 0 skips
+MUTATION 1: remove the Enter handler action from the regular form (sed 's/#{"keydown->reconcile-guard#enter " if reconciled_edit}//')
+Please switch from -n/--name to -i/--include
+Running 3 tests in a single process (parallelization threshold is 50)
+Run options: -n /Enter/ --seed 61822
+
+# Running:
+
+Capybara starting Puma...
+* Version 8.0.4, codename: Into the Arena
+* Min threads: 0, max threads: 4
+* Listening on http://127.0.0.1:43241
+[Screenshot Image]: /tmp/work/tmp/screenshots/failures_test_a_memo-only_edit_saves_without_a_dialog-_and_Enter_on_a_changed_amount_asks_instead_of_saving.png 
+F
+
+Failure:
+ReconciledRowWarningSystemTest#test_a_memo-only_edit_saves_without_a_dialog,_and_Enter_on_a_changed_amount_asks_instead_of_saving [test/system/reconciled_row_warning_test.rb:68]:
+expected to find css "dialog[open] h2" but there were no matches
+
+bin/rails test test/system/reconciled_row_warning_test.rb:55
+
+
+
+Finished in 3.877262s, 0.2579 runs/s, 1.8054 assertions/s.
+1 runs, 7 assertions, 1 failures, 0 errors, 0 skips
+MUTATION 2: split always warns (remove the total-changed condition)
+Running 6 tests in a single process (parallelization threshold is 50)
+Run options: --seed 30116
+
+# Running:
+
+F
+
+Failure:
+ReconciledSplitWarningTest#test_moving_amounts_between_children_at_the_same_total_saves_without_the_warning [test/integration/reconciled_split_warning_test.rb:60]:
+Expected response to be a <3XX: redirect>, but was a <422: Unprocessable Content>
+
+bin/rails test test/integration/reconciled_split_warning_test.rb:58
+
+....F
+
+Failure:
+ReconciledSplitWarningTest#test_a_total_typed_differently_but_equal_is_not_a_change [test/integration/reconciled_split_warning_test.rb:68]:
+Expected response to be a <3XX: redirect>, but was a <422: Unprocessable Content>
+
+bin/rails test test/integration/reconciled_split_warning_test.rb:66
+
+
+
+Finished in 1.112164s, 5.3949 runs/s, 32.3693 assertions/s.
+6 runs, 36 assertions, 2 failures, 0 errors, 0 skips
+MUTATION 3: regular editor always warns (remove balance_field_changed? condition)
+Running 15 tests in a single process (parallelization threshold is 50)
+Run options: --seed 27058
+
+# Running:
+
+...F
+
+Failure:
+ReconciledRowWarningTest#test_the_same_amount_typed_differently_is_still_memo-only [test/integration/reconciled_row_warning_test.rb:102]:
+Expected response to be a <3XX: redirect>, but was a <422: Unprocessable Content>
+
+bin/rails test test/integration/reconciled_row_warning_test.rb:100
+
+.........F
+
+Failure:
+ReconciledRowWarningTest#test_a_memo-only_edit_of_a_reconciled_row_saves_without_the_warning_and_stays_reconciled [test/integration/reconciled_row_warning_test.rb:94]:
+Expected response to be a <3XX: redirect>, but was a <422: Unprocessable Content>
+
+bin/rails test test/integration/reconciled_row_warning_test.rb:92
+
+.
+
+Finished in 2.119689s, 7.0765 runs/s, 45.7614 assertions/s.
+15 runs, 97 assertions, 2 failures, 0 errors, 0 skips
+MUTATION 4: split never warns
+Running 6 tests in a single process (parallelization threshold is 50)
+Run options: --seed 42525
+
+# Running:
+
+....F
+
+Failure:
+ReconciledSplitWarningTest#test_Cancel_on_the_warning_keeps_the_typed_values_and_writes_nothing,_Save_writes_and_stays_reconciled [test/integration/reconciled_split_warning_test.rb:46]:
+Expected response to be a <422: unprocessable_entity>, but was a <302: Found> redirect to <http://www.example.com/users/budgets/7e04ffe0-e413-4bcd-8879-227bf9ca2acb/accounts/22a3f93e-5316-4136-a48a-9033e5f596a8/transactions>
+Response body: 
+
+bin/rails test test/integration/reconciled_split_warning_test.rb:43
+
+F
+
+Failure:
+ReconciledSplitWarningTest#test_changing_the_parent_total_of_a_reconciled_split_asks_first_and_writes_nothing [test/integration/reconciled_split_warning_test.rb:35]:
+Expected response to be a <422: unprocessable_entity>, but was a <302: Found> redirect to <http://www.example.com/users/budgets/e8a07710-e7f0-4c1c-8e34-d2feb38ada36/accounts/39c86760-d4a4-4789-9923-3deda47ce811/transactions>
+Response body: 
+
+bin/rails test test/integration/reconciled_split_warning_test.rb:33
+
+
+
+Finished in 1.291303s, 4.6465 runs/s, 20.9091 assertions/s.
+6 runs, 27 assertions, 2 failures, 0 errors, 0 skips

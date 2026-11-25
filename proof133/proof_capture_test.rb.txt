@@ -1,0 +1,105 @@
+require "application_system_test_case"
+
+# Local proof capture only, never committed. Synthetic data.
+class Proof133Test < ApplicationSystemTestCase
+  OUT = "/downloads/proof133".freeze
+
+  setup do
+    @user = users(:one)
+    @plan = PlanLifecycle.create_plan(@user, name: "Proof plan")
+    @account = @plan.accounts.create!(name: "Savings", type: "savings")
+    group = @plan.category_groups.create!(name: "Everyday")
+    @bills = group.categories.create!(budget: @plan, name: "Bills")
+    @dining = group.categories.create!(budget: @plan, name: "Dining")
+    @writer = TransactionWriter.new(@plan)
+    @opening = @writer.persist_new!(@writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => 100_000, "payee_name" => "Opening", "cleared" => "reconciled"))
+    @pending = @writer.persist_new!(@writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => -55_000, "payee_name" => "Pending", "cleared" => "uncleared"))
+    @split = @writer.persist_new!(@writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => -20_000, "payee_name" => "Mixed", "cleared" => "reconciled",
+      "subtransactions" => [ { "amount" => -12_000, "category_id" => @bills.public_id }, { "amount" => -8_000, "category_id" => @dining.public_id } ]))
+    visit users_sign_in_path
+    fill_in "Email", with: @user.email_address
+    fill_in "Password", with: "password"
+    click_button "Log in"
+    assert_no_current_path users_sign_in_path
+  end
+
+  def bal = @account.reload.then { |a| [ a.cleared_balance, a.uncleared_balance, a.balance ] }
+
+  def shot(name)
+    page.execute_script("document.documentElement.setAttribute('data-theme', '#{@theme}')")
+    page.driver.browser.save_screenshot("#{OUT}/#{name}.png")
+  end
+
+  def setup_view(theme, width)
+    browser = page.driver.browser
+    browser.manage.window.resize_to(width, width == 390 ? 900 : 900)
+    @theme = theme
+  end
+
+  def ready = assert_selector("[data-controller~=field][data-field-ready=true]")
+
+  [ [ "light", 1400, "desktop" ], [ "dark", 1400, "desktop" ], [ "light", 390, "phone390" ], [ "dark", 390, "phone390" ] ].each do |theme, width, label|
+    test "proof #{theme} #{label}" do
+      setup_view(theme, width)
+      tag = "#{theme}-#{label}"
+      edit = edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @opening.public_id)
+
+      # memo-only: no dialog, saved
+      visit edit; ready
+      fill_in "Memo", with: "note"
+      shot "#{tag}-1-memo-only-typed"
+      click_button "Save", exact: true
+      assert_text "Transaction saved."
+      assert_no_selector "dialog[open]"
+      assert_equal "note", @opening.reload.memo
+      assert_equal "reconciled", @opening.cleared
+      shot "#{tag}-2-memo-only-saved-no-dialog"
+      b0 = bal
+
+      # Enter (real key) on a changed amount: dialog, nothing written
+      visit edit; ready
+      fill_in "Inflow", with: "102"
+      find_field("Inflow").send_keys(:enter)
+      assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
+      assert_equal b0, bal
+      shot "#{tag}-3-enter-opens-warning"
+      within("dialog[open]") { click_button "Cancel" }
+      assert_no_selector "dialog[open]"
+      assert_field "Inflow", with: "102"
+      assert_equal b0, bal
+      shot "#{tag}-4-cancel-keeps-values-nothing-saved"
+      click_button "Save", exact: true
+      within("dialog[open]") { click_button "Save" }
+      assert_text "Transaction saved."
+      assert_equal 102_000, @opening.reload.amount
+      assert_equal "reconciled", @opening.cleared
+      shot "#{tag}-5-confirm-saved-still-reconciled"
+
+      # split: children move = no dialog; total change = dialog
+      sp = edit_users_budget_account_transaction_split_path(@plan.public_id, @account.public_id, @split.public_id)
+      visit sp; ready
+      fill_in "split_rows_0_outflow", with: "15"
+      fill_in "split_rows_1_outflow", with: "5"
+      click_button "Save split"
+      assert_text "Split saved."
+      assert_no_selector "dialog[open]"
+      shot "#{tag}-6-split-children-move-no-dialog"
+      visit sp; ready
+      fill_in "split_outflow", with: "25"
+      fill_in "split_rows_0_outflow", with: "20"
+      click_button "Save split"
+      assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
+      assert_equal(-20_000, @split.reload.amount)
+      shot "#{tag}-7-split-total-change-dialog"
+      within("dialog[open]") { click_button "Cancel" }
+      assert_field "split_outflow", with: "25"
+      assert_equal(-20_000, @split.reload.amount)
+      shot "#{tag}-8-split-cancel-keeps-values"
+      click_button "Save split"
+      within("dialog[open]") { click_button "Save" }
+      assert_text "Split saved."
+      assert_equal(-25_000, @split.reload.amount)
+      shot "#{tag}-9-split-confirm-saved"
+    end
+  end
+end
