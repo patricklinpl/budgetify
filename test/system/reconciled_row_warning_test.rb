@@ -52,4 +52,55 @@ class ReconciledRowWarningSystemTest < ApplicationSystemTestCase
     assert_text "Transaction deleted."
     assert_equal [ 0, -55_000, -55_000 ], balances
   end
+  test "a memo-only edit saves without a dialog, and Enter on a changed amount asks instead of saving" do
+    visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @opening.public_id)
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "Memo", with: "note"
+    click_button "Save", exact: true
+    assert_text "Transaction saved."
+    assert_equal "note", @opening.reload.memo
+    assert_equal [ 100_000, -55_000, 45_000 ], balances
+
+    visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @opening.public_id)
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "Inflow", with: "102"
+    find_field("Inflow").send_keys(:enter)
+    assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
+    assert_equal [ 100_000, -55_000, 45_000 ], balances
+    within("dialog[open]") { click_button "Cancel" }
+    assert_equal [ 100_000, -55_000, 45_000 ], balances
+  end
+
+  test "reconciled split: a total change asks, child moves and memo-only do not" do
+    group = @plan.category_groups.create!(name: "Everyday")
+    bills = group.categories.create!(budget: @plan, name: "Bills")
+    dining = group.categories.create!(budget: @plan, name: "Dining")
+    writer = TransactionWriter.new(@plan)
+    parent = writer.persist_new!(writer.build("account_id" => @account.public_id, "date" => Date.current.iso8601, "amount" => -20_000,
+      "payee_name" => "Mixed", "cleared" => "reconciled",
+      "subtransactions" => [ { "amount" => -12_000, "category_id" => bills.public_id }, { "amount" => -8_000, "category_id" => dining.public_id } ]))
+    visit edit_users_budget_account_transaction_split_path(@plan.public_id, @account.public_id, parent.public_id)
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "split_rows_0_outflow", with: "15"
+    fill_in "split_rows_1_outflow", with: "5"
+    click_button "Save split"
+    assert_text "Split saved."
+    assert_equal [ -15_000, -5_000 ], parent.reload.sub_transactions.order(:id).pluck(:amount)
+
+    visit edit_users_budget_account_transaction_split_path(@plan.public_id, @account.public_id, parent.public_id)
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "split_outflow", with: "25"
+    fill_in "split_rows_0_outflow", with: "20"
+    click_button "Save split"
+    assert_selector "dialog[open] h2", text: "Save Changes to Reconciled Transaction"
+    assert_equal(-20_000, parent.reload.amount)
+    within("dialog[open]") { click_button "Cancel" }
+    assert_field "split_outflow", with: "25"
+    assert_equal(-20_000, parent.reload.amount)
+    click_button "Save split"
+    within("dialog[open]") { click_button "Save" }
+    assert_text "Split saved."
+    assert_equal(-25_000, parent.reload.amount)
+    assert_equal "reconciled", parent.cleared
+  end
 end
