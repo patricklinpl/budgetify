@@ -25,12 +25,14 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     field = find_field("Outflow")
     assert_button "Save", disabled: false, exact: true
     field.send_keys("abc", :enter)
-    assert_selector "#transaction_outflow-err", text: "Use numbers", visible: :visible
-    assert_equal "true", field[:"aria-invalid"]
-    assert_includes field[:"aria-describedby"].split, "transaction_outflow-err"
-    assert_equal "abc", field.value
-    assert_button "Save", disabled: true, exact: true
-    assert_button "Save and add another", disabled: true, exact: true
+    with_input_diagnostics("Save", "Save and add another") do
+      assert_selector "#transaction_outflow-err", text: "Use numbers", visible: :visible
+      assert_equal "true", field[:"aria-invalid"]
+      assert_includes field[:"aria-describedby"].split, "transaction_outflow-err"
+      assert_equal "abc", field.value
+      assert_button "Save", disabled: true, exact: true
+      assert_button "Save and add another", disabled: true, exact: true
+    end
     sleep 0.3
     assert_equal 0, @account.transactions.count
     # Correcting the amount re-enables both submit buttons.
@@ -47,8 +49,12 @@ class RegisterTransactionEditorTest < ApplicationSystemTestCase
     field = find_field("Outflow")
     field.send_keys("10+2.50")
     click_button "Save", exact: true
-    assert_text "Transaction saved."
-    assert_selector "td[data-label=Outflow]", text: "$12.50"
+    # Observation only: a failure here also reports page state and which
+    # Stimulus controllers on the page are not connected. Same assertions.
+    with_input_diagnostics("Save", "Save and add another") do
+      assert_text "Transaction saved."
+      assert_selector "td[data-label=Outflow]", text: "$12.50"
+    end
     assert_equal(-12_500, @account.reload.balance)
   end
 
