@@ -157,4 +157,20 @@ class ReportQueryTest < ActiveSupport::TestCase
     assert_equal 0, query.spending_total
     assert_raises(ArgumentError) { query(start: Date.new(2026, 11, 1), finish: Date.new(2026, 10, 1)) }
   end
+
+  # [engineering] Real write path only: a transfer Cash -> personal loan with a
+  # user-picked ordinary category. Budgetify has no loan paired category (#66),
+  # so this is NOT reference REPORT-LOAN-01 parity. It records current writer
+  # behavior: the categorized transfer row counts as spending, the loan-side
+  # mirror carries no category, and no payment category exists for the loan.
+  test "[engineering] categorized transfer to a loan counts as spending, not reference paired-category parity" do
+    loan = Account.open!(budget: @plan, attributes: { "name" => "Loan", "type" => "personalLoan", "balance" => -500_000 })
+    audit = @plan.category_groups.create!(name: "TEST Audit").categories.create!(budget: @plan, name: "Loan payment")
+    row = put(@cash, -300_000, category: audit, extra: { "transfer_account_id" => loan.public_id })
+    assert_equal loan, row.reload.transfer_account
+    assert_nil row.transfer_transaction.category
+    assert_nil loan.payment_category
+    assert_equal 300_000, query.spending_total
+    assert_equal 300_000, query.spending_rows.sum(&:amount)
+  end
 end
