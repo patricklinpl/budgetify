@@ -59,4 +59,39 @@ class PlanToolbarFlatTest < ApplicationSystemTestCase
       rows.each { |r| assert_operator r["ratio"], :>=, 4.5, "#{r['t']} contrast #{r['ratio']}:1 in #{theme}" }
     end
   end
+
+  test "an enabled Undo is flat on the plan page and the Register toolbar keeps its buttons" do
+    account = @plan.accounts.create!(name: "Savings", type: "savings")
+    visit users_budget_account_transactions_path(@plan.public_id, account.public_id)
+    register_style = <<~JS
+      (function () {
+        function st(sel, text) { var e = [...document.querySelectorAll(sel)].find(function (b) { return b.textContent.trim() === text }); var s = getComputedStyle(e); return { bstyle: s.borderTopStyle, bcolor: s.borderTopColor, bg: s.backgroundColor }; }
+        return { reconcile: st("a.shell-button", "Reconcile"), addTx: st("a.shell-button", "Add Transaction"), showRec: st("a.shell-button", "Show Reconciled") };
+      })()
+    JS
+    reg = page.evaluate_script(register_style)
+    assert_not_equal "rgba(0, 0, 0, 0)", reg["reconcile"]["bg"], "Reconcile went transparent: #{reg.inspect}"
+    %w[addTx showRec].each do |k|
+      assert_not_equal "rgba(0, 0, 0, 0)", reg[k]["bg"], "#{k} went transparent on the Register page: #{reg.inspect}"
+      assert_not_equal "rgba(0, 0, 0, 0)", reg[k]["bcolor"], "#{k} lost its outline on the Register page: #{reg.inspect}"
+    end
+    click_link "Add Transaction"
+    assert_selector "[data-controller~=field][data-field-ready=true]"
+    fill_in "Memo", with: "flat proof"
+    fill_in "Outflow", with: "10"
+    click_button "Save", exact: true
+    assert_text "Transaction saved."
+    within(".app-shell-sidebar") { click_link "Plan" }
+    assert_current_path users_budget_path(@plan.public_id), ignore_query: true
+    assert_selector ".shell-header--plan"
+    assert_button "Undo", disabled: false
+    rows = page.evaluate_script(ROWS_JS)
+    undo = rows.find { |r| r["t"] == "Undo" }
+    redo_row = rows.find { |r| r["t"] == "Redo" }
+    assert_equal false, undo["dis"], rows.inspect
+    assert_equal "rgba(0, 0, 0, 0)", undo["bcolor"], undo.inspect
+    assert_equal "rgba(0, 0, 0, 0)", undo["bg"], undo.inspect
+    assert_equal true, redo_row["dis"]
+    assert_equal "dashed", redo_row["bstyle"]
+  end
 end
