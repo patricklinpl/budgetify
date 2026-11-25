@@ -40,6 +40,103 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     (@window_trace ||= []) << { before: [ before.width, before.height ], after: [ after.width, after.height ] }
   end
 
+  # One CDP registration per browser session (Capybara reuses a single browser
+  # for the whole process; reset! only navigates to about:blank). The script id
+  # is kept so the registration is removed at exit and re-made only when the
+  # browser object changes. Setup never raises: a failed registration is
+  # warned once and install_input_log falls back to a per-document install.
+  class << self
+    attr_accessor :input_capture
+  end
+
+  setup { register_input_capture }
+
+  Minitest.after_run do
+    reg = ApplicationSystemTestCase.input_capture
+    if reg && reg[:script_id]
+      begin
+        reg[:browser].execute_cdp("Page.removeScriptToEvaluateOnNewDocument", identifier: reg[:script_id])
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
+  def register_input_capture
+    browser = page.driver.browser
+    reg = ApplicationSystemTestCase.input_capture
+    return if reg && reg[:browser].equal?(browser)
+
+    id = browser.execute_cdp("Page.addScriptToEvaluateOnNewDocument", source: INPUT_LOG_JS)["identifier"]
+    ApplicationSystemTestCase.input_capture = { browser: browser, script_id: id }
+  rescue StandardError => e
+    ApplicationSystemTestCase.input_capture = { browser: browser, script_id: nil, error: e.class.name }
+    warn "INPUT_CAPTURE registration unavailable: #{e.class}"
+  end
+
+  INPUT_CAPTURE_READ_JS = <<~JS.freeze
+    (() => JSON.stringify({
+      docId: window.__docId || null,
+      installed: !!window.__inputLogInstalled,
+      error: window.__inputLogError || null,
+      now: Math.round(performance.now()),
+      origin: Math.round(performance.timeOrigin),
+      ready: document.readyState,
+      focus: document.hasFocus(),
+      visibility: document.visibilityState,
+      active: window.__inputLogToken ? window.__inputLogToken(document.activeElement) : null,
+      inputLog: window.__inputLog || [],
+      inputDropped: window.__inputLogDropped || 0,
+      lifecycle: window.__lifecycle || [],
+      lifecycleDropped: window.__lifecycleDropped || 0
+    }))()
+  JS
+
+  INPUT_CAPTURE_BYTES = 6000
+  INPUT_CAPTURE_ENTRY = 120
+
+  # Failed tests only. Reads the bounded page-side log and prints it to stderr.
+  # Isolation: reads under a short timeout, never touches failures or the
+  # exception, rescues only StandardError (Timeout::Error included) and reports
+  # the class name. Entries are re-sanitized here (printable ASCII, 120 chars)
+  # and the newest entries are kept within INPUT_CAPTURE_BYTES per list.
+  def report_input_capture
+    return unless failures.any?
+
+    reg = ApplicationSystemTestCase.input_capture
+    raw = Timeout.timeout(5) { page.evaluate_script(INPUT_CAPTURE_READ_JS) }
+    data = JSON.parse(raw)
+    report = {
+      registration: reg.nil? ? "none" : (reg[:script_id] ? "cdp" : "failed"),
+      docId: data["docId"].to_s[0, 8], installed: data["installed"] == true, error: data["error"].to_s[0, 20],
+      now: data["now"].to_i, origin: data["origin"].to_i, ready: data["ready"].to_s[0, 12], focus: data["focus"] == true,
+      visibility: data["visibility"].to_s[0, 12], active: bounded_capture_entry(data["active"]),
+      inputDropped: data["inputDropped"].to_i, lifecycleDropped: data["lifecycleDropped"].to_i
+    }
+    report[:inputLog], report[:inputOmitted] = newest_within_bytes(data["inputLog"])
+    report[:lifecycle], report[:lifecycleOmitted] = newest_within_bytes(data["lifecycle"])
+    warn "INPUT_CAPTURE test=#{self.class}##{name} #{JSON.generate(report)}"
+  rescue StandardError => e
+    warn "INPUT_CAPTURE unavailable: #{e.class}"
+  end
+
+  def bounded_capture_entry(value)
+    value.to_s.gsub(/[^\x20-\x7e]/, "?")[0, INPUT_CAPTURE_ENTRY]
+  end
+
+  def newest_within_bytes(entries)
+    list = Array(entries).map { |entry| bounded_capture_entry(entry) }
+    kept = []
+    used = 0
+    list.reverse_each do |entry|
+      break if used + entry.bytesize + 4 > INPUT_CAPTURE_BYTES
+
+      kept.unshift(entry)
+      used += entry.bytesize + 4
+    end
+    [ kept, list.size - kept.size ]
+  end
+
   # Observation only, for the intermittent driver error "Node with given id
   # does not belong to the document" (seen in several different system tests).
   # The original error is untouched and still fails the test. When a test
@@ -51,6 +148,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   def before_teardown
     report_lost_node
     report_driver_timeline
+    report_input_capture
   ensure
     super
   end
@@ -144,7 +242,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # control. That separates "the click never reached the page" (no events),
   # "it hit another element" (target differs), and "the page was not ready".
   def install_input_log
-    page.execute_script(INPUT_LOG_JS)
+    # Idempotent: INPUT_LOG_JS does nothing when the document already has the
+    # log (the per-session preload registers it before any page script runs).
+    # This call only adds an ordering mark; it never resets the log.
+    page.execute_script("#{INPUT_LOG_JS}\nwindow.__inputLogMark && window.__inputLogMark('manual install');")
   end
 
   DOC_STATE_JS = <<~JS
@@ -267,40 +368,60 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     raise e.class, "#{e.message}\nInput diagnostics: #{input_diagnostics(*labels)}", e.backtrace
   end
 
-  INPUT_LOG_JS = <<JS
-window.__inputLog = [];
-window.__docId = window.__docId || Math.random().toString(36).slice(2, 8);
-window.__inputInstalledAt = Math.round(performance.now());
-window.__lifecycle = [];
-const mark = (what) => { if (window.__lifecycle.length < 200) window.__lifecycle.push(Math.round(performance.now()) + "ms " + what); };
-["pagehide", "pageshow", "beforeunload", "scroll", "resize", "focus", "blur"].forEach((type) => window.addEventListener(type, () => mark(type + " scrollY=" + Math.round(scrollY) + " inner=" + innerWidth + "x" + innerHeight), true));
-["visibilitychange", "turbo:before-visit", "turbo:before-render", "turbo:render", "turbo:load", "readystatechange"].forEach((type) => document.addEventListener(type, () => mark(type + " " + document.visibilityState + "/" + document.readyState), true));
-try { new PerformanceObserver((list) => list.getEntries().forEach((e) => mark("layout-shift " + e.value.toFixed(4)))).observe({ type: "layout-shift", buffered: true }); } catch (e) { mark("layout-shift observer unavailable"); }
-["keydown", "keyup", "beforeinput", "input", "toggle"].forEach((type) => {
-  document.addEventListener(type, (e) => {
-    const el = e.target;
-    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + (e.key ? " key=" + e.key : "") + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "'" + (el.tagName === "DETAILS" ? " open=" + el.open : ""));
-  }, true);
-});
-const log = (what) => window.__inputLog.push(Math.round(performance.now()) + "ms " + what);
-if (!window.__fetchWrapped) {
-  window.__fetchWrapped = true;
-  const originalFetch = window.fetch;
-  window.fetch = function (input, init) { log("fetch " + ((init && init.method) || "GET") + " " + (typeof input === "string" ? input : (input && input.url))); return originalFetch.apply(this, arguments); };
-  const originalOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function (method, url) { log("xhr " + method + " " + url); return originalOpen.apply(this, arguments); };
-}
-["turbo:click", "turbo:before-fetch-request", "turbo:before-fetch-response", "turbo:visit", "turbo:submit-start", "turbo:submit-end", "turbo:frame-load"].forEach((type) => {
-  document.addEventListener(type, (e) => log(type + " " + ((e.detail && (e.detail.url || (e.detail.fetchOptions && e.detail.fetchOptions.method))) || "")), true);
-});
-document.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest("a"); if (a) setTimeout(() => log("after click link href=" + a.getAttribute("href") + " defaultPrevented=" + e.defaultPrevented), 0); }, false);
-window.addEventListener("beforeunload", () => log("beforeunload"), true);
-if (window.navigation) window.navigation.addEventListener("navigate", (e) => log("navigate " + e.navigationType + " " + e.destination.url + " userInitiated=" + e.userInitiated), true);
-["pointerdown", "mousedown", "mouseup", "click"].forEach((type) => {
-  document.addEventListener(type, (e) => {
-    const el = e.target;
-    window.__inputLog.push(Math.round(performance.now()) + "ms " + type + " " + el.tagName + " '" + (el.textContent || "").trim().slice(0, 16) + "' @" + Math.round(e.clientX) + "," + Math.round(e.clientY));
-  }, true);
-});
-JS
+  # Page-side action log for failure diagnosis. Registered once per browser
+  # session through CDP (see register_input_capture) so it exists from the start
+  # of every document, and also usable through install_input_log. Rules:
+  # - idempotent per document, top frame only, never throws into the page;
+  # - listeners only (capture, passive): no wrapped fetch/XHR, no DOM writes;
+  # - records event type, tag, input type, disabled flag and an allowlisted id.
+  #   It never records input values, printable key names, element text, URLs or
+  #   hosts. Non-printable keys are named from a fixed list; the rest is "char".
+  # - ring buffers of at most 200 entries (120 chars each) with a dropped count.
+  INPUT_LOG_JS = <<~'JS'
+    (function () {
+      try {
+        if (window !== window.top || window.__inputLogInstalled) return;
+        window.__inputLogInstalled = true;
+        var MAX = 200, MAXLEN = 120;
+        var now = function () { return Math.round(performance.now()); };
+        window.__docId = Math.random().toString(36).slice(2, 8);
+        window.__inputInstalledAt = now();
+        window.__inputLog = []; window.__inputLogDropped = 0;
+        window.__lifecycle = []; window.__lifecycleDropped = 0;
+        var push = function (list, dropped, text) {
+          if (window[list].length >= MAX) { window[list].shift(); window[dropped]++; }
+          window[list].push((now() + "ms " + text).slice(0, MAXLEN));
+        };
+        var KEYS = { Enter: 1, Escape: 1, Tab: 1, Backspace: 1, Delete: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Home: 1, End: 1, PageUp: 1, PageDown: 1, Shift: 1, Control: 1, Alt: 1, Meta: 1 };
+        var TYPES = { text: 1, number: 1, email: 1, password: 1, checkbox: 1, radio: 1, submit: 1, button: 1, date: 1, search: 1, hidden: 1, tel: 1, url: 1 };
+        var IDS = /^(transaction_(outflow|inflow|payee|memo|date|category_id)|split_(outflow|inflow)|split_rows_[0-9]{1,2}_(outflow|inflow|memo|category_id)|reconcile_balance|target_amount|account_name|wz-name|wz-bal|dlg-(basic|basic-t|editor|editor-t|err-t|error|fresh-start|fresh-t|mig-t|migrate|reconciled-delete|reconciled-delete-t|reconciled-save|reconciled-save-t|warn|warn-t|wiz-t|wizard))$/;
+        var token = function (el) {
+          if (!el || !el.tagName) return el && el.nodeType === 9 ? "#document" : "none";
+          var out = String(el.tagName).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+          if (el.tagName === "INPUT") out += ":" + (TYPES[el.type] ? el.type : "other");
+          if (el.id) out += IDS.test(el.id) ? "#" + el.id : "#?";
+          if (el.disabled === true) out += " disabled";
+          return out;
+        };
+        window.__inputLogToken = token;
+        window.__inputLogMark = function (label) { if (label === "manual install") push("__inputLog", "__inputLogDropped", "mark " + label); };
+        var act = function (type, extra) { document.addEventListener(type, function (e) { try { push("__inputLog", "__inputLogDropped", type + (extra ? extra(e) : "") + " " + token(e.target)); } catch (x) { window.__inputLogError = x.name; } }, { capture: true, passive: true }); };
+        var keyInfo = function (e) {
+          var k = KEYS[e.key] ? e.key : (typeof e.key === "string" && e.key.length === 1 ? "char" : "key?");
+          return " " + k + (e.ctrlKey ? "+ctrl" : "") + (e.metaKey ? "+meta" : "") + (e.altKey ? "+alt" : "");
+        };
+        ["keydown", "keyup"].forEach(function (t) { act(t, keyInfo); });
+        ["beforeinput", "input"].forEach(function (t) { act(t, function (e) { return " " + String(e.inputType || "").replace(/[^A-Za-z]/g, "").slice(0, 30); }); });
+        ["pointerdown", "mousedown", "mouseup", "click"].forEach(function (t) { act(t); });
+        act("toggle", function (e) { return " open=" + (e.target && e.target.open === true); });
+        ["turbo:click", "turbo:before-fetch-request", "turbo:before-fetch-response", "turbo:visit", "turbo:submit-start", "turbo:submit-end", "turbo:frame-load"].forEach(function (t) { act(t); });
+        var life = function (target, type) { target.addEventListener(type, function () { try { push("__lifecycle", "__lifecycleDropped", type + " " + document.visibilityState + "/" + document.readyState); } catch (x) { window.__inputLogError = x.name; } }, { capture: true, passive: true }); };
+        ["pagehide", "pageshow", "beforeunload"].forEach(function (t) { life(window, t); });
+        ["visibilitychange", "readystatechange", "DOMContentLoaded", "turbo:before-visit", "turbo:before-render", "turbo:render", "turbo:load"].forEach(function (t) { life(document, t); });
+        if (window.navigation) window.navigation.addEventListener("navigate", function (e) { try { push("__lifecycle", "__lifecycleDropped", "navigate " + String(e.navigationType).replace(/[^a-z]/g, "").slice(0, 10)); } catch (x) { window.__inputLogError = x.name; } }, { capture: true, passive: true });
+      } catch (e) {
+        try { window.__inputLogError = e && e.name; } catch (x) {}
+      }
+    })();
+  JS
 end
