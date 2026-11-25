@@ -114,6 +114,19 @@ class UndoControlsSystemTest < ApplicationSystemTestCase
     assert_equal 1, UndoStep.where(undone: false).count
   end
 
+  # Disabled and enabled controls differ by shape (dashed vs solid border), not
+  # only color, and the disabled state stays a real disabled attribute.
+  test "disabled Undo and Redo have a dashed border and enabled ones a solid border" do
+    register
+    style = ->(label) { page.evaluate_script("getComputedStyle([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '#{label}')).borderTopStyle") }
+    assert_equal "dashed", style.call("Undo")
+    assert_equal "dashed", style.call("Redo")
+    add_transaction("shape cue", "10")
+    assert_equal "solid", style.call("Undo")
+    assert_equal "dashed", style.call("Redo")
+    assert_button "Redo", disabled: true
+  end
+
   test "Undo of a reconciled row memo edit restores it and keeps it reconciled" do
     visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @reconciled.public_id)
     assert_selector "[data-controller~=field][data-field-ready=true]"
