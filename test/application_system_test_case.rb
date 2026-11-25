@@ -51,6 +51,45 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   setup { register_input_capture }
 
+  # Experiment, not a fix: ask the browser to activate its page once per test, in
+  # setup, after the window is sized and the capture is registered and before any
+  # test step or login. One CDP call per test, never per gesture, no wait and no
+  # retry. Success is silent. A failure never fails the test: the first one is
+  # warned with the error class only, and the test runs as before. Every call of
+  # the method is counted before the CDP call (page_activation_calls counts method
+  # calls, so a direct call from a test counts too), failures are counted in the
+  # rescue, and the tally is printed once at exit only when there was a failure.
+  class << self
+    attr_accessor :page_activation_warned
+    attr_writer :page_activation_calls, :page_activation_failures
+
+    def page_activation_calls = @page_activation_calls || 0
+    def page_activation_failures = @page_activation_failures || 0
+  end
+
+  setup { activate_page }
+
+  def activate_page
+    ApplicationSystemTestCase.page_activation_calls += 1
+    page.driver.browser.execute_cdp("Page.bringToFront")
+  rescue StandardError => e
+    ApplicationSystemTestCase.page_activation_failures += 1
+    return if ApplicationSystemTestCase.page_activation_warned
+
+    ApplicationSystemTestCase.page_activation_warned = true
+    warn "PAGE_ACTIVATION unavailable: #{e.class.name}"
+  end
+
+  Minitest.after_run do
+    if ApplicationSystemTestCase.page_activation_failures.positive?
+      begin
+        warn "PAGE_ACTIVATION tally method_calls=#{ApplicationSystemTestCase.page_activation_calls} failures=#{ApplicationSystemTestCase.page_activation_failures}"
+      rescue StandardError
+        nil
+      end
+    end
+  end
+
   Minitest.after_run do
     reg = ApplicationSystemTestCase.input_capture
     if reg && reg[:script_id]
