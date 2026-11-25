@@ -57,9 +57,15 @@
             <% pill = row[:available].negative? ? :negative : (row[:available].zero? ? :zero : :positive) %>
             <tr class="data-table__row" data-group="<%= group.public_id %>">
               <td class="budget-grid__name">
-                <%= category.name %><%= " (hidden)" if category.hidden %>
-                <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
-                <%= link_to "Target", target_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Target for #{category.name}" %>
+                <div class="budget-grid__namecell">
+                  <%# Same condition as the Cover link below: a negative payment category is not overspending.
+                      The chip is CSS-only (the Available pill already carries "Overspent" for assistive tech). %>
+                  <span class="budget-grid__label<%= ' budget-grid__label--overspent' if row[:available].negative? && category.payment_account_id.nil? %>"><%= category.name %><%= " (hidden)" if category.hidden %></span>
+                  <span class="budget-grid__actions">
+                    <%= link_to "Edit", edit_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Edit category #{category.name}" %>
+                    <%= link_to "Target", target_users_budget_category_path(@budget.public_id, category.public_id), class: "budget-back-link", "aria-label": "Target for #{category.name}" %>
+                  </span>
+                </div>
               </td>
               <td class="data-table__money" data-label="Assigned">
                 <% err = @assign_error if @assign_error && @assign_error[:id] == category.public_id %>

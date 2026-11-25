@@ -33,7 +33,7 @@ class BudgetGridFiltersTest < ActionDispatch::IntegrationTest
       "payee_name" => "Lender", "category_id" => @loan.public_id, "cleared" => "uncleared"))
   end
 
-  def names = css_select("tr.data-table__row .budget-grid__name").map { |cell| cell.children.first.text.strip }
+  def names = css_select("tr.data-table__row .budget-grid__label").map { |cell| cell.text.strip }
   def groups = css_select("tr.data-table__group .budget-grid__name").map { |cell| cell.text.strip }
 
   test "All lists every category and the filter chips are links except the unbuilt ones" do

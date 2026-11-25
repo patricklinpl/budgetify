@@ -33,6 +33,11 @@
   --color-status-warning: #f6c91d;
   --color-status-warning-text: #362c05;
   --color-status-warning-strong: #daac00;
+  --color-pill-positive-bg: #b9e48d;
+  --color-pill-positive-text: #1f3a0a;
+  --color-pill-negative-bg: #bf2e3b;
+  --color-pill-negative-text: #fff;
+  --color-pill-zero-bg: #ebebe4;
 
   /* Text */
   --color-text-primary: #292b3d;
@@ -78,6 +83,11 @@
   --color-status-warning: #f6c91d;
   --color-status-warning-text: #f6c91d;
   --color-status-warning-strong: #daac00;
+  --color-pill-positive-bg: #4f7f24;
+  --color-pill-positive-text: #f4ffe8;
+  --color-pill-negative-bg: #b8323f;
+  --color-pill-negative-text: #fff;
+  --color-pill-zero-bg: #2a2d63;
 
   --color-text-primary: #f1f1f6;
   --color-text-secondary: #d6d7e2;
