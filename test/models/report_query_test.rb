@@ -112,6 +112,51 @@ class ReportQueryTest < ActiveSupport::TestCase
     assert_equal 88.7, ReportQuery::Rounding.percent_tenths(333_210 - avg, avg)
   end
 
+  test "[reference T] REPORT-07 trend from the query: Oct 20.00, Nov 333.21, average 176.60, deviations -156.60 / +156.60, 88.7%" do
+    put(@cash, -300_000, category: @dining)
+    put(@cash, -33_210, category: @groceries)
+    put(@cash, -20_000, date: "2026-10-15", category: @groceries)
+    trend = query(start: Date.new(2026, 10, 1), finish: Date.new(2026, 11, 1)).trend
+    assert_equal [ Date.new(2026, 10, 1), Date.new(2026, 11, 1) ], trend.map(&:month)
+    assert_equal [ 20_000, 333_210 ], trend.map(&:amount)
+    assert_equal [ -15_660, 15_660 ], trend.map { |m| ReportQuery::Rounding.cents(m.deviation) }
+    # [engineering] October's percent uses the same base, so it is -88.7 (the audit text does not give its sign).
+    assert_equal [ -88.7, 88.7 ], trend.map(&:percent)
+  end
+
+  test "[engineering] trend: empty month in the range stays, single month deviates 0 and shows 0.0 percent, zero average has no percent" do
+    put(@cash, -33_210, category: @groceries)
+    two = query(start: Date.new(2026, 10, 1), finish: Date.new(2026, 11, 1)).trend
+    assert_equal [ 0, 33_210 ], two.map(&:amount)
+    assert_equal [ 16_605, 16_605 ], two.map { |m| m.deviation.abs }
+    one = query.trend
+    assert_equal [ 0, 0.0 ], [ one.first.deviation, one.first.percent ]
+    none = query(start: Date.new(2026, 9, 1), finish: Date.new(2026, 9, 1)).trend
+    assert_equal [ 0, nil ], [ none.first.amount, none.first.percent ]
+  end
+
+  test "[engineering] trend: deviation rounding is per cell, and the half-even/half-up tie modes are pinned by 156.605" do
+    put(@cash, -300_000, category: @dining)
+    put(@cash, -33_210, category: @groceries)
+    put(@cash, -20_000, date: "2026-10-15", category: @groceries)
+    cell = query(start: Date.new(2026, 10, 1), finish: Date.new(2026, 11, 1)).trend.last.deviation
+    assert_equal Rational(313_210, 2), cell
+    assert_equal 15_660, ReportQuery::Rounding.cents(cell) # half-up would give 15_661
+    # No assertion that cell roundings sum to the rounded average: the audit says they need not.
+  end
+
+  test "[engineering] trend: a refund month shows its signed amount and a category cell by month" do
+    put(@cash, -20_000, date: "2026-10-15", category: @groceries)
+    put(@cash, 5_000, date: "2026-10-20", category: @groceries)
+    put(@cash, -33_210, category: @groceries)
+    put(@cash, -300_000, category: @dining)
+    report = query(start: Date.new(2026, 10, 1), finish: Date.new(2026, 11, 1))
+    assert_equal [ 15_000, 333_210 ], report.trend.map(&:amount)
+    cells = report.spending_by_category_month
+    assert_equal({ Date.new(2026, 10, 1) => 15_000, Date.new(2026, 11, 1) => 33_210 }, cells[@groceries])
+    assert_equal({ Date.new(2026, 11, 1) => 300_000 }, cells[@dining])
+  end
+
   test "[reference T] REPORT-08 percent: -9983.21 over -20.00 is -49916.1%, base sign ignored" do
     assert_equal(-49_916.1, ReportQuery::Rounding.percent_tenths(-9_983_210, -20_000))
     assert_nil ReportQuery::Rounding.percent_tenths(5, 0)
