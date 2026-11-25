@@ -198,6 +198,8 @@ class ReflectTest < ActionDispatch::IntegrationTest
     page
     assert_response :success
     assert_equal "$0.00", text("#reflect-total")
+    assert_select ".reflect-donut__hole", text: /Spending excluding refunds\s*\$333\.21/
+    assert_select "ul[aria-label='Chart legend'] li", text: /Loan payment: \$300\.00 \(90\.0%\)/
     style = css_select("#reflect-chart").first["style"]
     assert_no_match(/-\d|NaN|Infinity/, style)
     assert css_select("#reflect-chart").first["aria-label"].present?
