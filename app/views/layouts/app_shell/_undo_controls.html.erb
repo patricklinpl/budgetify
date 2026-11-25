@@ -3,11 +3,11 @@
 <% history = undo_history %>
 <% if history && @budget %>
   <span class="shell-undo" data-controller="undo-shortcuts">
-    <%= button_to "Undo", users_budget_undo_path(@budget.public_id), class: "shell-button", form_class: "shell-inline-form", disabled: !history.can_undo?, data: { undo_shortcuts_target: "undo" } %>
-    <%= button_to "Redo", users_budget_redo_path(@budget.public_id), class: "shell-button", form_class: "shell-inline-form", disabled: !history.can_redo?, data: { undo_shortcuts_target: "redo" } %>
+    <%= button_to "Undo", users_budget_undo_path(@budget.public_id), class: "shell-button shell-button--history", form_class: "shell-inline-form", disabled: !history.can_undo?, data: { undo_shortcuts_target: "undo" } %>
+    <%= button_to "Redo", users_budget_redo_path(@budget.public_id), class: "shell-button shell-button--history", form_class: "shell-inline-form", disabled: !history.can_redo?, data: { undo_shortcuts_target: "redo" } %>
   </span>
 <% else %>
   <% %w[Undo Redo].each do |action| %>
-    <button type="button" class="shell-button" disabled><%= action %></button>
+    <button type="button" class="shell-button shell-button--history" disabled><%= action %></button>
   <% end %>
 <% end %>
