@@ -127,6 +127,17 @@ class UndoControlsSystemTest < ApplicationSystemTestCase
     assert_button "Redo", disabled: true
   end
 
+  test "Undo and Redo are at least 44px tall and wide at phone width" do
+    page.driver.browser.manage.window.resize_to(390, 900)
+    register
+    %w[Undo Redo].each do |label|
+      size = page.evaluate_script("(() => { const r = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '#{label}').getBoundingClientRect(); return [r.width, r.height]; })()")
+      assert_operator size[0], :>=, 44, "#{label} width #{size[0]}"
+      assert_operator size[1], :>=, 44, "#{label} height #{size[1]}"
+    end
+    assert_equal page.evaluate_script("innerWidth"), page.evaluate_script("document.documentElement.scrollWidth")
+  end
+
   test "Undo of a reconciled row memo edit restores it and keeps it reconciled" do
     visit edit_users_budget_account_transaction_path(@plan.public_id, @account.public_id, @reconciled.public_id)
     assert_selector "[data-controller~=field][data-field-ready=true]"
