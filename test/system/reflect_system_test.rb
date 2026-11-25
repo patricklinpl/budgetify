@@ -109,4 +109,25 @@ class ReflectSystemTest < ApplicationSystemTestCase
     assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth + 1"), "drilldown scrolls sideways at phone width"
     shot "10-phone-drilldown"
   end
+
+  test "[engineering] refund category: charted spending and net total are labelled separately" do
+    cash = @plan.accounts.find_by!(name: "Cash")
+    returns = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    writer = TransactionWriter.new(@plan)
+    add = lambda do |amount, date|
+      writer.persist_new!(writer.build("account_id" => cash.public_id, "date" => date, "amount" => amount, "category_id" => returns.public_id, "payee_name" => "Shop"))
+    end
+    add.call(20_000, "2026-11-14")
+    visit users_budget_reflect_path(@plan.public_id)
+    assert_selector "#reflect-total", text: "$313.21"
+    assert_selector ".reflect-donut__hole", text: "Charted spending"
+    assert_selector "#reflect-refund-note"
+    shot "11-mixed-refund"
+    page.execute_script("document.querySelector('#reflect-refund-note').scrollIntoView()")
+    add.call(400_000, "2026-11-15")
+    visit users_budget_reflect_path(@plan.public_id)
+    assert_selector ".reflect-donut__hole", text: "Charted spending"
+    assert_selector "#reflect-refund-note"
+    shot "12-net-negative-total"
+  end
 end
