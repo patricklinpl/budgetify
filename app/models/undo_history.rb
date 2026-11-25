@@ -132,5 +132,4 @@ class UndoHistory
         end
       end
     end
-
 end
