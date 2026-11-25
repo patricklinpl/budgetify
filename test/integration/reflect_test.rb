@@ -190,6 +190,28 @@ class ReflectTest < ActionDispatch::IntegrationTest
     assert_select "table tbody tr", text: /Returns.*Refund/m
   end
 
+  test "[engineering] refunds that net total spending to zero do not error and keep the chart off signed shares" do
+    refunds = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    put(@cash, 333_210, "2026-11-14", refunds)
+    page
+    assert_response :success
+    assert_equal "$0.00", text("#reflect-total")
+    style = css_select("#reflect-chart").first["style"]
+    assert_no_match(/-\d|NaN|Infinity/, style)
+    assert css_select("#reflect-chart").first["aria-label"].present?
+    assert_select "table[aria-label='Spending by category'] tbody tr", text: /Returns.*Refund/m
+  end
+
+  test "[engineering] refunds exceeding all spending: negative total, no chart, no error" do
+    refunds = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    put(@cash, 400_000, "2026-11-14", refunds)
+    page
+    assert_response :success
+    assert_equal "-$66.79", text("#reflect-total").sub("$-", "-$")
+    assert_select "#reflect-chart", count: 1
+    assert_no_match(/-\d/, css_select("#reflect-chart").first["style"])
+  end
+
   test "[engineering] an empty range shows a message and zeros, no chart" do
     page(start: "2026-01", end: "2026-01")
     assert_select "[role=status]", text: "No spending in this range."
