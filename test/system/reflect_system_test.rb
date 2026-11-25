@@ -99,5 +99,14 @@ class ReflectSystemTest < ApplicationSystemTestCase
     assert_selector "#reflect-chart"
     assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth + 1"), "page scrolls sideways at phone width"
     shot "07-phone"
+    page.execute_script("document.querySelector('#reflect-chart').scrollIntoView()")
+    shot "08-phone-chart"
+    page.execute_script("document.querySelector('table[aria-label=\"Spending by category\"]').scrollIntoView()")
+    shot "09-phone-table"
+    visit users_budget_reflect_path(@plan.public_id, drill: @groceries.public_id)
+    assert_selector "h3", text: "Transactions: Groceries"
+    page.execute_script("document.querySelector('h3').scrollIntoView()")
+    assert page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth + 1"), "drilldown scrolls sideways at phone width"
+    shot "10-phone-drilldown"
   end
 end
