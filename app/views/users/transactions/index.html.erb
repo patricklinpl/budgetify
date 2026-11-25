@@ -9,6 +9,7 @@
     <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, @account.public_id), class: "shell-button shell-button--primary" %>
     <%= link_to "Reconcile", users_budget_account_reconciliation_path(@budget.public_id, @account.public_id), class: "shell-button" unless @account.closed? %>
     <%= link_to(@show_reconciled ? "Hide Reconciled" : "Show Reconciled", users_budget_account_transactions_path(@budget.public_id, @account.public_id, reconciled: (@show_reconciled ? nil : "1")), class: "shell-button") %>
+    <%= render "layouts/app_shell/undo_controls" %>
     <%= link_to "Back to the plan", users_budget_path(@budget.public_id, account: @account.public_id), class: "shell-button" %>
   </div></div></div>
 <% end %>
