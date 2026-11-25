@@ -1,6 +1,7 @@
 <%# Ordinary transaction editor: date, payee, category, memo, one of outflow or
     inflow. Money fields use the shared field controller (#70): client commit,
     adjacent error, aria-invalid, and submit disabled while invalid. %>
+<% reconciled_edit = transaction&.cleared == "reconciled" && !@reconciled_warning %>
 <% url = transaction ? users_budget_account_transaction_path(@budget.public_id, @account.public_id, transaction.public_id) : users_budget_account_transactions_path(@budget.public_id, @account.public_id) %>
 <% if @errors.any? || @field_errors.any? %>
   <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
@@ -9,7 +10,7 @@
   </div>
 <% end %>
 <%= form_with url: url, method: (transaction ? :patch : :post), scope: :transaction, class: "plan-settings__form",
-      data: { controller: "form submit", action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
+      data: { controller: (reconciled_edit ? "form submit dialog" : "form submit"), action: "input->form#update field:commit->form#update field:invalid->form#update field:cancel->form#update field:restored->form#update turbo:submit-end->submit#end" } do %>
   <div class="field">
     <label class="field__label" for="transaction_date">Date</label>
     <input class="field__input" type="date" id="transaction_date" name="transaction[date]" value="<%= @form[:date] %>" required>
@@ -61,8 +62,25 @@
     </section>
   <% end %>
   <div class="plan-settings__actions"<%= raw(" hidden") if @reconciled_warning %>>
-    <button type="submit" class="btn btn--primary" data-form-target="submit">Save</button>
+    <% if reconciled_edit %>
+      <button type="button" class="btn btn--primary" data-form-target="submit" data-dialog-id="dlg-reconciled-save" data-action="dialog#open">Save</button>
+    <% else %>
+      <button type="submit" class="btn btn--primary" data-form-target="submit">Save</button>
+    <% end %>
     <% unless transaction %><button type="submit" class="btn btn--secondary" name="commit_action" value="another" data-form-target="submit">Save and add another</button><% end %>
     <%= link_to "Cancel", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "btn btn--secondary" %>
   </div>
+  <% if reconciled_edit %>
+    <dialog id="dlg-reconciled-save" class="dialog dialog--warning" role="alertdialog" aria-labelledby="dlg-reconciled-save-t" data-dialog-name="Reconciled transaction warning" data-dialog-backdrop="block" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+      <div class="dialog__header"><h2 class="dialog__title" id="dlg-reconciled-save-t">Save Changes to Reconciled Transaction</h2></div>
+      <div class="dialog__body">
+        <p>Saving your changes to this reconciled transaction may bring your reconciliation out of balance.</p>
+        <p class="dialog__survives">Survives Cancel: the editor stays open with your typed values and nothing is saved.</p>
+      </div>
+      <div class="dialog__footer">
+        <button type="button" class="btn btn--secondary" autofocus data-dialog-close data-action="dialog#dismiss">Cancel</button>
+        <button type="submit" class="btn btn--primary" name="confirm_reconciled" value="1">Save</button>
+      </div>
+    </dialog>
+  <% end %>
 <% end %>
