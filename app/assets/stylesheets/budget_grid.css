@@ -37,6 +37,7 @@
 .budget-grid .data-table__row:hover .budget-grid__actions .budget-back-link,
 .budget-grid .data-table__row:focus-within .budget-grid__actions .budget-back-link { color: var(--color-accent-hover); }
 .budget-grid .status-pill { padding: 0.1rem 0.6rem; border-color: transparent; font-size: var(--font-size-md); }
+.budget-grid .status-pill .budget-grid__exact { color: inherit; }
 .budget-grid .status-pill--positive { background: var(--color-pill-positive-bg); color: var(--color-pill-positive-text); }
 .budget-grid .status-pill--positive::before { color: var(--color-pill-positive-text); }
 .budget-grid .status-pill--negative { background: var(--color-pill-negative-bg); color: var(--color-pill-negative-text); }
