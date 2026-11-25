@@ -59,6 +59,17 @@ module Users
       @errors = validate(@form)
       return render_form(:edit) if @errors.any? || @field_errors.any?
 
+      # Saving a reconciled row can put the reconciliation out of balance (the
+      # reference asks first). Reference checks: a memo-only edit saves without
+      # the warning; an amount edit asks. Date, payee and category were not
+      # checked, so they keep asking. The first Save writes nothing and shows the
+      # warning with the typed values; Cancel on the warning keeps the editor
+      # and the values; Save on the warning writes. Status stays reconciled.
+      if @transaction.cleared == "reconciled" && params[:confirm_reconciled] != "1" && balance_field_changed?
+        @reconciled_warning = params[:confirm_reconciled] != "0"
+        return render :edit, status: :unprocessable_entity
+      end
+
       begin
         Transaction.transaction { writer.update!(@transaction, attributes_for(@form).merge(unexposed_attributes), rebuild_subs: false) }
       rescue TransactionWriter::Invalid => e
@@ -70,6 +81,10 @@ module Users
     end
 
     def destroy
+      if @transaction.cleared == "reconciled" && params[:confirm_reconciled] != "1"
+        return render :confirm_delete, status: :unprocessable_entity
+      end
+
       Transaction.transaction { writer.destroy!(@transaction) }
       redirect_to users_budget_account_transactions_path(@budget.public_id, @account.public_id), notice: "Transaction deleted."
     end
@@ -115,6 +130,17 @@ module Users
         raw = raw.is_a?(ActionController::Parameters) ? raw.permit(:date, :payee, :category_id, :memo, :outflow, :inflow) : ActionController::Parameters.new.permit
         { date: raw[:date].to_s, payee: raw[:payee].to_s.strip, category_id: raw[:category_id].to_s, memo: raw[:memo].to_s, outflow: raw[:outflow].to_s.strip, inflow: raw[:inflow].to_s.strip }
       end
+
+      # False only for a memo-only edit. Every other field keeps the warning.
+      def balance_field_changed?
+        stored = form_from_transaction(@transaction)
+        return true if %i[date payee category_id].any? { |key| @form[key] != stored[key] }
+
+        @amounts[:inflow].to_i - @amounts[:outflow].to_i != @transaction.amount.to_i
+      end
+
+      def stored_form = form_from_transaction(@transaction)
+      helper_method :stored_form
 
       def form_from_transaction(transaction)
         amount = transaction.amount.to_i

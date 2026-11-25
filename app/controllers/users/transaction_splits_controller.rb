@@ -62,6 +62,14 @@ module Users
           return rerender(:unprocessable_entity)
         end
 
+        # Reference checks: changing the parent total on a reconciled split
+        # warns; memo-only edits and moving amounts between children at the
+        # same total do not. Mismatch and input errors are refused above first.
+        if @transaction.cleared == "reconciled" && params[:confirm_reconciled] != "1" && total != @transaction.amount.to_i
+          @reconciled_warning = params[:confirm_reconciled] != "0"
+          return rerender(:unprocessable_entity)
+        end
+
         begin
           Transaction.transaction { writer.update!(@transaction, attributes_for(total, entries), rebuild_subs: true) }
         rescue TransactionWriter::Invalid => e
@@ -169,6 +177,9 @@ module Users
       def plain_money(milliunits)
         format("%.2f", milliunits / 1000.0)
       end
+
+      def stored_total = money_pair(@transaction.amount.to_i)
+      helper_method :stored_total
 
       def set_budget
         @budget = Current.user.budgets.find_by!(public_id: params[:budget_public_id])
