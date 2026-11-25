@@ -89,10 +89,30 @@ class ReconciledRowWarningTest < ActionDispatch::IntegrationTest
     assert_equal [ 100_000, -55_000, 45_000 ], balances
   end
 
-  test "another plan's reconciled row is a 404" do
-    other = PlanLifecycle.create_plan(users(:two), name: "Other") rescue nil
-    skip "second user fixture not available" unless other
-    patch users_budget_account_transaction_path(other.public_id, @account.public_id, @opening.public_id), params: params_for(@opening, inflow: "9")
+  test "another user's plan cannot reach the reconciled row, even with the confirmation" do
+    stranger = PlanLifecycle.create_plan(users(:two), name: "Other user plan")
+    before = balances
+    patch users_budget_account_transaction_path(stranger.public_id, @account.public_id, @opening.public_id),
+      params: params_for(@opening, inflow: "9", extra: { confirm_reconciled: "1" })
     assert_response :not_found
+    delete users_budget_account_transaction_path(stranger.public_id, @account.public_id, @opening.public_id), params: { confirm_reconciled: "1" }
+    assert_response :not_found
+    assert_equal before, balances
+    assert_not @opening.reload.deleted?
+  end
+
+  test "a reconciled row of my other plan is not reachable through this plan's path" do
+    second = PlanLifecycle.create_plan(@user, name: "Second plan")
+    second_account = second.accounts.create!(name: "Savings 2", type: "savings")
+    writer = TransactionWriter.new(second)
+    row = writer.persist_new!(writer.build("account_id" => second_account.public_id, "date" => Date.current.iso8601,
+      "amount" => 7_000, "payee_name" => "Elsewhere", "cleared" => "reconciled"))
+    patch users_budget_account_transaction_path(@budget.public_id, @account.public_id, row.public_id),
+      params: params_for(row, inflow: "9", extra: { confirm_reconciled: "1" })
+    assert_response :not_found
+    delete users_budget_account_transaction_path(@budget.public_id, @account.public_id, row.public_id), params: { confirm_reconciled: "1" }
+    assert_response :not_found
+    assert_equal 7_000, row.reload.amount
+    assert_not row.deleted?
   end
 end
