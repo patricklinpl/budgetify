@@ -89,6 +89,45 @@ class ReconciledRowWarningTest < ActionDispatch::IntegrationTest
     assert_equal [ 100_000, -55_000, 45_000 ], balances
   end
 
+  test "a memo-only edit of a reconciled row saves without the warning and stays reconciled" do
+    patch path(@opening), params: { transaction: { date: Date.current.iso8601, payee: "Opening", category_id: "", memo: "note", outflow: "", inflow: "100" } }
+    assert_redirected_to users_budget_account_transactions_path(@budget.public_id, @account.public_id)
+    assert_equal "note", @opening.reload.memo
+    assert_equal 100_000, @opening.amount
+    assert_equal "reconciled", @opening.cleared
+  end
+
+  test "the same amount typed differently is still memo-only" do
+    patch path(@opening), params: { transaction: { date: Date.current.iso8601, payee: "Opening", category_id: "", memo: "n2", outflow: "", inflow: "100.00" } }
+    assert_redirected_to users_budget_account_transactions_path(@budget.public_id, @account.public_id)
+    assert_equal "n2", @opening.reload.memo
+  end
+
+  test "only memo is exempt: a changed amount, date, payee or category still asks first" do
+    group = @budget.category_groups.create!(name: "Warn group")
+    category = group.categories.create!(budget: @budget, name: "Warn category")
+    base = { date: Date.current.iso8601, payee: "Opening", category_id: "", memo: "", outflow: "", inflow: "100" }
+    [ { inflow: "101" }, { outflow: "5", inflow: "" }, { date: (Date.current - 1).iso8601 }, { payee: "Someone else" }, { category_id: category.public_id } ].each do |change|
+      before = balances
+      patch path(@opening), params: { transaction: base.merge(change).merge(memo: "also a memo") }
+      assert_response :unprocessable_entity, change.inspect
+      assert_select "h2", text: "Save Changes to Reconciled Transaction"
+      assert_equal before, balances
+      assert_equal "", @opening.reload.memo.to_s, change.inspect
+    end
+  end
+
+  test "the editor of a reconciled row carries the guard with the stored values for the fields that warn" do
+    get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @opening.public_id)
+    assert_select "form[data-controller~='reconcile-guard']"
+    initial = JSON.parse(css_select("form[data-controller~='reconcile-guard']").first["data-reconcile-guard-initial-value"])
+    assert_equal [ "transaction[category_id]", "transaction[date]", "transaction[inflow]", "transaction[outflow]", "transaction[payee]" ], initial.keys.sort
+    assert_equal "100.00", initial["transaction[inflow]"]
+    assert_select "button[data-reconcile-guard-save]", text: "Save"
+    get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @other.public_id)
+    assert_select "[data-controller~='reconcile-guard']", count: 0
+  end
+
   test "the editor of a reconciled row carries the modal warning dialogs, other rows do not" do
     get edit_users_budget_account_transaction_path(@budget.public_id, @account.public_id, @opening.public_id)
     assert_select "dialog[role=alertdialog]#dlg-reconciled-save h2", text: "Save Changes to Reconciled Transaction"
