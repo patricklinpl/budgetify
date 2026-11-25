@@ -61,11 +61,12 @@
                   <%# Same condition as the Cover link below: a negative payment category is not overspending.
                       The chip is CSS-only (the Available pill already carries "Overspent" for assistive tech). %>
                   <span class="budget-grid__label<%= ' budget-grid__label--overspent' if row[:available].negative? && category.payment_account_id.nil? %>"><%= category.name %><%= " (hidden)" if category.hidden %></span>
-                  <% need = target_need(category, row[:assigned]) %>
+                  <% need = target_need(category, row[:assigned], fmt) %>
                   <% if need %>
+                    <%# The meter is decorative (raw milliunits would be read out); the sentence beside it is the accessible content. %>
                     <span class="budget-grid__need">
-                      <meter class="budget-grid__meter" min="0" max="<%= need[:target] %>" value="<%= need[:assigned] %>" aria-label="Assigned toward target for <%= category.name %>"><%= grid_money(fmt, need[:assigned]) %> of <%= grid_money(fmt, need[:target]) %></meter>
-                      <% if need[:remaining].positive? %><span class="budget-grid__need-text"><%= grid_money(fmt, need[:remaining]) %> more needed</span><% end %>
+                      <meter class="budget-grid__meter" aria-hidden="true" min="0" max="<%= need[:target] %>" value="<%= need[:shown] %>"></meter>
+                      <span class="budget-grid__need-text"><%= need[:text] %></span>
                     </span>
                   <% end %>
                   <span class="budget-grid__actions">
