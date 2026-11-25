@@ -21,6 +21,17 @@ module DataTableHelper
     end
   end
 
+  # Plan grid: monthly-target progress for a row. Only the built monthly target
+  # (MonthlyTarget.monthly?) is shown. remaining is the same figure as
+  # MonthlyTarget.remaining (target minus Assigned, never below zero), taken from
+  # the row's already-loaded Assigned so the grid adds no queries.
+  def target_need(category, assigned)
+    return unless MonthlyTarget.monthly?(category)
+
+    target = category.goal_target.to_i
+    { target: target, assigned: assigned.to_i.clamp(0, target), remaining: [ target - assigned.to_i, 0 ].max }
+  end
+
   # Budget grid amount in the plan's currency format. When the stored value is
   # finer than the display digits (possible through the API), the exact value is
   # printed next to it so rounding never hides money.
