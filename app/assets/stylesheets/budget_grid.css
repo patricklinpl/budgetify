@@ -37,6 +37,7 @@
 .budget-grid .data-table__row:hover .budget-grid__actions .budget-back-link,
 .budget-grid .data-table__row:focus-within .budget-grid__actions .budget-back-link { color: var(--color-accent-hover); }
 .budget-grid .status-pill { padding: 0.1rem 0.6rem; border-color: transparent; font-size: var(--font-size-md); }
+.budget-grid .status-pill .budget-grid__exact { color: inherit; }
 .budget-grid .status-pill--positive { background: var(--color-pill-positive-bg); color: var(--color-pill-positive-text); }
 .budget-grid .status-pill--positive::before { color: var(--color-pill-positive-text); }
 .budget-grid .status-pill--negative { background: var(--color-pill-negative-bg); color: var(--color-pill-negative-text); }
@@ -64,6 +65,9 @@
   .budget-grid .data-table td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-align: right; }
   .budget-grid .data-table td[data-label]::before { content: attr(data-label); font-size: var(--font-size-sm); font-weight: normal; color: var(--color-text-secondary); text-align: left; }
   .budget-grid .data-table td.budget-grid__name { white-space: normal; }
+  /* An Available pill with an exact sub-precision value wraps inside its row instead of running past it; the exact text stays visible. */
+  .budget-grid .data-table td[data-label="Available"] { flex-wrap: wrap; }
+  .budget-grid .data-table td[data-label="Available"] .status-pill { box-sizing: border-box; max-width: 100%; min-width: 0; flex-wrap: wrap; justify-content: flex-end; white-space: normal; overflow-wrap: anywhere; }
   .budget-grid .data-table td.budget-grid__name a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 0.5rem; margin-left: 0.25rem; }
   .budget-grid .data-table .data-table__chevron { min-width: 44px; min-height: 44px; }
   .budget-grid .data-table td form { flex: 1; min-width: 0; justify-content: flex-end; align-items: flex-start; }
