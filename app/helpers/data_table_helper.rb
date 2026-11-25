@@ -30,7 +30,7 @@ module DataTableHelper
 
     target = category.goal_target.to_i
     { target: target, shown: assigned.to_i.clamp(0, target),
-      text: "#{grid_money(format, assigned.to_i)} assigned of #{grid_money(format, target)} monthly target" }
+      text: safe_join([ grid_money(format, assigned.to_i), " assigned of ", grid_money(format, target), " monthly target" ]) }
   end
 
   # Budget grid amount in the plan's currency format. When the stored value is
