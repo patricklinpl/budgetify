@@ -22,7 +22,10 @@ class DisabledSaveLookTest < ApplicationSystemTestCase
       look = "(function(){var b=[...document.querySelectorAll('form button, form input[type=submit]')].find(function(e){return (e.value||e.textContent).trim()==='Save'});var s=getComputedStyle(b);return [s.backgroundColor,s.color,s.borderTopStyle].join('|')})()"
       enabled = page.evaluate_script(look)
       find_field("Outflow").send_keys("abc", :enter)
-      assert_button "Save", disabled: true, exact: true
+      # Observation only: if this assertion fails, the message also carries the
+      # page state (field values, aria-invalid, button disabled states, focus).
+      # Same steps, same assertion, no listeners, no retry.
+      with_input_diagnostics("Save") { assert_button "Save", disabled: true, exact: true }
       disabled = page.evaluate_script(look)
       assert_not_equal enabled, disabled
       assert_includes disabled, "dashed"
