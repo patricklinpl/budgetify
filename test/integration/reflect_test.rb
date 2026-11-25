@@ -164,6 +164,32 @@ class ReflectTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "[engineering] a net-refund category stays out of the chart and shares: no gradient stop past 100 percent" do
+    refunds = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    put(@cash, 20_000, "2026-11-14", refunds)
+    page
+    assert_equal "$313.21", text("#reflect-total")
+    style = css_select("#reflect-chart").first["style"]
+    stops = style.scan(/(\d+(?:\.\d+)?)%/).flatten.map(&:to_f)
+    assert stops.all? { |n| n.between?(0, 100) }, style
+    assert_equal 100.0, stops.last
+    assert_equal 2, css_select("ul[aria-label='Chart legend'] li").size
+    assert_select "table[aria-label='Spending by category'] tbody tr:last-child", text: /Returns.*\$-?20\.00.*Refund/m
+    assert_select "table[aria-label='Spending by category'] tbody tr", count: 3
+    assert_select "p", text: /Net refunds are listed in the table/
+    assert_select "table[aria-label='Spending by category'] tbody tr:first-child", text: /Loan payment.*\$300\.00.*90\.0%/m
+  end
+
+  test "[engineering] only net refunds in range: no chart, a note, no error" do
+    refunds = @plan.category_groups.create!(name: "Refund group").categories.create!(budget: @plan, name: "Returns")
+    put(@cash, 20_000, "2026-11-14", refunds)
+    page(categories: [ refunds.public_id ])
+    assert_response :success
+    assert_select "#reflect-chart", count: 0
+    assert_select "p[role=status]", text: /No category has net spending/
+    assert_select "table tbody tr", text: /Returns.*Refund/m
+  end
+
   test "[engineering] an empty range shows a message and zeros, no chart" do
     page(start: "2026-01", end: "2026-01")
     assert_select "[role=status]", text: "No spending in this range."
