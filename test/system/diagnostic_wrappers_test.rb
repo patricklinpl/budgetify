@@ -49,4 +49,14 @@ class DiagnosticWrappersTest < ApplicationSystemTestCase
     assert_match(/Input diagnostics: /, raised.message)
     assert_match(/"stimulus":/, raised.message)
   end
+
+  test "a throwing stimulus probe does not black out the rest of the dump" do
+    visit users_sign_in_path
+    page.execute_script("window.Stimulus = { router: null }")
+    raised = raised_through(:input, Minitest::Assertion.new("boom"))
+    assert_match(/stimulus probe failed/, raised.message)
+    assert_match(/"readyState":"complete"/, raised.message)
+    assert_match(/"controls":/, raised.message)
+    assert_no_match(/diagnostics unavailable/, raised.message)
+  end
 end
