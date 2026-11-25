@@ -84,6 +84,14 @@ class ReflectTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "[engineering] an opening-balance row does not anchor Last 3 months" do
+    assert @plan.transactions.where(opening_balance: true).update_all(date: Date.new(2026, 9, 1)).positive?
+    page
+    assert_select "a", text: "Last 3 months" do |links|
+      assert_includes links.first["href"], "start=2026-10"
+    end
+  end
+
   test "[engineering] Last 3 months never reaches back more than two months" do
     @plan.transactions.not_deleted.where(opening_balance: false).update_all(date: Date.new(2026, 5, 1))
     page
