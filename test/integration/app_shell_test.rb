@@ -49,7 +49,8 @@ class AppShellTest < ActionDispatch::IntegrationTest
     assert_select ".app-shell-inspector .shell-panel-title", /Summary/
     assert_select ".app-shell-inspector .shell-panel-title", "Auto-Assign"
     assert_select ".app-shell-sidebar form[action='#{session_path}'] button", "Sign out"
-    assert_select ".app-shell-nav-item[aria-disabled='true']", count: 2
+    assert_select ".app-shell-nav-item[aria-disabled='true']", count: 1, text: "All Accounts"
+    assert_select ".app-shell-nav a", text: "Reflect"
     assert_select ".app-shell-nav a[aria-current='page']", "Plan"
   end
 

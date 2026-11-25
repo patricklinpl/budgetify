@@ -37,6 +37,7 @@ Rails.application.routes.draw do
         post :fresh_start
         get :moves
       end
+      resource :reflect, only: :show, controller: "reflect"
       resources :categories, only: %i[edit update destroy], param: :public_id do
         member do
           patch :assign

@@ -1,0 +1,128 @@
+<% content_for :title, "Reflect" %>
+<% fmt = @fmt %>
+<% report = @report %>
+<% money = ->(milliunits) { fmt.format_milliunits(milliunits) } %>
+<% avg = ->(value) { fmt.format_milliunits(ReportQuery::Rounding.cents(value) * 10) } %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @budget.name %></p>
+    <h1 class="app-shell-page-title">Reflect</h1>
+  </div></div></div>
+<% end %>
+
+<section class="budget-grid" aria-label="Spending Breakdown">
+  <h2>Spending Breakdown</h2>
+
+  <p class="reflect-presets" aria-label="Date range presets">
+    <%= link_to "This month", users_budget_reflect_path(@budget.public_id, request.query_parameters.except("drill").merge("start" => @today.strftime("%Y-%m"), "end" => @today.strftime("%Y-%m"))) %>
+    <%= link_to "Last 3 months", users_budget_reflect_path(@budget.public_id, request.query_parameters.except("drill").merge("start" => @last3_start.strftime("%Y-%m"), "end" => @today.strftime("%Y-%m"))) %>
+  </p>
+
+  <%= form_with url: users_budget_reflect_path(@budget.public_id), method: :get, local: true, class: "reflect-filters", data: { turbo_action: "advance" } do %>
+    <p>
+      <label for="reflect_start">Start month</label>
+      <input type="month" class="field__input" id="reflect_start" name="start" value="<%= @start_month.strftime('%Y-%m') %>">
+      <label for="reflect_end">End month</label>
+      <input type="month" class="field__input" id="reflect_end" name="end" value="<%= @end_month.strftime('%Y-%m') %>">
+    </p>
+    <fieldset>
+      <legend>Accounts</legend>
+      <% @accounts.each do |account| %>
+        <label><input type="checkbox" name="accounts[]" value="<%= account.public_id %>" <%= "checked" if @account_filter.include?(account) %>> <%= account.name %></label>
+      <% end %>
+    </fieldset>
+    <p>
+      <label for="reflect_categories">Categories</label>
+      <select class="field__input" id="reflect_categories" name="categories[]" multiple>
+        <% @category_options.each do |category| %>
+          <option value="<%= category.public_id %>" <%= "selected" if @category_filter.include?(category) %>><%= category.category_group.name %>: <%= category.name %></option>
+        <% end %>
+      </select>
+    </p>
+    <p>
+      <label><input type="radio" name="by" value="categories" <%= "checked" if @by == "categories" %>> Categories</label>
+      <label><input type="radio" name="by" value="groups" <%= "checked" if @by == "groups" %>> Groups</label>
+    </p>
+    <p>
+      <button class="btn btn--primary" type="submit">Apply</button>
+      <%= link_to "Reset", users_budget_reflect_path(@budget.public_id), class: "btn btn--secondary" %>
+    </p>
+  <% end %>
+
+  <dl class="reflect-summary" aria-label="Summary">
+    <div><dt>Total spending</dt><dd id="reflect-total"><%= money.call(report.spending_total) %></dd></div>
+    <div><dt>Monthly average</dt><dd id="reflect-monthly"><%= avg.call(report.monthly_average) %></dd></div>
+    <div><dt>Daily average</dt><dd id="reflect-daily"><%= avg.call(report.daily_average) %></dd></div>
+  </dl>
+  <p>Range: <%= @start_month.strftime("%B %Y") %><%= " to #{@end_month.strftime('%B %Y')}" if @end_month != @start_month %>. Average over <%= report.months %> <%= report.months == 1 ? "month" : "months" %> and <%= report.days %> days.</p>
+
+  <% if @slices.empty? %>
+    <p role="status">No spending in this range.</p>
+  <% else %>
+    <% colors = %w[var(--color-accent) var(--color-status-positive) var(--color-status-warning-strong) var(--color-status-negative) var(--color-accent-light) var(--color-border-strong)] %>
+    <% total_amount = report.spending_total %>
+    <% chart_slices = @slices.select { |slice| slice[:amount].positive? } %>
+    <% refunds_omitted = chart_slices.size < @slices.size %>
+    <% chart_total_label = refunds_omitted ? "Spending excluding refunds" : "Total Spending" %>
+    <% running = Rational(0) %>
+    <% stops = chart_slices.each_with_index.map do |slice, i|
+         from = running
+         running += Rational(slice[:amount] * 100, @chart_total)
+         "#{colors[i % colors.size]} #{from.to_f.round(4)}% #{running.to_f.round(4)}%"
+       end.join(", ") %>
+    <div class="reflect-chart">
+      <% if chart_slices.any? %>
+        <div class="reflect-donut" id="reflect-chart" role="img" style="background: conic-gradient(<%= stops %>);"
+             aria-label="Spending breakdown chart: <%= chart_slices.map { |s| "#{s[:name]} #{money.call(s[:amount])}" }.join(', ') %>. <%= chart_total_label %> <%= money.call(@chart_total) %><%= ". Net total after refunds #{money.call(total_amount)}" if refunds_omitted %>.">
+          <div class="reflect-donut__hole"><span><%= chart_total_label %><strong><%= money.call(@chart_total) %></strong></span></div>
+        </div>
+      <% else %>
+        <p role="status">No category has net spending in this range, so there is no chart.</p>
+      <% end %>
+      <ul class="reflect-legend" aria-label="Chart legend">
+        <% chart_slices.each_with_index do |slice, i| %>
+          <li><span class="reflect-swatch reflect-swatch--<%= i % colors.size %>" aria-hidden="true"></span><%= slice[:name] %>: <%= money.call(slice[:amount]) %> (<%= slice[:percent] %>%)</li>
+        <% end %>
+      </ul>
+    </div>
+    <% if refunds_omitted %>
+      <p id="reflect-refund-note">Net refunds are listed in the table with no share and are not drawn in the chart. The chart and its percentages cover categories with net spending only (<%= money.call(@chart_total) %>). Total spending above is net of refunds (<%= money.call(total_amount) %>).</p>
+    <% end %>
+    <div class="data-table-wrap">
+      <table class="data-table" aria-label="Spending by <%= @by == 'groups' ? 'group' : 'category' %>">
+        <thead>
+          <tr><th><%= @by == "groups" ? "Group" : "Category" %></th><th class="data-table__money">Amount</th><th class="data-table__money">Share</th><th class="data-table__money">Transactions</th></tr>
+        </thead>
+        <tbody>
+          <% @slices.each do |slice| %>
+            <tr class="data-table__row">
+              <td data-label="Name"><%= link_to slice[:name], users_budget_reflect_path(@budget.public_id, request.query_parameters.merge("drill" => slice[:key])) %></td>
+              <td class="data-table__money" data-label="Amount"><%= money.call(slice[:amount]) %></td>
+              <td class="data-table__money" data-label="Share"><%= slice[:percent] ? "#{slice[:percent]}%" : "Refund" %></td>
+              <td class="data-table__money" data-label="Transactions"><%= slice[:count] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <% if @drill %>
+    <h3>Transactions: <%= @drill[:name] %></h3>
+    <div class="data-table-wrap">
+      <table class="data-table" aria-label="Transactions for <%= @drill[:name] %>">
+        <thead><tr><th>Date</th><th>Account</th><th>Payee</th><th class="data-table__money">Amount</th></tr></thead>
+        <tbody>
+          <% @drill_rows.each do |row| %>
+            <tr class="data-table__row">
+              <td data-label="Date"><%= row.date.iso8601 %></td>
+              <td data-label="Account"><%= row.account.name %></td>
+              <td data-label="Payee"><%= row.transaction.payee&.name %></td>
+              <td class="data-table__money" data-label="Amount"><%= money.call(row.amount) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
