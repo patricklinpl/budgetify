@@ -78,7 +78,25 @@ module FailureReport
     "#{short}:#{line} #{clean(text, LINE_BYTES)}".strip
   end
 
-  def summary(test_id:, position:, seed:, versions:, error:, backtrace:)
+  # Where the test method is defined (file:line), from Method#source_location. It
+  # is NOT the failing line: it is only an anchor when the backtrace has no test frame.
+  def definition_from(location, root = Dir.pwd)
+    path, line = Array(location)
+    return "unknown" unless path && line
+
+    "#{File.expand_path(path, root).sub(%r{\A.*?/(test/)}, '\1')}:#{line}"
+  end
+
+  # Capybara collects matches inside a Fiber (Enumerator), so an error raised there
+  # carries a backtrace that stops at the fiber boundary and holds no test frame.
+  # This says how many frames there were and where the trace ends.
+  def trace_tail(backtrace)
+    frames = Array(backtrace)
+    last = frames.last.to_s.sub(%r{\A.*?/(gems/|lib/|test/|app/)}, '\1')
+    "#{frames.size} frames, last: #{clean(last, LINE_BYTES)}"
+  end
+
+  def summary(test_id:, position:, seed:, versions:, error:, backtrace:, location: nil)
     {
       test: clean(test_id, 200),
       position: position,
@@ -88,7 +106,9 @@ module FailureReport
       step: step_from(backtrace),
       error_class: clean(error&.class&.name, 80),
       error: clean(error&.message.to_s.lines.first.to_s.chomp, MESSAGE_BYTES),
-      element: element_from(error&.message)
+      element: element_from(error&.message),
+      test_defined_at: definition_from(location),
+      backtrace: trace_tail(backtrace)
     }
   end
 
