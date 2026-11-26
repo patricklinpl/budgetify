@@ -11,6 +11,8 @@ class FocusBeforeKeysTest < ActiveSupport::TestCase
     @now = 0.0
     @clock = -> { @now }
     @sleeps = []
+    @lines = []
+    @warner = ->(line) { @lines << line }
     @sleeper = ->(seconds) { @sleeps << seconds; @now += seconds }
   end
 
@@ -20,7 +22,7 @@ class FocusBeforeKeysTest < ActiveSupport::TestCase
     queue = states.dup
     calls = 0
     result = Guard.wait_for_focus(probe: -> { calls += 1; v = queue.size > 1 ? queue.shift : queue.first; v.respond_to?(:call) ? v.call : v },
-                                  wait: wait, clock: @clock, sleeper: @sleeper)
+                                  wait: wait, clock: @clock, sleeper: @sleeper, warner: @warner)
     [ result, calls ]
   end
 
@@ -29,6 +31,12 @@ class FocusBeforeKeysTest < ActiveSupport::TestCase
     assert_equal true, result["focus"]
     assert_equal 1, calls
     assert_empty @sleeps
+    assert_empty @lines
+  end
+
+  test "a recovered focus loss prints one FOCUS_WAIT line with checks, seconds and state" do
+    wait([ state(false), state(false), state(true) ])
+    assert_equal [ "FOCUS_WAIT recovered checks=3 waited=0.10s focus=true visibility=visible active=input#target_amount" ], @lines
   end
 
   test "an unfocused page is checked again until focus returns" do
@@ -45,12 +53,15 @@ class FocusBeforeKeysTest < ActiveSupport::TestCase
     assert_includes error.message, "Keys were not sent"
     assert_in_delta 0.2, @sleeps.sum, 1e-9
     assert_operator @sleeps.max, :<=, 0.05
+    assert_equal 1, @lines.size
+    assert_match(/\AFOCUS_WAIT failed checks=\d+ waited=0\.20s focus=false visibility=visible active=input#target_amount\z/, @lines.first)
   end
 
   test "a probe that cannot run lets the original send_keys proceed" do
     result, calls = wait([ -> { raise Selenium::WebDriver::Error::UnexpectedAlertOpenError, "alert open" } ])
     assert_nil result
     assert_equal 1, calls
+    assert_empty @lines
   end
 
   test "an odd probe result is reported without raising anything but PageNotFocused" do
