@@ -238,9 +238,12 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     versions = browser_versions
     summary = FailureReport.summary(
       test_id: "#{self.class}##{name}", position: @test_position, seed: Minitest.seed,
-      versions: versions, error: error, backtrace: error.backtrace
+      versions: versions, error: error, backtrace: error.backtrace,
+      location: (method(name).source_location rescue nil)
     )
     warn FailureReport.summary_lines(summary).join("\n")
+    driver_tail = failure_driver_tail
+    warn driver_tail.map { |l| "FAILURE_DRIVER_TAIL #{l}" }.join("\n") if driver_tail.any?
     capture = begin
       JSON.parse(Timeout.timeout(5) { page.evaluate_script(INPUT_CAPTURE_READ_JS) })
     rescue StandardError => e
@@ -248,11 +251,22 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     end
     path = FailureReport.write(@test_position, "#{self.class}##{name}", {
       summary: summary, browser_state_at_failure: FailureReport.browser_state(page.driver.browser),
-      window_trace: @window_trace, input_capture: capture, recent_inputs: FailureReport.inputs
+      window_trace: @window_trace, input_capture: capture, recent_inputs: FailureReport.inputs,
+      driver_tail: driver_tail
     })
     warn "FAILURE_SUMMARY record=#{path}" if path
   rescue StandardError => e
     warn "FAILURE_REPORT unavailable: #{e.class}"
+  end
+
+  # The newest ChromeDriver log records of this test, for the failure report. Read
+  # only; empty when the driver log is not enabled.
+  def failure_driver_tail
+    return [] unless @driver_log_mark
+
+    ChromedriverTimeline.tail(ChromedriverTimeline.current_path, from: @driver_log_mark)
+  rescue StandardError
+    []
   end
 
   # Passing tests, only with DIAG_PASS_CONTROL=1: one line with the counts of the
