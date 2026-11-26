@@ -148,30 +148,38 @@ jobs:
           # At 50+ tests Rails switches to one worker per CPU (4 Chrome + 4 servers
           # on the runner). The earlier 43-test runs were single process.
           PARALLEL_WORKERS: "1"
-          # Diagnostic, not a fix: ChromeDriver's own verbose log goes to this
-          # private directory and is never printed or uploaded; a failed test
-          # prints only a sanitized timing skeleton (test/test_helpers/
-          # chromedriver_timeline.rb). Removed on any exit of this step and by
-          # the always() step below.
-          CHROMEDRIVER_TIMELINE_DIR: ${{ runner.temp }}/chromedriver-timeline
+          # Diagnostics only, not a fix. Nothing here adds a wait, retry or assertion.
+          # Everything below lands in one directory that the next steps upload only
+          # when the job failed: ChromeDriver's verbose log, Chrome's own log, one
+          # JSON record per failed test (summary, browser targets and window bounds,
+          # the full page-side input capture, the recent inputs). A failed test also
+          # prints a FAILURE_SUMMARY block, and every test prints an INPUT_OK line
+          # (the capture's event counts) as a positive control. The test data is
+          # synthetic; the raw logs carry its URLs, element ids and field values.
+          DIAG_ARTIFACT_DIR: ${{ github.workspace }}/tmp/diagnostics
+          CHROMEDRIVER_TIMELINE_DIR: ${{ github.workspace }}/tmp/diagnostics/chromedriver
+          CHROMEDRIVER_LOG_KEEP: "1"
+          DIAG_CHROME_LOG: "1"
+          DIAG_PASS_CONTROL: "1"
+          # Reads targets and window bounds over CDP right AFTER each element click
+          # and send_keys returned (a few ms; the input itself is not delayed).
+          # Remove this line to turn the per-input read off.
+          DIAG_INPUT_STATE: "1"
           # Diagnostic, not a fix: -v prints each test name, time and result in run
           # order so a red can be read against the tests before it.
         run: |
-          trap 'rm -rf "$CHROMEDRIVER_TIMELINE_DIR"' EXIT
           trap 'exit 143' TERM
           trap 'exit 130' INT
           bin/rails db:test:prepare && bin/rails test:system -v
 
-      - name: Remove raw ChromeDriver logs
-        if: always()
-        env:
-          CHROMEDRIVER_TIMELINE_DIR: ${{ runner.temp }}/chromedriver-timeline
-        run: rm -rf "$CHROMEDRIVER_TIMELINE_DIR"
-
-      - name: Keep screenshots from failed system tests
+      - name: Keep diagnostics and screenshots from a failed system test run
         uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: screenshots
-          path: ${{ github.workspace }}/tmp/screenshots
+          name: system-test-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ github.workspace }}/tmp/diagnostics
+            ${{ github.workspace }}/tmp/screenshots
+          # 90 days is the longest GitHub keeps an artifact.
+          retention-days: 90
           if-no-files-found: ignore
