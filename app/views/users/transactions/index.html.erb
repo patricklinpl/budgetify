@@ -18,6 +18,7 @@
 <section class="plan-settings register-page">
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <% if alert %><div class="plan-settings__errors" role="alert"><p><%= alert %></p></div><% end %>
+  <%= render "layouts/app_shell/balance_summary", account: @account, details: false %>
   <div class="register-page__controls">
   <%= form_with url: users_budget_account_transactions_path(@budget.public_id, @account.public_id), method: :get, class: "register-page__search", html: { role: "search" } do |form| %>
     <%= form.label :q, "Search payee" %>
