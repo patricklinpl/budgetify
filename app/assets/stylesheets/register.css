@@ -37,3 +37,6 @@
 /* A transaction with no category shows its existing "Needs a category" text as an amber chip, so it stands out in the list. The text and the status line above the table are unchanged. */
 .register-chip { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 0.1rem 0.6rem; border-radius: var(--radius-pill); font-weight: var(--font-weight-semibold); line-height: 1.4; overflow-wrap: anywhere; }
 .register-chip--attention { background: var(--color-chip-attention-bg); color: var(--color-chip-attention-text); }
+
+/* Account balance line above the register search: cleared + uncleared = working. */
+.register-page .shell-balance-summary { margin: 0.5rem 0 0.25rem; }
