@@ -164,7 +164,6 @@ jobs:
           # Reads targets and window bounds over CDP right AFTER each element click
           # and send_keys returned (a few ms; the input itself is not delayed).
           # Remove this line to turn the per-input read off.
-          DIAG_INPUT_STATE: "1"
           # Diagnostic, not a fix: -v prints each test name, time and result in run
           # order so a red can be read against the tests before it.
         run: |
@@ -181,5 +180,5 @@ jobs:
             ${{ github.workspace }}/tmp/diagnostics
             ${{ github.workspace }}/tmp/screenshots
           # 90 days is the longest GitHub keeps an artifact.
-          retention-days: 90
+          retention-days: 30
           if-no-files-found: ignore
