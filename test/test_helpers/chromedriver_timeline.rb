@@ -11,7 +11,8 @@ require "fileutils"
 # a click's dispatch, its "Waiting for pending navigations" steps, its response
 # and the browser's navigation events. The raw ChromeDriver log has all of
 # that, but it also carries URLs, element and session ids, script text, page
-# text and field values, so it is never printed or uploaded.
+# text and field values, so it is never printed. CI uploads the raw log as an
+# artifact only when the job failed (CHROMEDRIVER_LOG_KEEP=1; synthetic data only).
 #
 # What comes out: one line per allowlisted record, made of only
 #   +<ms since the first kept record> <kind> <token> [<status>]
@@ -236,7 +237,11 @@ module ChromedriverTimeline
     # Removes the raw logs. Called when the run ends, after extraction. The CI job
     # also removes the directory itself (shell EXIT trap and an always() step), so
     # a crashed or killed worker does not leave raw files behind.
+    # CHROMEDRIVER_LOG_KEEP=1 (CI, with the failure artifact upload) keeps the raw
+    # logs so a failed run can upload them; CI then removes nothing itself.
     def cleanup
+      return if ENV["CHROMEDRIVER_LOG_KEEP"] == "1"
+
       FileUtils.rm_rf(@dir) if @dir
     end
 
