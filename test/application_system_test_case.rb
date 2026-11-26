@@ -1,14 +1,19 @@
 require "test_helper"
 require_relative "test_helpers/chromedriver_timeline"
 require_relative "test_helpers/chrome_reset_compat"
+require_relative "test_helpers/failure_report"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   DESKTOP_WINDOW = [ 1400, 1400 ].freeze
   # Diagnostics only (see ChromedriverTimeline): on CI the driver writes its own
   # verbose log to a private temp file; only a sanitized timing skeleton of it is
   # ever printed, and only for a failed test. No wait, retry or classification.
+  # FailureReport.chrome_args is empty unless DIAG_CHROME_LOG=1 (CI): it asks Chrome
+  # to write its own log into the diagnostics directory. Diagnostics only.
   driven_by :selenium, using: :headless_chrome, screen_size: DESKTOP_WINDOW,
-            options: ChromedriverTimeline.driver_options
+            options: ChromedriverTimeline.driver_options do |driver_option|
+    FailureReport.chrome_args.each { |arg| driver_option.add_argument(arg) }
+  end
 
   if ChromedriverTimeline.enabled?
     ActiveSupport::Testing::Parallelization.after_fork_hook { |worker| ChromedriverTimeline.after_fork(worker) }
@@ -17,7 +22,34 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   def before_setup
     @driver_log_mark = ChromedriverTimeline.enabled? ? ChromedriverTimeline.mark : nil
+    # Plain counter for the failure report (position of this test in the process).
+    ApplicationSystemTestCase.test_position = ApplicationSystemTestCase.test_position.to_i + 1
+    @test_position = ApplicationSystemTestCase.test_position
     super
+  end
+
+  class << self
+    attr_accessor :test_position, :browser_versions
+  end
+
+  # Diagnostics only (FailureReport): remember the browser for the input hook and
+  # print the versions once per process. No CDP call, no wait.
+  setup do
+    FailureReport.reset_inputs(page.driver.browser) if FailureReport.enabled?
+    FailureReport.install_hook
+    if FailureReport.enabled? && @test_position == 1
+      versions = browser_versions
+      warn "RUN_INFO seed=#{Minitest.seed} chrome=#{versions[:chrome]} chromedriver=#{versions[:chromedriver]}"
+    end
+  rescue StandardError => e
+    warn "FAILURE_REPORT setup unavailable: #{e.class}"
+  end
+
+  def browser_versions
+    ApplicationSystemTestCase.browser_versions ||= begin
+      caps = page.driver.browser.capabilities
+      { chrome: caps.browser_version, chromedriver: caps["chrome"]&.fetch("chromedriverVersion", nil).to_s.split(" ").first }
+    end
   end
 
   # Every system test signs in through the real form, and sessions#create is
@@ -189,8 +221,59 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     report_lost_node
     report_driver_timeline
     report_input_capture
+    report_failure
+    report_pass_control
   ensure
     super
+  end
+
+  # Failed tests only, only when DIAG_ARTIFACT_DIR is set. Prints the summary and
+  # writes the full record (summary, browser state now, full input capture, the
+  # recent inputs) to the diagnostics directory. Runs after the test body, so it
+  # cannot change what the test did. A failure here is only warned.
+  def report_failure
+    return unless FailureReport.enabled? && failures.any?
+
+    error = failures.first.respond_to?(:error) ? failures.first.error : failures.first
+    versions = browser_versions
+    summary = FailureReport.summary(
+      test_id: "#{self.class}##{name}", position: @test_position, seed: Minitest.seed,
+      versions: versions, error: error, backtrace: error.backtrace
+    )
+    warn FailureReport.summary_lines(summary).join("\n")
+    capture = begin
+      JSON.parse(Timeout.timeout(5) { page.evaluate_script(INPUT_CAPTURE_READ_JS) })
+    rescue StandardError => e
+      { unavailable: e.class.name }
+    end
+    path = FailureReport.write(@test_position, "#{self.class}##{name}", {
+      summary: summary, browser_state_at_failure: FailureReport.browser_state(page.driver.browser),
+      window_trace: @window_trace, input_capture: capture, recent_inputs: FailureReport.inputs
+    })
+    warn "FAILURE_SUMMARY record=#{path}" if path
+  rescue StandardError => e
+    warn "FAILURE_REPORT unavailable: #{e.class}"
+  end
+
+  # Passing tests, only with DIAG_PASS_CONTROL=1: one line with the counts of the
+  # events the page-side capture saw, so a log shows the capture works. One read
+  # after the test body, nothing else.
+  PASS_CONTROL_JS = <<~JS.freeze
+    (() => {
+      const log = window.__inputLog || [];
+      const count = (kind) => log.filter((entry) => new RegExp("ms " + kind + " ").test(entry)).length;
+      return JSON.stringify({ docId: window.__docId || null, installed: !!window.__inputLogInstalled,
+        keydown: count("keydown"), input: count("input"), click: count("click"), entries: log.length });
+    })()
+  JS
+
+  def report_pass_control
+    return unless FailureReport.pass_control? && failures.empty?
+
+    data = JSON.parse(Timeout.timeout(5) { page.evaluate_script(PASS_CONTROL_JS) })
+    warn "INPUT_OK test=#{self.class}##{name} pos=#{@test_position} doc=#{data['docId'].to_s[0, 8]} installed=#{data['installed']} keydown=#{data['keydown']} input=#{data['input']} click=#{data['click']} entries=#{data['entries']}"
+  rescue StandardError => e
+    warn "INPUT_OK unavailable: #{e.class}"
   end
 
   # Failed tests only. Prints the sanitized skeleton of the driver log written
