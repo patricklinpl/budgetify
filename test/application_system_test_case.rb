@@ -1,6 +1,7 @@
 require "test_helper"
 require_relative "test_helpers/chromedriver_timeline"
 require_relative "test_helpers/chrome_reset_compat"
+require_relative "test_helpers/focus_before_keys"
 require_relative "test_helpers/failure_report"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
