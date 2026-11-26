@@ -147,6 +147,21 @@ class ChromedriverTimelineTest < ActiveSupport::TestCase
     with_env("CHROMEDRIVER_TIMELINE_DIR" => nil, "CHROMEDRIVER_TIMELINE" => "1") { assert ChromedriverTimeline.enabled? }
   end
 
+  test "[engineering] cleanup removes the raw logs unless CHROMEDRIVER_LOG_KEEP is 1" do
+    Dir.mktmpdir do |tmp|
+      dir = File.join(tmp, "logs")
+      FileUtils.mkdir_p(dir)
+      File.write(File.join(dir, "driver.log"), "x")
+      ChromedriverTimeline.instance_variable_set(:@dir, dir)
+      with_env("CHROMEDRIVER_LOG_KEEP" => "1") { ChromedriverTimeline.cleanup }
+      assert File.exist?(File.join(dir, "driver.log"))
+      with_env("CHROMEDRIVER_LOG_KEEP" => nil) { ChromedriverTimeline.cleanup }
+      assert_not File.exist?(dir)
+    ensure
+      ChromedriverTimeline.instance_variable_set(:@dir, nil)
+    end
+  end
+
   CLICK = [ %w[C ClickElement], %w[D Input.dispatchMouseEvent], %w[d Input.dispatchMouseEvent],
             %w[R ClickElement], %w[E Page.frameNavigated], %w[E Page.loadEventFired] ].freeze
   TYPE = [ %w[C TypeElement], %w[D Input.dispatchKeyEvent], %w[d Input.dispatchKeyEvent], %w[R TypeElement] ].freeze
