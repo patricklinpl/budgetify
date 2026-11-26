@@ -47,3 +47,6 @@
   .register-page__controls .register-page__periods { order: 1; margin: 0; }
   .register-page__controls .register-page__search { order: 2; width: auto; flex: 0 1 28rem; margin: 0; flex-wrap: nowrap; }
 }
+
+/* Account balance line above the register search: cleared + uncleared = working. */
+.register-page .shell-balance-summary { margin: 0.5rem 0 0.25rem; }
