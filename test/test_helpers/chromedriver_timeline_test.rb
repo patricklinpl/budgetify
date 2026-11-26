@@ -316,7 +316,60 @@ class ChromedriverTimelineTest < ActiveSupport::TestCase
     assert_operator ChromedriverTimeline::TAIL_RECORDS * worst_line, :<=, ChromedriverTimeline::MAX_OUTPUT_BYTES
   end
 
+  test "[engineering] tail: newest records with epoch stamps, fixed-list navigation details and error codes only" do
+    raw = []
+    raw << "#{stamp(0)}[#{SID}] COMMAND ClickElement {"
+    raw << '   "id": "f.CANARY_NODE.d.CANARY_DOC.e.1"'
+    raw << "}"
+    raw << "#{stamp(0.026, 'DEBUG')}DevTools WebSocket Event: Page.frameRequestedNavigation (session_id=CANARY_S) CANARY_T {"
+    raw << '   "disposition": "currentTab",'
+    raw << '   "reason": "formSubmissionPost",'
+    raw << '   "url": "http://127.0.0.1/CANARY_URL"'
+    raw << "}"
+    raw << "#{stamp(0.027)}[#{SID}] RESPONSE ClickElement"
+    raw << "#{stamp(0.032, 'DEBUG')}DevTools WebSocket Event: Page.frameScheduledNavigation (session_id=CANARY_S) CANARY_T {"
+    raw << '   "reason": "CANARY_NOT_IN_LIST",'
+    raw << "}"
+    raw << "#{stamp(0.033, 'DEBUG')}DevTools WebSocket Event: Page.frameStartedNavigating (session_id=CANARY_S) CANARY_T {"
+    raw << '   "navigationType": "differentDocument",'
+    raw << "}"
+    raw << "#{stamp(0.037, 'DEBUG')}DevTools WebSocket Command: DOM.resolveNode (id=3479) (session_id=CANARY_S) CANARY_T {"
+    raw << '   "objectId": "CANARY_OBJECT"'
+    raw << "}"
+    raw << "#{stamp(0.112, 'DEBUG')}DevTools WebSocket Response: DOM.resolveNode (id=3479) (session_id=CANARY_S) CANARY_T {\"code\":-32000,\"message\":\"CANARY_MESSAGE\"}"
+    raw << "#{stamp(0.113, 'DEBUG')}DevTools WebSocket Event: Page.unknownEvent (session_id=CANARY_S) CANARY_T {"
+    raw << "#{stamp(0.114)}Done waiting for pending navigations. Status: ok"
+    lines = tail_of(raw.join("\n") + "\n")
+
+    assert_equal [
+      "-114ms 1795591700.000 C ClickElement", "-88ms 1795591700.026 E Page.frameRequestedNavigation formSubmissionPost",
+      "-87ms 1795591700.027 R ClickElement", "-82ms 1795591700.032 E Page.frameScheduledNavigation",
+      "-81ms 1795591700.033 E Page.frameStartedNavigating differentDocument", "-77ms 1795591700.037 D DOM.resolveNode",
+      "-2ms 1795591700.112 d DOM.resolveNode err-32000", "-0ms 1795591700.114 W done ok"
+    ], lines
+    lines.each { |l| assert_match ChromedriverTimeline::TAIL_FORMAT, l }
+    assert_no_match(/CANARY/, lines.join)
+  end
+
+  test "[engineering] tail: keeps only the newest records and handles a missing or empty log" do
+    raw = (0...60).map { |i| "#{stamp(i * 0.01)}[#{SID}] COMMAND FindElements {\n}" }.join("\n") + "\n"
+    lines = tail_of(raw)
+
+    assert_equal ChromedriverTimeline::TAIL_RECORDS_SHOWN, lines.size
+    assert_match(/\A-\d+ms 1795591700\.\d{3} C FindElements\z/, lines.first)
+    assert_equal [], tail_of("")
+    assert_equal [], ChromedriverTimeline.tail("/nonexistent/driver.log")
+  end
+
   private
+
+  def tail_of(raw)
+    Tempfile.create([ "driver", ".log" ], binmode: true) do |f|
+      f.write(raw)
+      f.flush
+      ChromedriverTimeline.tail(f.path)
+    end
+  end
 
   def with_env(vars)
     saved = vars.keys.to_h { |k| [ k, ENV[k] ] }

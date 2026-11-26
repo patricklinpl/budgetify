@@ -20,6 +20,9 @@ require "fileutils"
 #       D/d  DevTools command/response    token from DEVTOOLS_CALLS
 #       E    DevTools event               token from EVENTS
 #       W    pending-navigation wait      token "wait" or "done", status ok|timeout|other
+# A failure also prints a short tail of the newest records (see tail) with their epoch
+# stamps, and, from fixed lists only, the reason of a navigation event or the numeric
+# code of a DevTools error response.
 # Everything else is dropped and only counted: payload lines, error text, ids,
 # URLs, unknown verbs or events, malformed or oversized lines. A line is parsed
 # from its first PREFIX_BYTES bytes only and a token is accepted only when it
@@ -59,6 +62,23 @@ module ChromedriverTimeline
     Navigate Refresh GoBack GoForward ClickElement TypeElement ClearElement
     SubmitElement PerformActions ReleaseActions SetWindowRect DismissAlert AcceptAlert
   ].freeze
+
+
+  # The last-records tail printed with a failure (see tail). Same allowlist rules as
+  # the skeleton, plus DOM.resolveNode, which shows what the driver was resolving,
+  # a time before the end and the epoch stamp of each record, and two fixed-value
+  # details: the navigation reason or type of a navigation event, and the numeric
+  # code of a DevTools error response.
+  TAIL_RECORDS_SHOWN = 60
+  TAIL_CALLS = (DEVTOOLS_CALLS + %w[DOM.resolveNode]).freeze
+  TAIL_DETAIL_EVENTS = %w[Page.frameRequestedNavigation Page.frameScheduledNavigation Page.frameStartedNavigating].freeze
+  NAVIGATION_VALUES = %w[
+    formSubmissionPost formSubmissionGet reload reloadBypassingCache anchorClick scriptInitiated
+    clientRedirect httpHeaderRefresh metaTagRefresh historyApi differentDocument sameDocument restore
+  ].freeze
+  NAVIGATION_DETAIL = /\A\s+"(?:reason|navigationType)": "([A-Za-z]{1,30})",?\z/n
+  ERROR_CODE = /\{"code":(-?\d{1,6}),/n
+  TAIL_FORMAT = /\A-\d+ms \d{10,12}\.\d{3} [CRDdEW] [A-Za-z.]{1,60}(?: (?:ok|timeout|other|err-?\d{1,6}|(?:#{NAVIGATION_VALUES.join('|')})))*\z/
 
   STATUSES = %w[ok timeout].freeze
 
@@ -273,7 +293,58 @@ module ChromedriverTimeline
                  dropped_tail: 0, dropped_action: 0, dropped_other: 0)
     end
 
-    def parse(line, first)
+    # The newest TAIL_RECORDS_SHOWN allowlisted records written after byte offset
+    # +from+, as "-<ms before the last record>ms <epoch> <kind> <token> [detail]".
+    # Observation only, read after the test body. The detail is accepted only from
+    # a fixed list (navigation reason or type) or as a numeric error code.
+    def tail(path, from: 0, count: TAIL_RECORDS_SHOWN)
+      ring = []
+      last = nil
+      File.open(path, "rb") do |io|
+        io.seek(from)
+        io.gets("\n", PREFIX_BYTES) if from.positive?
+        io.each_line("\n", PREFIX_BYTES) do |raw|
+          line = raw.chomp
+          if STAMP.match?(line)
+            last = parse_tail(line)
+            next unless last
+
+            ring << last
+            ring.shift if ring.size > count
+          elsif last && last[:open] && (m = NAVIGATION_DETAIL.match(line)) && NAVIGATION_VALUES.include?(m[1])
+            last[:detail] = [ last[:detail], m[1] ].compact.join(" ")
+          end
+        end
+      end
+      render_tail(ring)
+    rescue SystemCallError, IOError
+      []
+    end
+
+    def parse_tail(line)
+      record = parse(line, nil, calls: TAIL_CALLS)
+      return nil unless record
+
+      record[:detail] = record[:status] if record[:status]
+      record[:open] = TAIL_DETAIL_EVENTS.include?(record[:token]) if record[:kind] == "E"
+      if record[:kind] == "d" && (m = ERROR_CODE.match(line.byteslice(0, PREFIX_BYTES)))
+        record[:detail] = "err#{m[1]}"
+      end
+      record
+    end
+
+    def render_tail(ring)
+      return [] if ring.empty?
+
+      end_t = ring.last[:t]
+      ring.map do |r|
+        parts = [ format("-%dms", ((end_t - r[:t]) * 1000).round), format("%.3f", r[:t]), r[:kind], r[:token] ]
+        parts << r[:detail] if r[:detail]
+        parts.join(" ")
+      end
+    end
+
+    def parse(line, first, calls: DEVTOOLS_CALLS)
       stamp = STAMP.match(line)
       return nil unless stamp
 
@@ -286,7 +357,7 @@ module ChromedriverTimeline
         name = m[2]
         case m[1]
         when "Event" then EVENTS.include?(name) ? { t: t, kind: "E", token: name } : nil
-        else DEVTOOLS_CALLS.include?(name) ? { t: t, kind: (m[1] == "Command" ? "D" : "d"), token: name } : nil
+        else calls.include?(name) ? { t: t, kind: (m[1] == "Command" ? "D" : "d"), token: name } : nil
         end
       elsif WAITING.match?(rest)
         { t: t, kind: "W", token: "wait" }

@@ -37,8 +37,21 @@ class FailureReportTest < ActiveSupport::TestCase
                                     error: error, backtrace: [ "x" ])
     assert_equal({ test: "T#test_a", position: 9, seed: 8005, chrome: "158.0.8127.36", chromedriver: "158.0.8127.36",
                    step: "no test frame in the backtrace", error_class: "Capybara::ExpectationNotMet",
-                   error: %(expected to find css ".l" 2 times\n).chomp, element: "css .l" }, summary)
+                   error: %(expected to find css ".l" 2 times\n).chomp, element: "css .l",
+                   test_defined_at: "unknown", backtrace: "1 frames, last: x" }, summary)
     assert_includes FailureReport.summary_lines(summary), "FAILURE_SUMMARY position=9"
+  end
+
+  test "[engineering] without a test frame the report still says where the test is defined and where the trace ends" do
+    frames = [ "/gems/selenium/response.rb:63:in 'add_cause'", "/home/r/vendor/bundle/ruby/3.4.0/gems/capybara-3.40.0/lib/capybara/result.rb:32:in 'block in initialize'" ]
+    assert_equal "2 frames, last: gems/capybara-3.40.0/lib/capybara/result.rb:32:in 'block in initialize'", FailureReport.trace_tail(frames)
+    assert_equal "0 frames, last: ", FailureReport.trace_tail(nil)
+    assert_equal "test/system/x_test.rb:74", FailureReport.definition_from([ "/home/r/work/b/test/system/x_test.rb", 74 ])
+    assert_equal "unknown", FailureReport.definition_from(nil)
+    summary = FailureReport.summary(test_id: "T#a", position: 1, seed: 1, versions: { chrome: "1", chromedriver: "1" },
+                                    error: RuntimeError.new("boom"), backtrace: frames, location: [ "/home/r/work/b/test/system/x_test.rb", 74 ])
+    assert_equal "no test frame in the backtrace", summary[:step]
+    assert_equal "test/system/x_test.rb:74", summary[:test_defined_at]
   end
 
   test "[engineering] clean keeps printable ASCII only" do
