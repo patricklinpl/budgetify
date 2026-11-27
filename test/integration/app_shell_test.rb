@@ -47,7 +47,7 @@ class AppShellTest < ActionDispatch::IntegrationTest
     assert_select ".shell-header--plan .shell-pill", /Ready to Assign/
     assert_select ".shell-header--plan .shell-chip", count: 6
     assert_select ".shell-header--plan .shell-toolbar button", text: "Add Category Group"
-    assert_select ".app-shell-inspector .shell-panel", count: 2
+    assert_select ".app-shell-inspector .shell-panel", count: 3
     assert_select ".app-shell-inspector .shell-panel-title", /Summary/
     assert_select ".app-shell-inspector .shell-panel-title", "Auto-Assign"
     assert_select ".app-shell-sidebar form[action='#{session_path}'] button", "Sign out"
