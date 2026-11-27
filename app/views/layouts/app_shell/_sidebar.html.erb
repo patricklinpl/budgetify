@@ -58,8 +58,7 @@
   <% if closed_accounts.any? %>
     <details class="app-shell-account-group" <%= "open" if @selected_account&.closed %>>
       <summary class="app-shell-account-group-header">
-        <span class="app-shell-account-group-name">Closed accounts</span>
-        <span class="money"><%= closed_accounts.size %></span>
+        <span class="app-shell-account-group-name">CLOSED</span>
       </summary>
       <ul class="app-shell-accounts">
         <% closed_accounts.each do |account| %>
