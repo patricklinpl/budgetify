@@ -731,3 +731,12 @@ a.shell-chip { text-decoration: none; }
 :root[data-theme="dark"] .shell-header--plan .shell-toolbar .shell-button:hover:not(:disabled) {
   color: var(--color-accent-active);
 }
+
+/* Inspector panel actions that are not built yet (Cost to Be Me): the same dashed
+   outline and lower opacity as the plan header's disabled buttons, so the state is
+   not carried by color alone. */
+.shell-panel > .shell-button:disabled {
+  border-style: dashed;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
