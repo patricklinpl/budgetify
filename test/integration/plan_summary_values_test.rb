@@ -139,5 +139,4 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     assert_equal "$0.00", rows["Assigned Last Month"]
     assert_equal "$0.00", rows["Assigned in Future Months"]
   end
-
 end
