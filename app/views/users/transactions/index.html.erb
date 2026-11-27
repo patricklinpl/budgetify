@@ -19,6 +19,7 @@
   <% if notice %><p class="plan-settings__notice" role="status"><%= notice %></p><% end %>
   <% if alert %><div class="plan-settings__errors" role="alert"><p><%= alert %></p></div><% end %>
   <%= render "layouts/app_shell/balance_summary", account: @account, details: false %>
+  <div class="register-page__controls">
   <%= form_with url: users_budget_account_transactions_path(@budget.public_id, @account.public_id), method: :get, class: "register-page__search", html: { role: "search" } do |form| %>
     <%= form.label :q, "Search payee" %>
     <%= form.search_field :q, value: @search, maxlength: 200, autocomplete: "off" %>
@@ -32,6 +33,7 @@
       <%= link_to label, users_budget_account_transactions_path(@budget.public_id, @account.public_id, { q: @search.presence, period: (key == "all" ? nil : key), reconciled: (@show_reconciled ? "1" : nil) }.compact), class: "shell-button", "aria-current": (@period == key ? "true" : nil) %>
     <% end %>
   </nav>
+  </div>
   <% if @hidden_by_filters.to_i.positive? %><p class="register-page__hidden" role="status"><%= @hidden_by_filters %> <%= "transaction".pluralize(@hidden_by_filters) %> hidden by filters. Clear the search or choose All dates to see <%= @hidden_by_filters == 1 ? "it" : "them" %>.</p><% end %>
   <% if @hidden_reconciled.to_i.positive? %><p class="register-page__hidden" role="status"><%= @hidden_reconciled %> reconciled <%= "transaction".pluralize(@hidden_reconciled) %> hidden. Use Show Reconciled to see them.</p><% end %>
   <% if @needs_category_count.to_i.positive? %><p class="register-page__hidden" role="status"><%= @needs_category_count %> <%= "transaction".pluralize(@needs_category_count) %> <%= @needs_category_count == 1 ? "needs" : "need" %> a category.</p><% end %>
