@@ -54,6 +54,30 @@ class FailureReportTest < ActiveSupport::TestCase
     assert_equal "test/system/x_test.rb:74", summary[:test_defined_at]
   end
 
+  test "[engineering] failure_lines prints focus, active element, keydown count, targets and the send_keys offsets" do
+    capture = { "focus" => false, "active" => "input#q",
+                "inputLog" => [ "10ms keydown a input#q", "11ms keyup a input#q", "12ms keydown b input#q", "13ms click x" ] }
+    state = { targets: [ { type: "page", id: "ABCD1234", attached: true }, { type: "service_worker", id: "EF567890", attached: false } ] }
+    lines = FailureReport.failure_lines(capture, state, [ 120, 480 ])
+    assert_equal "FAILURE_PAGE focus=false active=input#q keydown_count=2 targets=page:ABCD1234:true,service_worker:EF567890:false", lines.first
+    assert_equal "FAILURE_KEYS send_keys_at_ms=120,480", lines.last
+  end
+
+  test "[engineering] failure_lines survives a missing capture and a browser error" do
+    lines = FailureReport.failure_lines({ "unavailable" => "Timeout::Error" }, { error: "X" }, nil)
+    assert_equal "FAILURE_PAGE focus= active= keydown_count=0 targets=", lines.first
+    assert_equal "FAILURE_KEYS send_keys_at_ms=", lines.last
+  end
+
+  test "[engineering] the key stamp records an offset and never calls the driver" do
+    FailureReport.reset_inputs(Object.new)
+    FailureReport.stamp_keys
+    FailureReport.stamp_keys
+    assert_equal 2, FailureReport.keys.size
+    FailureReport.reset_inputs(Object.new)
+    assert_empty FailureReport.keys
+  end
+
   test "[engineering] clean keeps printable ASCII only" do
     assert_equal "a?b", FailureReport.clean("a\u0007b", 10)
     assert_equal "abc", FailureReport.clean("abcdef", 3)

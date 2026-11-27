@@ -38,6 +38,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   setup do
     FailureReport.reset_inputs(page.driver.browser) if FailureReport.enabled?
     FailureReport.install_hook
+    FailureReport.install_key_stamp
     if FailureReport.enabled? && @test_position == 1
       versions = browser_versions
       warn "RUN_INFO seed=#{Minitest.seed} chrome=#{versions[:chrome]} chromedriver=#{versions[:chromedriver]}"
@@ -250,8 +251,10 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     rescue StandardError => e
       { unavailable: e.class.name }
     end
+    state_at_failure = FailureReport.browser_state(page.driver.browser)
+    warn FailureReport.failure_lines(capture, state_at_failure, FailureReport.keys).join("\n")
     path = FailureReport.write(@test_position, "#{self.class}##{name}", {
-      summary: summary, browser_state_at_failure: FailureReport.browser_state(page.driver.browser),
+      summary: summary, browser_state_at_failure: state_at_failure,
       window_trace: @window_trace, input_capture: capture, recent_inputs: FailureReport.inputs,
       driver_tail: driver_tail
     })
