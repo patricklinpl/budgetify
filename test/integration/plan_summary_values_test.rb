@@ -112,6 +112,7 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     get users_budget_path(@budget.public_id)
     assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$0\.00/
   end
+
   def auto_rows
     css_select("#shell-auto-title").first.parent.css(".shell-panel-row").to_h { |row| [ row.at_css("span").text.strip, row.css("span").last.text.strip ] }
   end
