@@ -16,6 +16,20 @@
     <% end %>
   </dl>
 </section>
+<section class="shell-panel" aria-labelledby="shell-cost-title">
+  <h2 id="shell-cost-title" class="shell-panel-title">Cost to Be Me</h2>
+  <dl class="shell-panel-list">
+    <div class="shell-panel-row">
+      <dt><%= Date.current.strftime("%B") %>&rsquo;s Targets</dt>
+      <% if @plan_summary %>
+        <dd class="money"><%= shell_money(@plan_summary[:targets]) %></dd>
+      <% else %>
+        <dd class="money">&mdash;</dd>
+      <% end %>
+    </div>
+  </dl>
+  <button type="button" class="shell-button" disabled title="Expected income is not built yet">Enter your expected income</button>
+</section>
 <section class="shell-panel" aria-labelledby="shell-auto-title">
   <h2 id="shell-auto-title" class="shell-panel-title">Auto-Assign</h2>
   <ul class="shell-panel-list">

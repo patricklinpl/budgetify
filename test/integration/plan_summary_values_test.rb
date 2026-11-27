@@ -82,4 +82,25 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     get users_budget_path(@budget.public_id)
     assert_select ".shell-header--plan .shell-pill-amount", ActionController::Base.helpers.number_to_currency(api / 1000.0)
   end
+
+  test "Cost to Be Me totals the monthly targets, hidden categories included" do
+    hidden = @dining.category_group.categories.create!(budget: @budget, name: "Hidden target", hidden: true)
+    MonthlyTarget.set!(@dining, 12_000, month: Date.current.beginning_of_month)
+    MonthlyTarget.set!(hidden, 8_000, month: Date.current.beginning_of_month)
+    get users_budget_path(@budget.public_id)
+    assert_select ".app-shell-inspector .shell-panel-title", "Cost to Be Me"
+    assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$20\.00/
+    assert_select ".app-shell-inspector button[disabled]", text: "Enter your expected income"
+  end
+
+  test "Cost to Be Me is zero when no category has a monthly target" do
+    get users_budget_path(@budget.public_id)
+    assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$0\.00/
+  end
+
+  test "a target of another kind adds nothing to Cost to Be Me" do
+    @dining.update!(goal_type: "TB", goal_target: 50_000)
+    get users_budget_path(@budget.public_id)
+    assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$0\.00/
+  end
 end
