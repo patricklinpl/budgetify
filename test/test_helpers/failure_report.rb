@@ -143,6 +143,35 @@ module FailureReport
     { error: e.class.name }
   end
 
+  # Page-side state read right after a send_keys returned: document focus, the
+  # active element, how many keydown events the page capture has recorded so far,
+  # and the id of the browser target this driver session is attached to. Read only.
+  PAGE_STATE_JS = <<~JS.freeze
+    return {
+      focus: document.hasFocus(),
+      active: window.__inputLogToken ? window.__inputLogToken(document.activeElement) : null,
+      keydown: (window.__inputLog || []).filter(function (e) { return / keydown /.test(e); }).length
+    };
+  JS
+
+  def page_state(browser)
+    raw = browser.execute_script(PAGE_STATE_JS)
+    raw = {} unless raw.is_a?(Hash)
+    { focus: raw["focus"] == true, active: clean(raw["active"], 80), keydown: raw["keydown"].to_i,
+      driver_target: clean(browser.window_handle, 8) }
+  rescue StandardError => e
+    { error: e.class.name }
+  end
+
+  # One printable line per recorded send_keys, for the log of a failed test.
+  def input_lines(entries)
+    Array(entries).select { |e| e[:input] == :send_keys }.map do |e|
+      page = e[:page] || {}
+      "FAILURE_INPUT send_keys at_ms=#{e[:at_ms]} focus=#{page[:focus]} active=#{page[:active]} " \
+        "keydown_count=#{page[:keydown]} driver_target=#{page[:driver_target]}#{" error=#{page[:error]}" if page[:error]}"
+    end
+  end
+
   # Recent inputs, newest last. Filled by ElementHook only when input_state?.
   def inputs
     @inputs ||= []
@@ -160,6 +189,7 @@ module FailureReport
 
     entry = { input: kind, at_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started) * 1000).round }
     entry[:state] = browser_state(@browser)
+    entry[:page] = page_state(@browser) if kind == :send_keys
     inputs << entry
     inputs.shift while inputs.size > INPUT_RING
   rescue StandardError
