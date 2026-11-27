@@ -82,6 +82,7 @@ module Users
       def load_grid
         @show_hidden = params[:hidden] == "1"
         @grid, @hidden_count = PlanGrid.build(@budget, show_hidden: @show_hidden)
+        @plan_summary = PlanFigures.build(@budget, @grid)
         @filter = PlanGrid::FILTERS.key?(params[:filter]) ? params[:filter] : "all"
         @filtered_out = 0
         @grid, @filtered_out = PlanGrid.filter(@grid, @filter) unless @filter == "all"
