@@ -17,8 +17,8 @@ class RegisterStatusMarkersTest < ActionDispatch::IntegrationTest
     list
     assert_response :success
     assert_select "span.register-flag--red[aria-label='Check this']", 1
-    assert_select "td.register-cleared--reconciled", 1
-    assert_select "td.register-cleared--uncleared", 1
+    assert_select "td.register-cleared span.register-cleared__icon--reconciled[aria-hidden=true]", 1
+    assert_select "td.register-cleared span.register-cleared__icon--uncleared", 1
     assert_select "span.register-chip", text: "Unapproved", count: 1
     assert_select "td[data-label=Status]", text: /Reconciled/
   end
