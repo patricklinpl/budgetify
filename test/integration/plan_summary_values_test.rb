@@ -98,6 +98,15 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$0\.00/
   end
 
+  test "a deleted category with a target adds nothing to Cost to Be Me" do
+    gone = @dining.category_group.categories.create!(budget: @budget, name: "Gone")
+    MonthlyTarget.set!(@dining, 12_000, month: Date.current.beginning_of_month)
+    MonthlyTarget.set!(gone, 9_000, month: Date.current.beginning_of_month)
+    gone.update!(deleted: true)
+    get users_budget_path(@budget.public_id)
+    assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$12\.00/
+  end
+
   test "a target of another kind adds nothing to Cost to Be Me" do
     @dining.update!(goal_type: "TB", goal_target: 50_000)
     get users_budget_path(@budget.public_id)
