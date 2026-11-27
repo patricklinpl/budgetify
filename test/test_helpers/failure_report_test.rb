@@ -54,6 +54,29 @@ class FailureReportTest < ActiveSupport::TestCase
     assert_equal "test/system/x_test.rb:74", summary[:test_defined_at]
   end
 
+  test "[engineering] input_lines prints one line per send_keys with focus, active element, keydown count and driver target" do
+    entries = [
+      { input: :click, at_ms: 5, state: {} },
+      { input: :send_keys, at_ms: 12, page: { focus: true, active: "input#q", keydown: 3, driver_target: "ABCD1234" } },
+      { input: :send_keys, at_ms: 30, page: { error: "NoSuchWindowError" } }
+    ]
+    lines = FailureReport.input_lines(entries)
+    assert_equal 2, lines.size
+    assert_equal "FAILURE_INPUT send_keys at_ms=12 focus=true active=input#q keydown_count=3 driver_target=ABCD1234", lines.first
+    assert_match(/error=NoSuchWindowError\z/, lines.last)
+    assert_empty FailureReport.input_lines(nil)
+  end
+
+  test "[engineering] page_state reads focus, active element, keydown count and target, and survives a driver error" do
+    browser = Object.new
+    def browser.execute_script(_js) = { "focus" => false, "active" => "input#q", "keydown" => 0 }
+    def browser.window_handle = "CDWINDOW1234567"
+    assert_equal({ focus: false, active: "input#q", keydown: 0, driver_target: "CDWINDOW" }, FailureReport.page_state(browser))
+    bad = Object.new
+    def bad.execute_script(_js) = raise(ArgumentError)
+    assert_equal({ error: "ArgumentError" }, FailureReport.page_state(bad))
+  end
+
   test "[engineering] clean keeps printable ASCII only" do
     assert_equal "a?b", FailureReport.clean("a\u0007b", 10)
     assert_equal "abc", FailureReport.clean("abcdef", 3)
