@@ -1,7 +1,7 @@
 <%# Register header shell (LAY-04). Account title, balance summary, toolbar and
     search slot. Styling and structure only; controls are disabled until the
     register issue wires them. Expects local `account` (and @budget). %>
-<div class="shell-header shell-header--register">
+<div class="shell-header shell-header--register" data-controller="dialog">
   <div class="shell-header-row">
     <div class="shell-header-title">
       <p class="shell-eyebrow">Account</p>
@@ -19,11 +19,22 @@
   <div class="shell-toolbar" role="toolbar" aria-label="Register actions">
     <%= link_to "Add Transaction", new_users_budget_account_transaction_path(@budget.public_id, account.public_id), class: "shell-button" %>
     <%= link_to "Register", users_budget_account_transactions_path(@budget.public_id, account.public_id), class: "shell-button" %>
-    <% ["Link Account", "File Import"].each do |action| %>
-      <button type="button" class="shell-button" disabled><%= action %></button>
-    <% end %>
+    <button type="button" class="shell-button" disabled title="Linking a bank needs a bank connection provider, which is not set up">Link Account</button>
+    <button type="button" class="shell-button" data-dialog-id="file-import-dialog" data-action="dialog#open">File Import</button>
     <%= render "layouts/app_shell/undo_controls" %>
     <button type="button" class="shell-button" disabled>View</button>
     <input type="search" class="shell-search" placeholder="Search" aria-label="Search transactions" disabled>
   </div>
+  <dialog id="file-import-dialog" class="dialog" aria-labelledby="file-import-title" data-dialog-name="File Import" data-dialog-backdrop="dismiss" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
+    <div class="dialog__header"><h2 class="dialog__title" id="file-import-title">File Import</h2></div>
+    <div class="dialog__body">
+      <p>To import transactions without linking a bank, first download them from your bank or card website.</p>
+      <p>Format: CSV.</p>
+      <p class="dialog__survives">Importing is not built yet, so choosing a file is turned off. Nothing was changed.</p>
+    </div>
+    <div class="dialog__footer">
+      <button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Close</button>
+      <button type="button" class="btn btn--primary" disabled title="Importing is not built yet">Choose File</button>
+    </div>
+  </dialog>
 </div>
