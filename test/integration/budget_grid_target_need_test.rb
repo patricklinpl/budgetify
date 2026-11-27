@@ -88,4 +88,33 @@ class BudgetGridTargetNeedTest < ActionDispatch::IntegrationTest
     assert node.at_css("span.budget-grid__exact"), "the exact value is a real element"
     assert_no_match(/[<>]/, node.text)
   end
+
+  # [reference] Observed in YNAB's test account: a monthly target with an amount
+  # still to assign shows a yellow Available pill and "$X more needed this month"
+  # (X is the target minus Assigned), even at $0.00 Available; fully assigned is
+  # green with no such text; overspent stays red.
+  def pill_class(name) = row(name).at_css(".status-pill")["class"]
+
+  test "a target with an amount still to assign reads underfunded with the amount more needed" do
+    get users_budget_path(@budget.public_id)
+    assert_includes pill_class("Short fund"), "status-pill--underfunded"
+    assert_equal "$30.00 more needed this month", row("Short fund").at_css(".budget-grid__more").text.strip
+    assert_includes pill_class("Zero fund"), "status-pill--underfunded", "underfunded even at zero Available"
+    assert_equal "$50.00 more needed this month", row("Zero fund").at_css(".budget-grid__more").text.strip
+    assert_equal "Underfunded", row("Short fund").at_css(".status-pill .data-table__sr").text.strip
+  end
+
+  test "a fully assigned target is not underfunded and shows no more-needed text" do
+    get users_budget_path(@budget.public_id)
+    assert_includes pill_class("Met fund"), "status-pill--positive"
+    assert_nil row("Met fund").at_css(".budget-grid__more")
+  end
+
+  test "overspent wins over underfunded and categories without the monthly target keep their pills" do
+    get users_budget_path(@budget.public_id)
+    assert_includes pill_class("Negative fund"), "status-pill--negative"
+    assert_includes pill_class("Plain fund"), "status-pill--zero"
+    assert_includes pill_class("Weekly fund"), "status-pill--zero"
+    assert_nil row("Plain fund").at_css(".budget-grid__more")
+  end
 end
