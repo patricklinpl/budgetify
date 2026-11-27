@@ -13,17 +13,26 @@
 # built target kind counts (a monthly set-aside amount, see MonthlyTarget), over
 # every non-deleted category including hidden ones; other target kinds are not
 # built so they add nothing. Nothing is written.
+#
+# Auto-Assign rows: [reference] the reference panel lists Assigned Last Month and
+# Assigned in Future Months among its rows. [engineering] Assigned Last Month is
+# the sum of the previous month's assigned amounts over the same categories as
+# Assigned (hidden included). Assigned in Future Months is the sum of the assigned
+# amounts of every month after the viewed month. The other rows stay unbuilt.
 class PlanFigures
   def self.build(budget, grid, month: Date.current.beginning_of_month)
     assigned = grid.sum { |group| group[:assigned] }
     activity = grid.sum { |group| group[:activity] }
     available = grid.sum { |group| group[:available] }
+    ids = grid.flat_map { |group| group[:rows].map { |row| row[:category].id } }
     {
       ready_to_assign: MonthSerializer.new(budget, month).as_json.fetch(:to_be_budgeted),
       left_over: available - assigned - activity,
       assigned: assigned,
       activity: activity,
       available: available,
+      assigned_last_month: MonthCategory.where(category_id: ids, month: month.prev_month).sum(:budgeted),
+      assigned_future: MonthCategory.where(category_id: ids).where("month > ?", month).sum(:budgeted),
       targets: grid.sum { |group| group[:rows].sum { |row| MonthlyTarget.monthly?(row[:category]) ? row[:category].goal_target.to_i : 0 } }
     }
   end
