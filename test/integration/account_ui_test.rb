@@ -142,6 +142,8 @@ class AccountUiTest < ActionDispatch::IntegrationTest
     assert_response :ok
     assert_select ".app-shell-sidebar details.app-shell-account-group[open] a.app-shell-account--selected[aria-current=page]", /Old Asset \(closed\)/
     assert_select ".app-shell-phone-accounts a.app-shell-phone-accounts__link", /Old Asset \(closed\)/
+    assert_select ".app-shell-sidebar .app-shell-account-group-name", text: "CLOSED"
+    assert_select ".app-shell-phone-accounts__group", text: "CLOSED"
   end
 
   test "manual adjustment UI records one adjustment for a tracking account and rejects bad input" do
