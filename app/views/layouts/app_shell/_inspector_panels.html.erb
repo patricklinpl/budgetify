@@ -3,8 +3,16 @@
 <section class="shell-panel" aria-labelledby="shell-summary-title">
   <h2 id="shell-summary-title" class="shell-panel-title"><%= Date.current.strftime("%B") %>'s Summary</h2>
   <dl class="shell-panel-list">
-    <% ["Left Over from Last Month", "Assigned in #{Date.current.strftime('%B')}", "Activity", "Available"].each do |row| %>
-      <div class="shell-panel-row"><dt><%= row %></dt><dd class="money">&mdash;</dd></div>
+    <% summary = @plan_summary %>
+    <% [["Left Over from Last Month", :left_over], ["Assigned in #{Date.current.strftime('%B')}", :assigned], ["Activity", :activity], ["Available", :available]].each do |row, key| %>
+      <div class="shell-panel-row">
+        <dt><%= row %></dt>
+        <% if summary %>
+          <dd class="<%= shell_money_class(summary[key]) %>"><%= shell_money(summary[key]) %></dd>
+        <% else %>
+          <dd class="money">&mdash;</dd>
+        <% end %>
+      </div>
     <% end %>
   </dl>
 </section>
