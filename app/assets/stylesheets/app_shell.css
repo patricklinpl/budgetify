@@ -411,6 +411,16 @@ body.app-shell-body {
   font-weight: var(--font-weight-regular);
 }
 
+/* On a phone the balance line stacks, one amount per line, so the + and =
+   never end a line on their own. The signs move in front of the second and
+   third amounts; they stay out of the accessible name as before. */
+@media (max-width: 600px) {
+  .shell-balance-summary { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+  .shell-balance-summary > [aria-hidden="true"] { display: none; }
+  .shell-balance-summary > .shell-balance:nth-child(3)::before { content: "+ " / ""; }
+  .shell-balance-summary > .shell-balance:nth-child(5)::before { content: "= " / ""; }
+}
+
 /* Inspector panel shells (LAY-05). */
 .shell-panel + .shell-panel {
   margin-top: var(--space-5);
