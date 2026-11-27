@@ -57,10 +57,12 @@
 .register-flag--green { background: #3a9d5d; } .register-flag--blue { background: #3b7dd8; } .register-flag--purple { background: #8a5cd0; }
 .register-flag-cell { width: 1.5rem; }
 .register-flag-cell:empty { padding: 0; }
-/* Cleared marker, as observed in the reference register: uncleared is a grey outlined circle with C, cleared is a filled green circle with C, reconciled is a green lock. */
-.register-cleared::before { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 1rem; height: 1rem; margin-right: 0.4rem; vertical-align: middle; border: 1.5px solid #9b9caa; border-radius: 50%; font-size: 0.6rem; font-weight: var(--font-weight-semibold); line-height: 1; color: #9b9caa; content: "C"; }
-.register-cleared--cleared::before { border-color: #77ba21; background: #77ba21; color: #1b2a07; }
-.register-cleared--reconciled::before { border: 0; border-radius: 0; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='3' y='7' width='10' height='7' rx='1.5' fill='%2377ba21'/><path d='M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2' fill='none' stroke='%2377ba21' stroke-width='1.6'/></svg>") center / contain no-repeat; content: ""; }
+/* Cleared marker, as observed in the reference register: uncleared is a grey outlined circle with C, cleared is a filled green circle with C, reconciled is a green lock. The marker is an empty decorative span, so the cell text stays the status word and the stacked-row label pseudo-element is untouched. */
+.register-cleared__icon { display: inline-flex; flex: 0 0 1rem; align-items: center; justify-content: center; box-sizing: border-box; width: 1rem; height: 1rem; margin-right: 0.4rem; vertical-align: middle; border: 1.5px solid #9b9caa; border-radius: 50%; font-size: 0.6rem; font-weight: var(--font-weight-semibold); line-height: 1; color: #9b9caa; }
+.register-cleared__icon::after { content: "C"; }
+.register-cleared__icon--cleared { border-color: #77ba21; background: #77ba21; color: #1b2a07; }
+.register-cleared__icon--reconciled { border: 0; border-radius: 0; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='3' y='7' width='10' height='7' rx='1.5' fill='%2377ba21'/><path d='M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2' fill='none' stroke='%2377ba21' stroke-width='1.6'/></svg>") center / contain no-repeat; }
+.register-cleared__icon--reconciled::after { content: none; }
 .register-approval:empty { padding: 0; }
 .register-approval .register-chip { white-space: nowrap; }
 @media (max-width: 1200px) { .register-page .data-table td.register-flag-cell:empty, .register-page .data-table td.register-approval:empty { display: none; } }
