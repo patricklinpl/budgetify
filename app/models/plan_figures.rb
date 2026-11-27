@@ -1,8 +1,10 @@
 # Numbers for the plan header pill and the Summary panel (issue #56 plan
 # header). [reference] The reference Summary lists Left Over from Last Month,
 # Assigned, Activity and Available, and the header shows Ready to Assign.
-# [engineering] Assigned, Activity and Available are the sums of the category
-# rows in the grid (unfiltered, so a chip filter does not change them), and Left
+# [engineering] Assigned, Activity and Available are the sums of every category
+# row in the grid, hidden categories included (the caller passes the grid built
+# with show_hidden: true, so neither a chip filter nor the hidden toggle changes
+# them), and Left
 # Over is the remainder, so the four always add up. Ready to Assign is the same
 # figure the API reports for the month. Nothing is written.
 class PlanFigures
