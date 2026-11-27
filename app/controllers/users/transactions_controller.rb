@@ -8,9 +8,10 @@ module Users
     layout "app_shell"
 
     TRANSFER_PREFIX = "To/From ".freeze
-    # #62 REG-DATE-01: the two relative periods that were checked in the reference.
-    # Custom bounds and years were not tested and are not built.
-    PERIODS = { "all" => "All dates", "this_month" => "This month", "last_month" => "Last month" }.freeze
+    # #62 REG-DATE-01 plus the calendar-year presets seen in the reference View menu.
+    # The reference also has "Latest 3 Months" and custom From/To months; their exact
+    # bounds were not established, so they are not built.
+    PERIODS = { "all" => "All dates", "this_month" => "This month", "last_month" => "Last month", "this_year" => "This year", "last_year" => "Last year" }.freeze
 
     before_action :set_budget
     before_action :set_account
@@ -60,6 +61,8 @@ module Users
       case period
       when "this_month" then today.beginning_of_month..today.end_of_month
       when "last_month" then (today.beginning_of_month - 1.month)..(today.beginning_of_month - 1.day)
+      when "this_year" then today.beginning_of_year..today.end_of_year
+      when "last_year" then (today.beginning_of_year - 1.year)..(today.beginning_of_year - 1.day)
       end
     end
     private :period_range
