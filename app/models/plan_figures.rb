@@ -6,7 +6,13 @@
 # with show_hidden: true, so neither a chip filter nor the hidden toggle changes
 # them), and Left
 # Over is the remainder, so the four always add up. Ready to Assign is the same
-# figure the API reports for the month. Nothing is written.
+# figure the API reports for the month.
+#
+# Cost to Be Me (this file's `targets`): [reference] the reference panel lists
+# the month's targets total under that heading. [engineering] Only the one
+# built target kind counts (a monthly set-aside amount, see MonthlyTarget), over
+# every non-deleted category including hidden ones; other target kinds are not
+# built so they add nothing. Nothing is written.
 class PlanFigures
   def self.build(budget, grid, month: Date.current.beginning_of_month)
     assigned = grid.sum { |group| group[:assigned] }
@@ -17,7 +23,8 @@ class PlanFigures
       left_over: available - assigned - activity,
       assigned: assigned,
       activity: activity,
-      available: available
+      available: available,
+      targets: grid.sum { |group| group[:rows].sum { |row| MonthlyTarget.monthly?(row[:category]) ? row[:category].goal_target.to_i : 0 } }
     }
   end
 end
