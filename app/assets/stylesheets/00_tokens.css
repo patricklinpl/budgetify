@@ -40,6 +40,8 @@
   --color-pill-negative-bg: #bf2e3b;
   --color-pill-negative-text: #fff;
   --color-pill-zero-bg: #ebebe4;
+  --color-pill-underfunded-bg: #fbe48e;
+  --color-pill-underfunded-text: #362c05;
 
   /* Text */
   --color-text-primary: #292b3d;
@@ -92,6 +94,8 @@
   --color-pill-negative-bg: #b8323f;
   --color-pill-negative-text: #fff;
   --color-pill-zero-bg: #2a2d63;
+  --color-pill-underfunded-bg: #fbe48e;
+  --color-pill-underfunded-text: #362c05;
 
   --color-text-primary: #f1f1f6;
   --color-text-secondary: #d6d7e2;
