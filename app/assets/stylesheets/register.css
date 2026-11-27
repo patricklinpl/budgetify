@@ -50,3 +50,15 @@
 
 /* Account balance line above the register search: cleared + uncleared = working. */
 .register-page .shell-balance-summary { margin: 0.5rem 0 0.25rem; }
+
+/* Register status columns: flag dot, cleared marker. Text stays beside the marker so meaning never depends on colour. */
+.register-flag { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--color-text-secondary); }
+.register-flag--red { background: #d9363e; } .register-flag--orange { background: #e8833a; } .register-flag--yellow { background: #f6c91d; }
+.register-flag--green { background: #3a9d5d; } .register-flag--blue { background: #3b7dd8; } .register-flag--purple { background: #8a5cd0; }
+.register-flag-cell { width: 1.5rem; }
+.register-flag-cell:empty { padding: 0; }
+.register-cleared::before { display: inline-block; min-width: 1.25rem; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); content: "C"; }
+.register-cleared--reconciled::before { content: "\1F512"; }
+.register-cleared--uncleared::before { opacity: 0.45; }
+.register-approval:empty { padding: 0; }
+@media (max-width: 1200px) { .register-page .data-table td.register-flag-cell:empty, .register-page .data-table td.register-approval:empty { display: none; } }
