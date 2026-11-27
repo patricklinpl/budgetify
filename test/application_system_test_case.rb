@@ -243,6 +243,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       location: (method(name).source_location rescue nil)
     )
     warn FailureReport.summary_lines(summary).join("\n")
+    warn FailureReport.input_lines(FailureReport.inputs).join("\n") if FailureReport.inputs.any?
     driver_tail = failure_driver_tail
     warn driver_tail.map { |l| "FAILURE_DRIVER_TAIL #{l}" }.join("\n") if driver_tail.any?
     capture = begin
