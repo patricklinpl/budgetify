@@ -11,7 +11,11 @@
       <button type="button" class="shell-icon-button" disabled aria-label="Next month"><span aria-hidden="true">&rsaquo;</span></button>
     </div>
     <div class="shell-pill" aria-label="Ready to Assign">
-      <span class="shell-pill-amount money">&mdash;</span>
+      <% if @plan_summary %>
+        <span class="shell-pill-amount <%= shell_money_class(@plan_summary[:ready_to_assign]) %>"><%= shell_money(@plan_summary[:ready_to_assign]) %></span>
+      <% else %>
+        <span class="shell-pill-amount money">&mdash;</span>
+      <% end %>
       <span class="shell-pill-label">Ready to Assign</span>
     </div>
   </div>
