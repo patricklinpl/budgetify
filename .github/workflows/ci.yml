@@ -161,6 +161,7 @@ jobs:
           CHROMEDRIVER_LOG_KEEP: "1"
           DIAG_CHROME_LOG: "1"
           DIAG_PASS_CONTROL: "1"
+          DIAG_INPUT_STATE: "1"
           # Reads targets and window bounds over CDP right AFTER each element click
           # and send_keys returned (a few ms; the input itself is not delayed).
           # Remove this line to turn the per-input read off.
