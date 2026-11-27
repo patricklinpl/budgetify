@@ -112,4 +112,31 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     get users_budget_path(@budget.public_id)
     assert_select ".app-shell-inspector .shell-panel-row", text: /Targets\s*\$0\.00/
   end
+
+  def auto_rows
+    css_select("#shell-auto-title").first.parent.css(".shell-panel-row").to_h { |row| [ row.at_css("span").text.strip, row.css("span").last.text.strip ] }
+  end
+
+  test "Auto-Assign shows last month's and future months' assigned amounts" do
+    this_month = Date.current.beginning_of_month
+    MonthAssignment.set!(budget: @budget, category: @dining, month: this_month.prev_month, amount: 7_000, user: @user)
+    MonthAssignment.set!(budget: @budget, category: @loan, month: this_month.prev_month, amount: 3_000, user: @user)
+    MonthAssignment.set!(budget: @budget, category: @dining, month: this_month.next_month, amount: 2_500, user: @user)
+    MonthAssignment.set!(budget: @budget, category: @loan, month: this_month.next_month.next_month, amount: 500, user: @user)
+    get users_budget_path(@budget.public_id)
+    rows = auto_rows
+    assert_equal "$10.00", rows["Assigned Last Month"]
+    assert_equal "$3.00", rows["Assigned in Future Months"]
+    assert_equal "\u2014", rows["Underfunded"]
+  end
+
+  test "Auto-Assign amounts are zero with nothing assigned outside this month and ignore deleted categories" do
+    gone = @dining.category_group.categories.create!(budget: @budget, name: "Gone")
+    MonthAssignment.set!(budget: @budget, category: gone, month: Date.current.beginning_of_month.prev_month, amount: 9_000, user: @user)
+    gone.update!(deleted: true)
+    get users_budget_path(@budget.public_id)
+    rows = auto_rows
+    assert_equal "$0.00", rows["Assigned Last Month"]
+    assert_equal "$0.00", rows["Assigned in Future Months"]
+  end
 end

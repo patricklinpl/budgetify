@@ -33,8 +33,10 @@
 <section class="shell-panel" aria-labelledby="shell-auto-title">
   <h2 id="shell-auto-title" class="shell-panel-title">Auto-Assign</h2>
   <ul class="shell-panel-list">
-    <% ["Underfunded", "Assigned Last Month", "Spent Last Month", "Reset Available Amounts", "Reset Assigned Amounts"].each do |row| %>
-      <li class="shell-panel-row"><span><%= row %></span><span class="money">&mdash;</span></li>
+    <% [["Underfunded", nil], ["Assigned Last Month", :assigned_last_month], ["Spent Last Month", nil], ["Assigned in Future Months", :assigned_future], ["Reset Available Amounts", nil], ["Reset Assigned Amounts", nil]].each do |row, key| %>
+      <li class="shell-panel-row"><span><%= row %></span>
+        <% if key && @plan_summary %><span class="money"><%= shell_money(@plan_summary[key]) %></span><% else %><span class="money">&mdash;</span><% end %>
+      </li>
     <% end %>
   </ul>
 </section>
