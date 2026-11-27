@@ -54,19 +54,21 @@
           </tr>
           <% entry[:rows].each do |row| %>
             <% category = row[:category] %>
-            <% pill = row[:available].negative? ? :negative : (row[:available].zero? ? :zero : :positive) %>
+            <% need = target_need(category, row[:assigned], fmt) %>
+            <%# Overspent wins. Otherwise a monthly target with an amount still to assign reads underfunded (as in YNAB's plan), even when Available is zero. %>
+            <% pill = if row[:available].negative? then :negative elsif need && need[:remaining].positive? then :underfunded elsif row[:available].zero? then :zero else :positive end %>
             <tr class="data-table__row" data-group="<%= group.public_id %>">
               <td class="budget-grid__name">
                 <div class="budget-grid__namecell">
                   <%# Same condition as the Cover link below: a negative payment category is not overspending.
                       The chip is CSS-only (the Available pill already carries "Overspent" for assistive tech). %>
                   <span class="budget-grid__label<%= ' budget-grid__label--overspent' if row[:available].negative? && category.payment_account_id.nil? %>"><%= category.name %><%= " (hidden)" if category.hidden %></span>
-                  <% need = target_need(category, row[:assigned], fmt) %>
                   <% if need %>
                     <%# The meter is decorative (raw milliunits would be read out); the sentence beside it is the accessible content. %>
                     <span class="budget-grid__need">
                       <meter class="budget-grid__meter" aria-hidden="true" min="0" max="<%= need[:target] %>" value="<%= need[:shown] %>"></meter>
                       <span class="budget-grid__need-text"><%= need[:text] %></span>
+                      <% if need[:more] %><span class="budget-grid__more"><%= need[:more] %></span><% end %>
                     </span>
                   <% end %>
                   <span class="budget-grid__actions">

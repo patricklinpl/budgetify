@@ -36,6 +36,7 @@
    Presentation of the existing monthly target; the Available pill colors are unchanged. */
 .budget-grid__need { order: 3; flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.5rem; min-width: 0; }
 .budget-grid__need-text { order: 2; font-size: var(--font-size-xs); color: var(--color-text-muted); overflow-wrap: anywhere; }
+.budget-grid__more { order: 2; font-size: var(--font-size-xs); color: var(--color-text-muted); }
 .budget-grid__meter { flex: 0 1 12rem; height: 0.25rem; appearance: none; border: 0; border-radius: var(--radius-pill); background: var(--color-pill-zero-bg); overflow: hidden; }
 .budget-grid__meter::-webkit-meter-bar { height: 0.25rem; border: 0; border-radius: var(--radius-pill); background: var(--color-pill-zero-bg); }
 .budget-grid__meter::-webkit-meter-optimum-value, .budget-grid__meter::-webkit-meter-suboptimum-value, .budget-grid__meter::-webkit-meter-even-less-good-value { background: var(--color-accent-hover); border-radius: var(--radius-pill); }
@@ -50,6 +51,8 @@
 .budget-grid .status-pill--positive::before { color: var(--color-pill-positive-text); }
 .budget-grid .status-pill--negative { background: var(--color-pill-negative-bg); color: var(--color-pill-negative-text); }
 .budget-grid .status-pill--negative::before { color: var(--color-pill-negative-text); }
+.budget-grid .status-pill--underfunded { background: var(--color-pill-underfunded-bg); color: var(--color-pill-underfunded-text); }
+.budget-grid .status-pill--underfunded::before { color: var(--color-pill-underfunded-text); }
 .budget-grid .status-pill--zero { background: var(--color-pill-zero-bg); color: var(--color-text-muted); }
 .budget-grid .data-table td form .field__input:not(:hover):not(:focus) { border-color: transparent; background: transparent; }
 .field--invalid .field__input, .budget-grid .data-table td form .field--invalid .field__input:not(:hover):not(:focus) { border-color: var(--color-status-negative); background: var(--color-status-negative-subtle); }

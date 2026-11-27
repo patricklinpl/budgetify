@@ -29,7 +29,9 @@ module DataTableHelper
     return unless MonthlyTarget.monthly?(category)
 
     target = category.goal_target.to_i
-    { target: target, shown: assigned.to_i.clamp(0, target),
+    remaining = [ target - assigned.to_i, 0 ].max
+    { target: target, shown: assigned.to_i.clamp(0, target), remaining: remaining,
+      more: (safe_join([ grid_money(format, remaining), " more needed this month" ]) if remaining.positive?),
       text: safe_join([ grid_money(format, assigned.to_i), " assigned of ", grid_money(format, target), " monthly target" ]) }
   end
 
