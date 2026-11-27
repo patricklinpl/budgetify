@@ -54,27 +54,28 @@ class FailureReportTest < ActiveSupport::TestCase
     assert_equal "test/system/x_test.rb:74", summary[:test_defined_at]
   end
 
-  test "[engineering] input_lines prints one line per send_keys with focus, active element, keydown count and driver target" do
-    entries = [
-      { input: :click, at_ms: 5, state: {} },
-      { input: :send_keys, at_ms: 12, page: { focus: true, active: "input#q", keydown: 3, driver_target: "ABCD1234" } },
-      { input: :send_keys, at_ms: 30, page: { error: "NoSuchWindowError" } }
-    ]
-    lines = FailureReport.input_lines(entries)
-    assert_equal 2, lines.size
-    assert_equal "FAILURE_INPUT send_keys at_ms=12 focus=true active=input#q keydown_count=3 driver_target=ABCD1234", lines.first
-    assert_match(/error=NoSuchWindowError\z/, lines.last)
-    assert_empty FailureReport.input_lines(nil)
+  test "[engineering] failure_lines prints focus, active element, keydown count, targets and the send_keys offsets" do
+    capture = { "focus" => false, "active" => "input#q",
+                "inputLog" => [ "10ms keydown a input#q", "11ms keyup a input#q", "12ms keydown b input#q", "13ms click x" ] }
+    state = { targets: [ { type: "page", id: "ABCD1234", attached: true }, { type: "service_worker", id: "EF567890", attached: false } ] }
+    lines = FailureReport.failure_lines(capture, state, [ 120, 480 ])
+    assert_equal "FAILURE_PAGE focus=false active=input#q keydown_count=2 targets=page:ABCD1234:true,service_worker:EF567890:false", lines.first
+    assert_equal "FAILURE_KEYS send_keys_at_ms=120,480", lines.last
   end
 
-  test "[engineering] page_state reads focus, active element, keydown count and target, and survives a driver error" do
-    browser = Object.new
-    def browser.execute_script(_js) = { "focus" => false, "active" => "input#q", "keydown" => 0 }
-    def browser.window_handle = "CDWINDOW1234567"
-    assert_equal({ focus: false, active: "input#q", keydown: 0, driver_target: "CDWINDOW" }, FailureReport.page_state(browser))
-    bad = Object.new
-    def bad.execute_script(_js) = raise(ArgumentError)
-    assert_equal({ error: "ArgumentError" }, FailureReport.page_state(bad))
+  test "[engineering] failure_lines survives a missing capture and a browser error" do
+    lines = FailureReport.failure_lines({ "unavailable" => "Timeout::Error" }, { error: "X" }, nil)
+    assert_equal "FAILURE_PAGE focus= active= keydown_count=0 targets=", lines.first
+    assert_equal "FAILURE_KEYS send_keys_at_ms=", lines.last
+  end
+
+  test "[engineering] the key stamp records an offset and never calls the driver" do
+    FailureReport.reset_inputs(Object.new)
+    FailureReport.stamp_keys
+    FailureReport.stamp_keys
+    assert_equal 2, FailureReport.keys.size
+    FailureReport.reset_inputs(Object.new)
+    assert_empty FailureReport.keys
   end
 
   test "[engineering] clean keeps printable ASCII only" do
