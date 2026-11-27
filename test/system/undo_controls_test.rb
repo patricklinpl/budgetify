@@ -135,7 +135,7 @@ class UndoControlsSystemTest < ApplicationSystemTestCase
       assert_operator size[0], :>=, 44, "#{label} width #{size[0]}"
       assert_operator size[1], :>=, 44, "#{label} height #{size[1]}"
     end
-    assert_equal page.evaluate_script("innerWidth"), page.evaluate_script("document.documentElement.scrollWidth")
+    assert_equal page.evaluate_script("document.documentElement.clientWidth"), page.evaluate_script("document.documentElement.scrollWidth")
   end
 
   test "Undo of a reconciled row memo edit restores it and keeps it reconciled" do
