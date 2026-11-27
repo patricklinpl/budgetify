@@ -44,7 +44,7 @@
       <table class="data-table" aria-label="Register">
         <thead>
           <tr>
-            <th>Date</th><th>Status</th><th>Payee</th><th>Category</th><th>Memo</th>
+            <th><span class="data-table__sr">Flag</span></th><th>Date</th><th>Status</th><th><span class="data-table__sr">Approval</span></th><th>Payee</th><th>Category</th><th>Memo</th>
             <th class="data-table__money">Outflow</th><th class="data-table__money">Inflow</th><th><span class="data-table__sr">Actions</span></th>
           </tr>
         </thead>
@@ -52,8 +52,10 @@
           <% @transactions.each do |transaction| %>
             <% amount = transaction.amount.to_i %>
             <tr class="data-table__row">
+              <td data-label="Flag" class="register-flag-cell"><% if transaction.flag_color.present? %><span class="register-flag register-flag--<%= transaction.flag_color %>" role="img" aria-label="<%= transaction.flag_name.presence || "#{transaction.flag_color.capitalize} flag" %>"></span><% end %></td>
               <td data-label="Date"><%= transaction.date.iso8601 %></td>
-              <td data-label="Status"><%= transaction.cleared.capitalize %></td>
+              <td data-label="Status" class="register-cleared"><span class="register-cleared__icon register-cleared__icon--<%= transaction.cleared %>" aria-hidden="true"></span><%= transaction.cleared.capitalize %></td>
+              <td data-label="Approval" class="register-approval"><% unless transaction.approved? %><span class="register-chip register-chip--attention">Unapproved</span><% end %></td>
               <td data-label="Payee"><%= transaction.payee&.name %></td>
               <td data-label="Category"><%= transaction.sub_transactions.any? ? "Split" : (transaction.category&.name || (@account.on_budget? && transaction.transfer_account_id.nil? && transaction.amount.to_i <= 0 ? tag.span("Needs a category", class: "register-chip register-chip--attention") : nil)) %></td>
               <td data-label="Memo"><%= transaction.memo %></td>
