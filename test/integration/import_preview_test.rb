@@ -63,6 +63,35 @@ class ImportPreviewTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "a file param that is not an upload is refused with 422, not a 500" do
+    [ "just text", [ "a", "b" ], { "x" => "y" } ].each do |value|
+      post users_budget_account_import_preview_path(@budget.public_id, @account.public_id), params: { file: value, date_format: "iso" }
+      assert_response :unprocessable_entity
+      assert_select ".plan-settings__errors", text: /Choose a CSV file/
+    end
+  end
+
+  test "markup in a payee or memo is escaped" do
+    upload("Date,Payee,Memo,Outflow,Inflow\n2026-10-17,<script>alert(1)</script>,<b>bold</b>,1.00,\n")
+    assert_response :success
+    assert_no_match(/<script>alert/, response.body)
+    assert_includes response.body, "&lt;script&gt;alert(1)&lt;/script&gt;"
+    assert_select "td b", false
+  end
+
+  test "amounts in the preview have thousands separators" do
+    upload("Date,Payee,Memo,Outflow,Inflow\n2026-10-17,Big,,\"1,234.50\",\n")
+    assert_select "td.money", text: "-$1,234.50"
+  end
+
+  test "a file over the row cap is refused with a message and lists no rows" do
+    rows = Array.new(CsvImport::MAX_ROWS + 1) { |i| "2026-10-17,P#{i},,1.00," }.join("\n")
+    upload("Date,Payee,Memo,Outflow,Inflow\n#{rows}\n")
+    assert_response :success
+    assert_select ".plan-settings__errors", text: /more than 5000 rows/
+    assert_select "tr[data-status]", false
+  end
+
   test "an unreadable file is reported on the page, not raised" do
     upload("Date,Payee,Outflow,Inflow\n2026-10-15,Caf\xE9,4.50,\n".b)
     assert_response :success
