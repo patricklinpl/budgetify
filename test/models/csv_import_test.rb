@@ -195,6 +195,14 @@ class CsvImportTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { CsvImport.plan(text, account: @account, date_format: :iso, amount_format: :other) }
   end
 
+  test "[engineering] the row cap is enforced at the limit" do
+    ok = Array.new(CsvImport::MAX_ROWS) { "2026-10-17,P,,1.00," }.join("\n")
+    assert_equal CsvImport::MAX_ROWS, plan("Date,Payee,Memo,Outflow,Inflow\n#{ok}\n").rows.size
+    over = plan("Date,Payee,Memo,Outflow,Inflow\n#{ok}\n2026-10-17,P,,1.00,\n")
+    assert_empty over.rows
+    assert_match(/more than 5000 rows/, over.problems.first.message)
+  end
+
   test "[engineering] every row has a reason" do
     enter!(-4_500, @day)
     enter!(-9_000, @day, import_id: "CSV:-9000:2026-10-15:1")
