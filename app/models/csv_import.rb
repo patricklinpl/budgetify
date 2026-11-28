@@ -30,7 +30,12 @@ class CsvImport
     inflow: %w[inflow credit deposit deposits paidin]
   }.freeze
   DATE_FORMATS = { iso: "%Y-%m-%d", us: "%m/%d/%Y", eu: "%d/%m/%Y" }.freeze
+  DATE_PATTERNS = { iso: %r{\A\d{4}-\d{1,2}-\d{1,2}\z}, us: %r{\A\d{1,2}/\d{1,2}/\d{4}\z}, eu: %r{\A\d{1,2}/\d{1,2}/\d{4}\z} }.freeze
   MATCH_DAYS = 10
+  # The caller passes the file text, so the caller bounds its size. A larger
+  # text is reported as a problem and not read. [engineering] The cap is my
+  # choice (it is not a YNAB limit); read-and-plan holds the whole file in memory.
+  MAX_BYTES = 5_000_000
 
   Row = Struct.new(:line, :date, :payee, :memo, :amount, :import_id, :status, :matched_transaction, :before_start, keyword_init: true)
   Problem = Struct.new(:line, :message)
@@ -44,9 +49,10 @@ class CsvImport
 
   def initialize(text, account, date_format, mapping, no_header, swap, include_before_start)
     raise ArgumentError, "date_format must be one of #{DATE_FORMATS.keys.inspect}" unless DATE_FORMATS.key?(date_format)
-    @text = text.to_s.delete_prefix("\uFEFF")
+    @text = text.to_s
     @account = account
     @format = DATE_FORMATS.fetch(date_format)
+    @pattern = DATE_PATTERNS.fetch(date_format)
     @mapping = mapping
     @no_header = no_header
     @swap = swap
@@ -54,7 +60,12 @@ class CsvImport
   end
 
   def plan
-    records = self.class.records(@text)
+    refusal = unreadable
+    return Result.new(rows: [], problems: [ Problem.new(nil, refusal) ], mapping: {}) if refusal
+    records, closed = self.class.read(@text.delete_prefix("\uFEFF"))
+    unless closed
+      return Result.new(rows: [], problems: [ Problem.new(nil, "A quoted cell is never closed, so the rest of the file cannot be read") ], mapping: {})
+    end
     header = @no_header ? nil : records.shift
     mapping = @mapping || detect(header, records.first)
     problems = []
@@ -74,7 +85,10 @@ class CsvImport
 
   # Minimal CSV reader: quoted cells, doubled quotes, commas and line breaks
   # inside quotes, CRLF or LF line ends.
-  def self.records(text)
+  def self.records(text) = read(text).first
+
+  # Same as records, plus whether every quote was closed.
+  def self.read(text)
     records = []
     row = []
     cell = +""
@@ -98,15 +112,22 @@ class CsvImport
       i += 1
     end
     (row << cell; records << row) unless cell.empty? && row.empty?
-    records
+    [ records, !quoted ]
   end
 
   # Milliunits from text such as "12.34", "$1,234.5" or "-3". Nil when it is not
-  # a plain amount with at most three decimals.
+  # a plain amount with at most three decimals. A comma is read only as a
+  # thousands separator in groups of three digits ("1,234", "12,345.60"); "12,34"
+  # is not read, because a decimal comma would be off by a factor of 100.
   def self.milliunits(text)
-    cleaned = text.to_s.strip.delete("$,").delete(" ")
-    return nil unless cleaned.match?(/\A[+-]?(\d+(\.\d{0,3})?|\.\d{1,3})\z/)
-    (BigDecimal(cleaned) * 1000).to_i
+    t = text.to_s.strip
+    sign = t.start_with?("-", "+") ? t.slice!(0) : ""
+    cleaned = sign + t.delete_prefix("$")
+    cleaned = cleaned.delete(" ")
+    plain = cleaned.match?(/\A[+-]?(\d+(\.\d{0,3})?|\.\d{1,3})\z/)
+    grouped = cleaned.match?(/\A[+-]?\d{1,3}(,\d{3})+(\.\d{0,3})?\z/)
+    return nil unless plain || grouped
+    (BigDecimal(cleaned.delete(",")) * 1000).to_i
   end
 
   private
@@ -131,28 +152,55 @@ class CsvImport
       problems << Problem.new(line, "Date is missing or not in the chosen format")
       return nil
     end
-    outflow = amount_cell(cells, mapping[:outflow], line, problems)
-    inflow = amount_cell(cells, mapping[:inflow], line, problems)
+    outflow = amount_cell(cells, mapping[:outflow], "Outflow", line, problems)
+    inflow = amount_cell(cells, mapping[:inflow], "Inflow", line, problems)
     return nil if outflow == :bad || inflow == :bad
+    if outflow.nil? && inflow.nil?
+      problems << Problem.new(line, "No amount in the Outflow or Inflow cell")
+      return nil
+    end
+    if outflow.to_i.nonzero? && inflow.to_i.nonzero?
+      problems << Problem.new(line, "Both Outflow and Inflow have an amount")
+      return nil
+    end
     amount = inflow.to_i - outflow.to_i
     amount = -amount if @swap
     Row.new(line: line, date: date, payee: cell(cells, mapping[:payee]), memo: cell(cells, mapping[:memo]), amount: amount,
       before_start: start_date && date < start_date)
   end
 
-  def amount_cell(cells, index, line, problems)
+  # Outflow and Inflow hold positive amounts. A negative one, or one in
+  # parentheses, is reported and not guessed at: its meaning depends on the bank.
+  def amount_cell(cells, index, name, line, problems)
     return nil unless index
     text = cells[index].to_s.strip
     return nil if text.empty?
     value = self.class.milliunits(text)
-    return value.abs if value
-    problems << Problem.new(line, "Amount is not a plain number")
-    :bad
+    if value.nil?
+      problems << Problem.new(line, text.match?(/\A\(.*\)\z/) ? "#{name} is in parentheses, which is not read" : "#{name} is not a plain number")
+      :bad
+    elsif value.negative?
+      problems << Problem.new(line, "#{name} is negative, which is not read")
+      :bad
+    else
+      value
+    end
   end
 
+  # The year must have four digits: a two-digit year would parse as year 26.
   def parse_date(text)
-    Date.strptime(text.to_s.strip, @format)
+    text = text.to_s.strip
+    return nil unless text.match?(@pattern)
+    Date.strptime(text, @format)
   rescue ArgumentError
+    nil
+  end
+
+  def unreadable
+    return "The file is larger than #{MAX_BYTES} bytes and was not read" if @text.bytesize > MAX_BYTES
+    text = @text.encoding == Encoding::UTF_8 ? @text : @text.dup.force_encoding(Encoding::UTF_8)
+    return "The file is not valid UTF-8 text" unless text.valid_encoding?
+    @text = text
     nil
   end
 
