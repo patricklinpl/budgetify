@@ -197,4 +197,80 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
       assert_equal "$2.00", rows["Spent Last Month"]
     end
   end
+
+  def ago(months)
+    Date.current.beginning_of_month << months
+  end
+
+  def assign!(category, months_ago, amount)
+    MonthAssignment.set!(budget: @budget, category: category, month: ago(months_ago), amount: amount, user: @user)
+  end
+
+  test "Average Assigned and Average Spent are the mean over the months since the first one with data" do
+    assign!(@dining, 2, 20_000)
+    assign!(@dining, 1, 40_000)
+    spend!(@dining, -10_000, ago(2) + 11)
+    spend!(@dining, -25_000, ago(1) + 9)
+    get users_budget_path(@budget.public_id)
+    rows = auto_rows
+    assert_equal "$30.00", rows["Average Assigned"]
+    assert_equal "$17.50", rows["Average Spent"]
+  end
+
+  test "an empty month inside the range counts as zero, and months before the first one do not count" do
+    assign!(@dining, 3, 30_000)
+    assign!(@dining, 1, 60_000)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$30.00", auto_rows["Average Assigned"]
+  end
+
+  test "the average ignores this month and anything older than 12 months" do
+    assign!(@dining, 13, 99_000)
+    assign!(@dining, 12, 24_000)
+    assign!(@dining, 1, 12_000)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$3.00", auto_rows["Average Assigned"]
+  end
+
+  test "Average Spent starts at the first month with spending or an assignment" do
+    assign!(@dining, 3, 1_000)
+    spend!(@dining, -6_000, ago(1) + 4)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$2.00", auto_rows["Average Spent"]
+  end
+
+  test "the panel figure adds each category's own average" do
+    assign!(@dining, 2, 20_000)
+    assign!(@dining, 1, 40_000)
+    assign!(@loan, 1, 10_000)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$40.00", auto_rows["Average Assigned"]
+  end
+
+  test "an average that lands on a tie rounds to the even milliunit" do
+    assign!(@dining, 2, 5)
+    assign!(@loan, 2, 7)
+    month = Date.current.beginning_of_month
+    assert_equal 2, AutoAssignHistory.averages([ @dining ], month: month)[:assigned]
+    assert_equal 4, AutoAssignHistory.averages([ @loan ], month: month)[:assigned]
+  end
+
+  test "the averages leave out hidden categories and are zero with no history" do
+    hidden = @dining.category_group.categories.create!(budget: @budget, name: "Hidden one", hidden: true)
+    assign!(hidden, 1, 50_000)
+    spend!(hidden, -20_000, ago(1) + 3)
+    get users_budget_path(@budget.public_id)
+    rows = auto_rows
+    assert_equal "$0.00", rows["Average Assigned"]
+    assert_equal "$0.00", rows["Average Spent"]
+  end
+
+  test "future months, hidden or not, do not change the averages" do
+    hidden = @dining.category_group.categories.create!(budget: @budget, name: "Hidden future", hidden: true)
+    assign!(@dining, 1, 20_000)
+    assign!(@dining, -1, 90_000)
+    assign!(hidden, -1, 70_000)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$20.00", auto_rows["Average Assigned"]
+  end
 end
