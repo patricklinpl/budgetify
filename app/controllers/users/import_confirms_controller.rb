@@ -11,7 +11,7 @@ module Users
       register_path = users_budget_account_transactions_path(@budget.public_id, @account.public_id)
       draft = ImportDraft.where(user: Current.user, budget: @budget, account: @account).find_by(token: params[:draft].to_s)
       if draft.nil?
-        return redirect_to register_path, alert: "That import was already confirmed or has expired. Choose the file again to preview it."
+        return redirect_to register_path, alert: CsvImportCommit::ALREADY
       end
 
       outcome = CsvImportCommit.new(budget: @budget, account: @account, draft: draft, user: Current.user, history: undo_history, digest: params[:digest]).call
