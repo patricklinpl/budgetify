@@ -179,4 +179,22 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
       assert_equal "$2.00", rows["Spent Last Month"]
     end
   end
+
+  test "the Last Month rows leave out hidden categories and categories in hidden groups" do
+    this_month = Date.current.beginning_of_month
+    hidden = @dining.category_group.categories.create!(budget: @budget, name: "Hidden one", hidden: true)
+    tucked = @budget.category_groups.create!(name: "Tucked away", hidden: true).categories.create!(budget: @budget, name: "Tucked")
+    MonthAssignment.set!(budget: @budget, category: @dining, month: this_month.prev_month, amount: 6_000, user: @user)
+    [ hidden, tucked ].each do |category|
+      MonthAssignment.set!(budget: @budget, category: category, month: this_month.prev_month, amount: 4_000, user: @user)
+      spend!(category, -3_000, this_month.prev_month + 5)
+    end
+    spend!(@dining, -2_000, this_month.prev_month + 5)
+    [ {}, { hidden: 1 } ].each do |params|
+      get users_budget_path(@budget.public_id, params)
+      rows = auto_rows
+      assert_equal "$6.00", rows["Assigned Last Month"]
+      assert_equal "$2.00", rows["Spent Last Month"]
+    end
+  end
 end
