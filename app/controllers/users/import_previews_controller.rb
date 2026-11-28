@@ -18,7 +18,7 @@ module Users
         include_before_start: params[:include_before_start] != "0"
       }
       file = params[:file]
-      if !file.respond_to?(:size) || file.size.zero?
+      if !file.is_a?(ActionDispatch::Http::UploadedFile) || file.size.zero?
         @result = CsvImport::Result.new(rows: [], problems: [ CsvImport::Problem.new(nil, "Choose a CSV file") ], mapping: {})
         return render :show, status: :unprocessable_entity
       end
@@ -44,7 +44,7 @@ module Users
 
       def milliunits_text(value)
         amount = value.to_i
-        format("%s$%.2f", amount.negative? ? "-" : "", amount.abs / 1000.0)
+        format("%s$%s", amount.negative? ? "-" : "", ActiveSupport::NumberHelper.number_to_delimited(format("%.2f", amount.abs / 1000.0)))
       end
       helper_method :milliunits_text
   end
