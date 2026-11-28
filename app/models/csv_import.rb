@@ -36,6 +36,9 @@ class CsvImport
   # text is reported as a problem and not read. [engineering] The cap is my
   # choice (it is not a YNAB limit); read-and-plan holds the whole file in memory.
   MAX_BYTES = 5_000_000
+  # [engineering] A plan lists every row on one page, so a file with more rows than
+  # this is reported and not read. The cap is my choice, not a YNAB limit.
+  MAX_ROWS = 5_000
 
   Row = Struct.new(:line, :date, :payee, :memo, :amount, :import_id, :status, :reason, :matched_transaction, :before_start, keyword_init: true)
   Problem = Struct.new(:line, :message)
@@ -67,6 +70,9 @@ class CsvImport
     records, closed = self.class.read(@text.delete_prefix("\uFEFF"))
     unless closed
       return Result.new(rows: [], problems: [ Problem.new(nil, "A quoted cell is never closed, so the rest of the file cannot be read") ], mapping: {})
+    end
+    if records.size > MAX_ROWS + 1
+      return Result.new(rows: [], problems: [ Problem.new(nil, "The file has more than #{MAX_ROWS} rows. Split it into smaller files") ], mapping: {})
     end
     header = @no_header ? nil : records.shift
     mapping = @mapping || detect(header, records.first)
@@ -224,20 +230,21 @@ class CsvImport
   end
 
   def classify(rows)
-    existing = @account.budget.transactions.where(account_id: @account.id, transfer_account_id: nil).to_a
+    existing = @account.budget.transactions.where(account_id: @account.id, transfer_account_id: nil).to_a.group_by(&:amount)
     taken = Set.new
     seen = Hash.new(0)
     rows.each do |row|
       key = [ row.amount, row.date ]
       seen[key] += 1
       row.import_id = "CSV:#{row.amount}:#{row.date.iso8601}:#{seen[key]}"
-      same = existing.select { |t| t.amount == row.amount && t.date == row.date && t.import_id.present? }
+      candidates = existing.fetch(row.amount, [])
+      same = candidates.select { |t| t.amount == row.amount && t.date == row.date && t.import_id.present? }
       if same.any? { |t| t.import_id == row.import_id } || same.size >= seen[key]
         row.status = :skipped
         row.reason = "Already imported: same date and amount"
         next
       end
-      candidate = existing.select { |t| !t.deleted && t.import_id.blank? && t.matched_transaction_id.nil? && t.amount == row.amount && !taken.include?(t.id) && (t.date - row.date).abs <= MATCH_DAYS }
+      candidate = candidates.select { |t| !t.deleted && t.import_id.blank? && t.matched_transaction_id.nil? && t.amount == row.amount && !taken.include?(t.id) && (t.date - row.date).abs <= MATCH_DAYS }
         .min_by { |t| [ (t.date - row.date).abs, t.id ] }
       if candidate
         taken << candidate.id
