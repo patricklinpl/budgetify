@@ -166,4 +166,40 @@ class ImportConfirmTest < ActionDispatch::IntegrationTest
     post users_budget_undo_path(@budget.public_id), headers: TURBO
     assert_equal 1, live.where.not(import_id: nil).count
   end
+
+  test "two submits of the same form write once, even when both loaded the draft first" do
+    preview
+    form = confirm_form
+    first = ImportDraft.find_by!(token: form[:draft])
+    second = ImportDraft.find_by!(token: form[:draft])
+    history = UndoHistory.new(user: @user, budget: @budget, session_key: "s", token: "t")
+    build = ->(draft) { CsvImportCommit.new(budget: @budget, account: @account, draft: draft, user: @user, history: history, digest: form[:digest]) }
+    before = live.count
+    build.call(first).call
+    assert_equal before + 1, live.count
+    error = assert_raises(CsvImportCommit::Refused) { build.call(second).call }
+    assert_equal CsvImportCommit::ALREADY, error.message
+    assert_equal before + 1, live.count
+    assert_equal 1, UndoStep.where(kind: "import").count
+  end
+
+  test "a draft is only usable on its own user, plan and account" do
+    preview
+    form = confirm_form
+    before = state
+    other_account = Account.open!(budget: @budget, attributes: { "name" => "Savings", "type" => "savings", "balance" => 0 })
+    post users_budget_account_import_confirm_path(@budget.public_id, other_account.public_id), params: form, headers: TURBO
+    assert_equal CsvImportCommit::ALREADY, flash[:alert]
+    assert_equal 0, @budget.transactions.where(account: other_account).where.not(import_id: nil).count
+    other = User.create!(email_address: "second@example.com", password: "password123")
+    other_budget = PlanLifecycle.create_plan(other, name: "Other plan")
+    other_budget_account = Account.open!(budget: other_budget, attributes: { "name" => "Checking", "type" => "checking", "balance" => 0 })
+    sign_in_as(other)
+    post users_budget_account_import_confirm_path(other_budget.public_id, other_budget_account.public_id), params: form, headers: TURBO
+    assert_equal CsvImportCommit::ALREADY, flash[:alert]
+    assert_equal 0, other_budget.transactions.where.not(import_id: nil).count
+    assert_equal 1, ImportDraft.count, "the draft is untouched by every refused attempt"
+    sign_in_as(@user)
+    assert_equal before, state
+  end
 end
