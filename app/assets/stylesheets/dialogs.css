@@ -194,3 +194,8 @@
 
 /* end of dialog primitives */
 /* Based on main after the forms merge (b8950a5). */
+
+.import-option { display: block; margin: 0.25rem 0; }
+.import-preview__table { width: 100%; border-collapse: collapse; }
+.import-preview__table th, .import-preview__table td { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border, #ddd); }
+.import-preview__mapping { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }

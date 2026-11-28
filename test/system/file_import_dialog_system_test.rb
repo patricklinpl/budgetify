@@ -19,7 +19,8 @@ class FileImportDialogSystemTest < ApplicationSystemTestCase
     assert_selector "[data-controller~=dialog][data-dialog-ready=true]"
     click_button "File Import"
     assert_selector "dialog#file-import-dialog[open]"
-    assert_button "Choose File", disabled: true
+    assert_field "Choose File"
+    assert_button "Preview"
     click_button "Close"
     assert_no_selector "dialog#file-import-dialog[open]"
     assert_equal "File Import", page.evaluate_script("document.activeElement.textContent.trim()")

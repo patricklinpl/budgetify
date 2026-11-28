@@ -27,14 +27,16 @@
   </div>
   <dialog id="file-import-dialog" class="dialog" aria-labelledby="file-import-title" data-dialog-name="File Import" data-dialog-backdrop="dismiss" data-action="keydown->dialog#trap cancel->dialog#cancelEvent click->dialog#backdrop">
     <div class="dialog__header"><h2 class="dialog__title" id="file-import-title">File Import</h2></div>
-    <div class="dialog__body">
-      <p>To import transactions without linking a bank, first download them from your bank or card website.</p>
-      <p>Format: CSV.</p>
-      <p class="dialog__survives">Importing is not built yet, so choosing a file is turned off. Nothing was changed.</p>
-    </div>
-    <div class="dialog__footer">
-      <button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Close</button>
-      <button type="button" class="btn btn--primary" disabled title="Importing is not built yet">Choose File</button>
-    </div>
+    <%= form_with url: users_budget_account_import_preview_path(@budget.public_id, account.public_id), method: :post, multipart: true, class: "plan-settings__form", data: { turbo: false } do %>
+      <div class="dialog__body">
+        <p>To import transactions without linking a bank, first download them from your bank or card website.</p>
+        <p>Format: CSV. Choosing a file shows a preview. Nothing is imported yet.</p>
+        <%= render "users/import_previews/settings" %>
+      </div>
+      <div class="dialog__footer">
+        <button type="button" class="btn btn--secondary" data-dialog-close data-action="dialog#dismiss">Close</button>
+        <button type="submit" class="btn btn--primary">Preview</button>
+      </div>
+    <% end %>
   </dialog>
 </div>

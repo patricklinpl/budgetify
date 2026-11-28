@@ -1,0 +1,25 @@
+<%# Settings for a CSV import preview. The file is chosen again each time: nothing is kept between requests. %>
+<% settings = local_assigns[:settings] || {} %>
+<div class="field">
+  <label class="field__label" for="import_file">Choose File</label>
+  <input class="field__input" type="file" id="import_file" name="file" accept=".csv,text/csv" required>
+</div>
+<div class="field">
+  <label class="field__label" for="import_date_format">Date format</label>
+  <select class="field__input" id="import_date_format" name="date_format">
+    <% { "iso" => "2026-10-15 (year first)", "us" => "10/15/2026 (month first)", "eu" => "15/10/2026 (day first)" }.each do |value, label| %>
+      <option value="<%= value %>"<%= " selected" if settings[:date_format].to_s == value %>><%= label %></option>
+    <% end %>
+  </select>
+</div>
+<div class="field">
+  <label class="field__label" for="import_amount_format">Amount format</label>
+  <select class="field__input" id="import_amount_format" name="amount_format">
+    <% { "point" => "1,234.56 (point for decimals)", "comma" => "1.234,56 (comma for decimals)" }.each do |value, label| %>
+      <option value="<%= value %>"<%= " selected" if settings[:amount_format].to_s == value %>><%= label %></option>
+    <% end %>
+  </select>
+</div>
+<label class="import-option"><input type="checkbox" name="no_header" value="1"<%= " checked" if settings[:no_header] %>> No header row</label>
+<label class="import-option"><input type="checkbox" name="swap" value="1"<%= " checked" if settings[:swap] %>> Swap Inflow and Outflow</label>
+<label class="import-option"><input type="hidden" name="include_before_start" value="0"><input type="checkbox" name="include_before_start" value="1"<%= " checked" if settings.fetch(:include_before_start, true) %>> Include transactions before the account start date</label>
