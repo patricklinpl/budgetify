@@ -28,11 +28,11 @@ class UndoHistory
   # A recorded step drops the redo steps. A step over the size cap is never
   # truncated: it is not recorded and the whole history is cleared, so an older
   # step is never offered as the latest. Returns true when recorded.
-  def record!(kind:, before:, after:)
+  def record!(kind:, before:, after:, max_bytes: MAX_STEP_BYTES)
     before_json = JSON.generate(before)
     after_json = JSON.generate(after)
     bytes = before_json.bytesize + after_json.bytesize
-    return clear_all! if bytes > MAX_STEP_BYTES
+    return clear_all! if bytes > max_bytes
 
     UndoStep.transaction do
       steps.where(undone: true).delete_all
@@ -69,7 +69,7 @@ class UndoHistory
 
   private
     def label(step)
-      { "create" => "adding the transaction", "edit" => "the transaction edit", "delete" => "deleting the transaction", "enter" => "entering the scheduled transaction", "reset" => "resetting the available amount" }.fetch(step.kind)
+      { "create" => "adding the transaction", "edit" => "the transaction edit", "delete" => "deleting the transaction", "enter" => "entering the scheduled transaction", "reset" => "resetting the available amount", "import" => "the file import" }.fetch(step.kind)
     end
 
     def apply!(step, from:, to:, undone:)
