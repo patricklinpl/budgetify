@@ -4,7 +4,7 @@
 module UndoSnapshot
   TX_FIELDS = %w[
     public_id account_id date amount memo cleared approved flag_color flag_name payee_id category_id
-    transfer_account_id transfer_transaction_id matched_transaction_id debt_transaction_type opening_balance deleted
+    transfer_account_id transfer_transaction_id matched_transaction_id import_id debt_transaction_type opening_balance deleted
   ].freeze
   # Scheduled-transaction fields an Enter Now step guards and restores (#61).
   # Every field the entry copies or relies on, so an edit of any of them after

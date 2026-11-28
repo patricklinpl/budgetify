@@ -2,7 +2,7 @@ class UndoStep < ApplicationRecord
   belongs_to :budget
   belongs_to :user
 
-  KINDS = %w[create edit delete enter reset].freeze
+  KINDS = %w[create edit delete enter reset import].freeze
   validates :kind, inclusion: { in: KINDS }
 
   STALE_AFTER = 1.day

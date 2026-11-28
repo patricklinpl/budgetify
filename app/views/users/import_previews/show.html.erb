@@ -6,7 +6,7 @@
   </div></div></div>
 <% end %>
 <section class="plan-settings import-preview">
-  <p class="dialog__survives">This is a preview. Nothing was imported or changed.</p>
+  <p class="dialog__survives">This is a preview. Nothing was imported or changed until you confirm.</p>
   <% if @result.problems.any? %>
     <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
       <h2>Problems</h2>
@@ -43,6 +43,15 @@
         <% end %>
       </tbody>
     </table>
+  <% end %>
+  <% if @draft %>
+    <% counts = @result.counts %>
+    <%= form_with url: users_budget_account_import_confirm_path(@budget.public_id, @account.public_id), method: :post, class: "plan-settings__form import-confirm", data: { turbo: false } do %>
+      <input type="hidden" name="draft" value="<%= @draft.token %>">
+      <input type="hidden" name="digest" value="<%= @digest %>">
+      <p class="import-confirm__note">Import adds <%= counts.fetch(:new, 0) %> new (uncleared, not approved, no category) and links <%= counts.fetch(:matched, 0) %> matched. Skipped rows<%= " and the #{@result.problems.size} lines with problems" if @result.problems.any? %> are not imported. Undo reverses the whole import.</p>
+      <button class="btn btn--primary" type="submit">Import <%= counts.fetch(:new, 0) + counts.fetch(:matched, 0) %> transactions</button>
+    <% end %>
   <% end %>
   <h2>Change settings</h2>
   <%= form_with url: users_budget_account_import_preview_path(@budget.public_id, @account.public_id), method: :post, multipart: true, class: "plan-settings__form", data: { turbo: false } do %>

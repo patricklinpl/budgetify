@@ -1,7 +1,8 @@
 module Users
   # Preview of a CSV import into one account. It reads the chosen file, runs it
   # through CsvImport and shows every row with its status and reason. It writes
-  # nothing: there is no confirm step yet, and no transaction is created.
+  # nothing itself: it keeps the file as an ImportDraft so the confirm step
+  # (ImportConfirmsController) can write what the preview showed.
   # Every lookup is scoped to the current user's plan; other ids are a 404.
   class ImportPreviewsController < ApplicationController
     layout "app_shell"
@@ -30,6 +31,11 @@ module Users
       data = file.read.to_s
       @result = CsvImport.plan(data, account: @account, **@settings)
       @header = @settings[:no_header] ? nil : CsvImport.records(data.dup.force_encoding(Encoding::UTF_8).scrub.delete_prefix("\uFEFF")).first
+      ImportDraft.purge_stale!
+      if @result.rows.any? { |row| %i[new matched].include?(row.status) }
+        @draft = ImportDraft.create!(user: Current.user, budget: @budget, account: @account, filename: @filename, data: data.dup.force_encoding(Encoding::UTF_8).scrub, settings_json: @settings.to_json)
+        @digest = CsvImportCommit.digest(@result)
+      end
       render :show
     end
 

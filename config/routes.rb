@@ -58,6 +58,7 @@ Rails.application.routes.draw do
         end
         resource :reconciliation, only: %i[show create]
         resource :import_preview, only: :create, path: "import/preview"
+        resource :import_confirm, only: :create, path: "import/confirm"
         resources :transactions, only: %i[index new create edit update destroy], param: :public_id do
           resource :split, only: %i[edit update], controller: "transaction_splits"
         end
