@@ -32,7 +32,10 @@
 # that are not hidden, like Assigned Last Month. Not observed in the reference:
 # a month with refunds or other inflows (here they reduce the total and it can
 # go negative) and credit card payments (their category's Activity counts like
-# any other row, as it does in Activity). The other rows stay unbuilt.
+# any other row, as it does in Activity).
+#
+# Average Assigned and Average Spent come from AutoAssignHistory, over the same
+# non-hidden categories. The other rows stay unbuilt.
 class PlanFigures
   def self.build(budget, grid, month: Date.current.beginning_of_month)
     assigned = grid.sum { |group| group[:assigned] }
@@ -41,6 +44,7 @@ class PlanFigures
     categories = grid.flat_map { |group| group[:rows].map { |row| row[:category] } }
     ids = categories.map(&:id)
     shown = grid.reject { |group| group[:group].hidden }.flat_map { |group| group[:rows].map { |row| row[:category] } }.reject(&:hidden)
+    averages = AutoAssignHistory.averages(shown, month: month)
     {
       ready_to_assign: MonthSerializer.new(budget, month).as_json.fetch(:to_be_budgeted),
       left_over: available - assigned - activity,
@@ -49,6 +53,8 @@ class PlanFigures
       available: available,
       assigned_last_month: MonthCategory.where(category_id: shown.map(&:id), month: month.prev_month).sum(:budgeted),
       spent_last_month: -shown.sum { |category| CategorySerializer.as_json(category, month: month.prev_month).fetch(:activity) },
+      average_assigned: averages[:assigned],
+      average_spent: averages[:spent],
       assigned_future: MonthCategory.where(category_id: ids).where("month > ?", month).sum(:budgeted),
       targets: grid.sum { |group| group[:rows].sum { |row| MonthlyTarget.monthly?(row[:category]) ? row[:category].goal_target.to_i : 0 } }
     }
