@@ -1,0 +1,53 @@
+<% content_for :title, "Import preview for #{@account.name}" %>
+<% content_for :shell_header do %>
+  <div class="shell-header"><div class="shell-header-row"><div class="shell-header-title">
+    <p class="shell-eyebrow"><%= @account.name %></p>
+    <h1 class="app-shell-page-title">Import preview</h1>
+  </div></div></div>
+<% end %>
+<section class="plan-settings import-preview">
+  <p class="dialog__survives">This is a preview. Nothing was imported or changed.</p>
+  <% if @result.problems.any? %>
+    <div class="plan-settings__errors" role="alert" tabindex="-1" data-controller="focus">
+      <h2>Problems</h2>
+      <% @result.problems.each do |problem| %>
+        <p><%= problem.line ? "Line #{problem.line}: " : "" %><%= problem.message %></p>
+      <% end %>
+    </div>
+  <% end %>
+  <% if @result.rows.any? || @result.mapping.any? %>
+    <h2>Columns</h2>
+    <dl class="import-preview__mapping">
+      <% CsvImport::FIELDS.each do |field| %>
+        <dt><%= field.to_s.capitalize %></dt>
+        <dd><% index = @result.mapping[field] %><%= index ? "Column #{index + 1}#{" (#{@header[index]})" if @header && @header[index].present?}" : "Not found" %></dd>
+      <% end %>
+    </dl>
+  <% end %>
+  <% if @result.rows.any? %>
+    <% counts = @result.counts %>
+    <p class="import-preview__counts"><%= @filename %>: <%= counts.fetch(:new, 0) %> new, <%= counts.fetch(:matched, 0) %> matched to a transaction you entered, <%= counts.fetch(:skipped, 0) %> skipped, <%= @result.problems.size %> with problems.</p>
+    <table class="import-preview__table">
+      <thead><tr><th>Line</th><th>Date</th><th>Payee</th><th>Memo</th><th>Amount</th><th>Result</th><th>Why</th></tr></thead>
+      <tbody>
+        <% @result.rows.each do |row| %>
+          <tr data-status="<%= row.status %>">
+            <td><%= row.line %></td>
+            <td><%= row.date.iso8601 %></td>
+            <td><%= row.payee %></td>
+            <td><%= row.memo %></td>
+            <td class="money"><%= milliunits_text(row.amount) %></td>
+            <td><%= { new: "New", matched: "Matched", skipped: "Skipped" }.fetch(row.status) %><%= " (before account start)" if row.before_start %></td>
+            <td><%= row.reason %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+  <h2>Change settings</h2>
+  <%= form_with url: users_budget_account_import_preview_path(@budget.public_id, @account.public_id), method: :post, multipart: true, class: "plan-settings__form", data: { turbo: false } do %>
+    <%= render "users/import_previews/settings", settings: @settings %>
+    <button class="btn btn--primary" type="submit">Preview again</button>
+  <% end %>
+  <%= link_to "Back to the register", users_budget_account_transactions_path(@budget.public_id, @account.public_id), class: "budget-back-link" %>
+</section>
