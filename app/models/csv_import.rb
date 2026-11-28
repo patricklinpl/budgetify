@@ -37,17 +37,19 @@ class CsvImport
   # choice (it is not a YNAB limit); read-and-plan holds the whole file in memory.
   MAX_BYTES = 5_000_000
 
-  Row = Struct.new(:line, :date, :payee, :memo, :amount, :import_id, :status, :matched_transaction, :before_start, keyword_init: true)
+  Row = Struct.new(:line, :date, :payee, :memo, :amount, :import_id, :status, :reason, :matched_transaction, :before_start, keyword_init: true)
   Problem = Struct.new(:line, :message)
   Result = Struct.new(:rows, :problems, :mapping, keyword_init: true) do
     def counts = rows.group_by(&:status).transform_values(&:size)
   end
 
-  def self.plan(text, account:, date_format:, mapping: nil, no_header: false, swap: false, include_before_start: true)
-    new(text, account, date_format, mapping, no_header, swap, include_before_start).plan
+  def self.plan(text, account:, date_format:, amount_format: :point, mapping: nil, no_header: false, swap: false, include_before_start: true)
+    new(text, account, date_format, mapping, no_header, swap, include_before_start, amount_format).plan
   end
 
-  def initialize(text, account, date_format, mapping, no_header, swap, include_before_start)
+  def initialize(text, account, date_format, mapping, no_header, swap, include_before_start, amount_format = :point)
+    raise ArgumentError, "amount_format must be :point or :comma" unless %i[point comma].include?(amount_format)
+    @amount_format = amount_format
     raise ArgumentError, "date_format must be one of #{DATE_FORMATS.keys.inspect}" unless DATE_FORMATS.key?(date_format)
     @text = text.to_s
     @account = account
@@ -93,24 +95,32 @@ class CsvImport
     row = []
     cell = +""
     quoted = false
-    chars = text.chars
-    i = 0
-    while i < chars.size
-      c = chars[i]
+    pending = nil # a quote seen inside quotes: closes the cell or is a doubled quote
+    after_cr = false
+    text.each_char do |c|
+      if after_cr
+        after_cr = false
+        next if c == "\n"
+      end
+      if pending
+        pending = nil
+        if c == '"' then cell << '"'; next
+        else quoted = false
+        end
+      end
       if quoted
-        if c == '"' && chars[i + 1] == '"' then cell << '"'; i += 1
-        elsif c == '"' then quoted = false
+        if c == '"' then pending = true
         else cell << c
         end
       elsif c == '"' then quoted = true
       elsif c == "," then row << cell; cell = +""
       elsif c == "\n" || c == "\r"
-        i += 1 if c == "\r" && chars[i + 1] == "\n"
+        after_cr = c == "\r"
         row << cell; records << row; row = []; cell = +""
       else cell << c
       end
-      i += 1
     end
+    quoted = false if pending
     (row << cell; records << row) unless cell.empty? && row.empty?
     [ records, !quoted ]
   end
@@ -175,7 +185,7 @@ class CsvImport
     return nil unless index
     text = cells[index].to_s.strip
     return nil if text.empty?
-    value = self.class.milliunits(text)
+    value = self.class.milliunits(@amount_format == :comma ? text.tr(".,", ",.") : text)
     if value.nil?
       problems << Problem.new(line, text.match?(/\A\(.*\)\z/) ? "#{name} is in parentheses, which is not read" : "#{name} is not a plain number")
       :bad
@@ -224,6 +234,7 @@ class CsvImport
       same = existing.select { |t| t.amount == row.amount && t.date == row.date && t.import_id.present? }
       if same.any? { |t| t.import_id == row.import_id } || same.size >= seen[key]
         row.status = :skipped
+        row.reason = "Already imported: same date and amount"
         next
       end
       candidate = existing.select { |t| !t.deleted && t.import_id.blank? && t.matched_transaction_id.nil? && t.amount == row.amount && !taken.include?(t.id) && (t.date - row.date).abs <= MATCH_DAYS }
@@ -232,8 +243,10 @@ class CsvImport
         taken << candidate.id
         row.status = :matched
         row.matched_transaction = candidate
+        row.reason = "Matches a transaction you entered: same amount, #{(candidate.date - row.date).abs.to_i} day(s) apart"
       else
         row.status = :new
+        row.reason = "No matching transaction"
       end
     end
   end
