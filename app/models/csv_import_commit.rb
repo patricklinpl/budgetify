@@ -37,7 +37,22 @@ class CsvImportCommit
     @digest = digest.to_s
   end
 
+  ALREADY = "That import was already confirmed or has expired. Choose the file again to preview it.".freeze
+
+  # The draft is claimed first, inside the same database transaction as the
+  # plan, the digest check and the writes: one atomic DELETE that only one caller
+  # can win. A second submit of the same form (a double click, two tabs) gets
+  # zero rows and writes nothing. A failure rolls the claim back with the rest,
+  # so the draft stays for a retry.
   def call
+    Transaction.transaction do
+      raise Refused, ALREADY unless ImportDraft.where(id: @draft.id).delete_all == 1
+      write
+    end
+  end
+
+  private
+  def write
     raise Refused, "That account is closed, so nothing was imported." if @account.closed
     plan = CsvImport.plan(@draft.data, account: @account, **@draft.settings)
     raise Refused, "The preview no longer matches the account, so nothing was imported. Preview the file again." unless ActiveSupport::SecurityUtils.secure_compare(self.class.digest(plan), @digest)
@@ -46,7 +61,7 @@ class CsvImportCommit
 
     writer = TransactionWriter.new(@budget)
     outcome = Outcome.new(created: 0, matched: 0, skipped: plan.rows.size - todo.size)
-    Transaction.transaction do
+    begin
       manual_ids = todo.filter_map { |row| row.matched_transaction&.id }.sort
       before = UndoSnapshot.take(@budget, UndoSnapshot::Ids.new(manual_ids, []))
       new_ids = todo.filter_map { |row| row.status == :matched ? link!(row, outcome) : add!(writer, row, outcome) }
@@ -56,11 +71,9 @@ class CsvImportCommit
       new_ids.each { |id| before["tx"][id.to_s] = before["tx"][id.to_s].merge("import_id" => nil, "matched_transaction_id" => nil) }
       @history&.record!(kind: :import, before: before, after: after, max_bytes: STEP_MAX_BYTES)
     end
-    @draft.destroy!
     outcome
   end
 
-  private
     def add!(writer, row, outcome)
       attributes = { "account_id" => @account.public_id, "date" => row.date.iso8601, "amount" => row.amount, "memo" => row.memo,
         "cleared" => "uncleared", "approved" => false, "import_id" => row.import_id,
