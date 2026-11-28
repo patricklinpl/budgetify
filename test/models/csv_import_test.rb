@@ -128,4 +128,62 @@ class CsvImportTest < ActiveSupport::TestCase
     plan("Date,Payee,Outflow,Inflow\n2026-10-15,Cafe,4.50,\n")
     assert_equal before, [ @plan.transactions.count, @plan.transactions.sum(:amount), @plan.transactions.where.not(matched_transaction_id: nil).count ]
   end
+
+  def amounts(outflow, inflow = "")
+    result = plan("Date,Payee,Outflow,Inflow\n2026-10-15,Cafe,#{outflow},#{inflow}\n")
+    [ result.rows.map(&:amount), result.problems.map(&:message) ]
+  end
+
+  test "[engineering] a comma is a thousands separator only in groups of three digits" do
+    assert_equal [ [ -1_234_000 ], [] ], amounts("\"1,234\"")
+    assert_equal [ [ -12_345_600 ], [] ], amounts("\"12,345.60\"")
+    assert_equal [ [], [ "Outflow is not a plain number" ] ], amounts("\"12,34\"")
+    assert_equal [ [], [ "Outflow is not a plain number" ] ], amounts("\"1,23\"")
+    assert_equal [ [], [ "Outflow is not a plain number" ] ], amounts("\"1,2345\"")
+    assert_equal [ [ 1_234_500 ], [] ], amounts("", "\"$1,234.50\"")
+  end
+
+  test "[engineering] a negative or parenthesised amount is reported, never turned into the opposite sign" do
+    assert_equal [ [], [ "Outflow is negative, which is not read" ] ], amounts("-4.50")
+    assert_equal [ [], [ "Inflow is negative, which is not read" ] ], amounts("", "-4.50")
+    assert_equal [ [], [ "Outflow is in parentheses, which is not read" ] ], amounts("(4.50)")
+    assert_equal [ [], [ "Outflow is negative, which is not read" ] ], amounts("-$4.50")
+    assert_equal [ [ -4_500 ], [] ], amounts("+4.50")
+  end
+
+  test "[engineering] both cells blank, or both with an amount, is reported" do
+    assert_equal [ [], [ "No amount in the Outflow or Inflow cell" ] ], amounts("", "")
+    assert_equal [ [], [ "Both Outflow and Inflow have an amount" ] ], amounts("4.50", "4.50")
+    assert_equal [ [ -4_500 ], [] ], amounts("4.50", "0.00")
+    assert_equal [ [ 0 ], [] ], amounts("0.00", "")
+  end
+
+  test "[engineering] an unterminated quote is reported and nothing after it is read" do
+    result = plan("Date,Payee,Outflow,Inflow\n2026-10-15,\"Cafe,4.50,\n2026-10-16,Shop,1.00,\n")
+    assert_empty result.rows
+    assert_match(/never closed/, result.problems.first.message)
+  end
+
+  test "[engineering] invalid UTF-8 and oversized text are reported, not raised" do
+    bad = "Date,Payee,Outflow,Inflow\n2026-10-15,Caf\xE9,4.50,\n".b
+    result = plan(bad)
+    assert_empty result.rows
+    assert_match(/not valid UTF-8/, result.problems.first.message)
+    assert_equal 1, plan("Date,Payee,Outflow,Inflow\n2026-10-15,Caf\u00E9,4.50,\n".b).rows.size
+    big = "x" * (CsvImport::MAX_BYTES + 1)
+    assert_match(/larger than/, plan(big).problems.first.message)
+  end
+
+  test "[engineering] a byte order mark at the start of the file is ignored" do
+    assert_equal [ -4_500 ], plan("\uFEFFDate,Payee,Outflow,Inflow\n2026-10-15,Cafe,4.50,\n").rows.map(&:amount)
+  end
+
+  test "[engineering] a two-digit year is reported, not read as year 26" do
+    us = CsvImport.plan("Date,Payee,Outflow,Inflow\n10/15/26,Cafe,4.50,\n10/15/2026,Ok,1.00,\n", account: @account, date_format: :us)
+    assert_equal [ @day ], us.rows.map(&:date)
+    assert_equal [ 2 ], us.problems.map(&:line)
+    iso = plan("Date,Payee,Outflow,Inflow\n26-10-15,Cafe,4.50,\n")
+    assert_empty iso.rows
+    assert_equal 1, iso.problems.size
+  end
 end
