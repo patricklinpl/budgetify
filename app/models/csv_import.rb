@@ -244,7 +244,7 @@ class CsvImport
         row.reason = "Already imported: same date and amount"
         next
       end
-      candidate = candidates.select { |t| !t.deleted && t.import_id.blank? && t.matched_transaction_id.nil? && t.amount == row.amount && !taken.include?(t.id) && (t.date - row.date).abs <= MATCH_DAYS }
+      candidate = candidates.select { |t| !t.deleted && t.import_id.blank? && t.matched_transaction_id.nil? && t.cleared != "reconciled" && t.amount == row.amount && !taken.include?(t.id) && (t.date - row.date).abs <= MATCH_DAYS }
         .min_by { |t| [ (t.date - row.date).abs, t.id ] }
       if candidate
         taken << candidate.id
