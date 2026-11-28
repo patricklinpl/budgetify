@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_28_010000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "budget_id", null: false
     t.string "public_id", null: false
@@ -90,6 +90,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_190000) do
     t.index ["budget_id", "knowledge"], name: "index_category_groups_on_budget_id_and_knowledge"
     t.index ["budget_id"], name: "index_category_groups_on_budget_id"
     t.index ["public_id"], name: "index_category_groups_on_public_id", unique: true
+  end
+
+  create_table "import_drafts", force: :cascade do |t|
+    t.integer "budget_id", null: false
+    t.integer "account_id", null: false
+    t.integer "user_id", null: false
+    t.string "token", null: false
+    t.string "filename"
+    t.text "data", null: false
+    t.text "settings_json", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_import_drafts_on_account_id"
+    t.index ["budget_id"], name: "index_import_drafts_on_budget_id"
+    t.index ["token"], name: "index_import_drafts_on_token", unique: true
+    t.index ["user_id"], name: "index_import_drafts_on_user_id"
   end
 
   create_table "money_movement_groups", force: :cascade do |t|
@@ -327,6 +343,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_190000) do
   add_foreign_key "categories", "budgets"
   add_foreign_key "categories", "category_groups"
   add_foreign_key "category_groups", "budgets"
+  add_foreign_key "import_drafts", "accounts"
+  add_foreign_key "import_drafts", "budgets"
+  add_foreign_key "import_drafts", "users"
   add_foreign_key "money_movement_groups", "budgets"
   add_foreign_key "money_movement_groups", "users", column: "performed_by_user_id"
   add_foreign_key "money_movements", "budgets"
