@@ -18,13 +18,24 @@
 # Assigned in Future Months among its rows. [engineering] Assigned Last Month is
 # the sum of the previous month's assigned amounts over the same categories as
 # Assigned (hidden included). Assigned in Future Months is the sum of the assigned
-# amounts of every month after the viewed month. The other rows stay unbuilt.
+# amounts of every month after the viewed month.
+#
+# Spent Last Month: [reference] observed in the reference with synthetic data:
+# an October with $25 of grocery spending showed Spent Last Month $25.00 in
+# November, as a positive number. [engineering] It is the previous month's
+# Activity (the same figure the grid shows) summed over the same categories as
+# Activity, negated, so spending shows as a positive amount. Not observed in
+# the reference: a month with refunds or other inflows (here they reduce the
+# total and it can go negative), credit card payments (their category's
+# Activity counts like any other row, as it does in Activity), and hidden
+# categories (counted, as for Assigned Last Month). The other rows stay unbuilt.
 class PlanFigures
   def self.build(budget, grid, month: Date.current.beginning_of_month)
     assigned = grid.sum { |group| group[:assigned] }
     activity = grid.sum { |group| group[:activity] }
     available = grid.sum { |group| group[:available] }
-    ids = grid.flat_map { |group| group[:rows].map { |row| row[:category].id } }
+    categories = grid.flat_map { |group| group[:rows].map { |row| row[:category] } }
+    ids = categories.map(&:id)
     {
       ready_to_assign: MonthSerializer.new(budget, month).as_json.fetch(:to_be_budgeted),
       left_over: available - assigned - activity,
@@ -32,6 +43,7 @@ class PlanFigures
       activity: activity,
       available: available,
       assigned_last_month: MonthCategory.where(category_id: ids, month: month.prev_month).sum(:budgeted),
+      spent_last_month: -categories.sum { |category| CategorySerializer.as_json(category, month: month.prev_month).fetch(:activity) },
       assigned_future: MonthCategory.where(category_id: ids).where("month > ?", month).sum(:budgeted),
       targets: grid.sum { |group| group[:rows].sum { |row| MonthlyTarget.monthly?(row[:category]) ? row[:category].goal_target.to_i : 0 } }
     }

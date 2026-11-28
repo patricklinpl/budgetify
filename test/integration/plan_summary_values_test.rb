@@ -139,4 +139,44 @@ class PlanSummaryValuesTest < ActionDispatch::IntegrationTest
     assert_equal "$0.00", rows["Assigned Last Month"]
     assert_equal "$0.00", rows["Assigned in Future Months"]
   end
+
+  def spend!(category, amount, date)
+    writer = TransactionWriter.new(@budget)
+    writer.persist_new!(writer.build("account_id" => @account.public_id, "date" => date.iso8601, "amount" => amount,
+      "payee_name" => "Shop", "category_id" => category.public_id, "cleared" => "uncleared"))
+  end
+
+  test "Spent Last Month is last month's spending as a positive amount, not this month's or older" do
+    this_month = Date.current.beginning_of_month
+    spend!(@dining, -2_500, this_month.prev_month + 9)
+    spend!(@loan, -1_000, this_month.prev_month.end_of_month)
+    spend!(@dining, -7_000, this_month.prev_month.prev_month + 3)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$3.50", auto_rows["Spent Last Month"]
+  end
+
+  test "Spent Last Month counts a refund against spending" do
+    this_month = Date.current.beginning_of_month
+    spend!(@dining, -2_500, this_month.prev_month + 9)
+    spend!(@dining, 1_000, this_month.prev_month + 12)
+    get users_budget_path(@budget.public_id)
+    assert_equal "$1.50", auto_rows["Spent Last Month"]
+  end
+
+  test "Spent Last Month is zero with nothing spent last month" do
+    get users_budget_path(@budget.public_id)
+    assert_equal "$0.00", auto_rows["Spent Last Month"]
+  end
+
+  test "in January the Last Month rows read December of the year before" do
+    travel_to Date.new(2027, 1, 15) do
+      MonthAssignment.set!(budget: @budget, category: @dining, month: Date.new(2026, 12, 1), amount: 6_000, user: @user)
+      spend!(@dining, -2_000, Date.new(2026, 12, 20))
+      spend!(@dining, -9_000, Date.new(2026, 11, 20))
+      get users_budget_path(@budget.public_id)
+      rows = auto_rows
+      assert_equal "$6.00", rows["Assigned Last Month"]
+      assert_equal "$2.00", rows["Spent Last Month"]
+    end
+  end
 end
