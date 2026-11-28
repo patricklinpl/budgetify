@@ -186,4 +186,28 @@ class CsvImportTest < ActiveSupport::TestCase
     assert_empty iso.rows
     assert_equal 1, iso.problems.size
   end
+
+  test "[engineering] the comma amount format reads a decimal comma and a point thousands separator" do
+    text = "Date,Payee,Outflow,Inflow\n2026-10-15,A,\"12,34\",\n2026-10-15,B,\"1.234,50\",\n2026-10-15,C,\"1,234\",\n"
+    result = CsvImport.plan(text, account: @account, date_format: :iso, amount_format: :comma)
+    assert_equal [ -12_340, -1_234_500, -1_234 ], result.rows.map(&:amount)
+    assert_empty result.problems
+    assert_raises(ArgumentError) { CsvImport.plan(text, account: @account, date_format: :iso, amount_format: :other) }
+  end
+
+  test "[engineering] every row has a reason" do
+    enter!(-4_500, @day)
+    enter!(-9_000, @day, import_id: "CSV:-9000:2026-10-15:1")
+    rows = plan("Date,Payee,Outflow,Inflow\n2026-10-15,A,4.50,\n2026-10-15,B,9.00,\n2026-10-15,C,1.00,\n").rows
+    assert_equal [ :matched, :skipped, :new ], rows.map(&:status)
+    assert rows.all? { |r| r.reason.present? }
+  end
+
+  test "[engineering] quotes: a doubled quote, a comma and a line break inside quotes, and a quote at the end of the file" do
+    text = "Date,Payee,Memo,Outflow,Inflow\r\n2026-10-15,\"The \"\"Big\"\" Cafe, Main\",\"line one\nline two\",4.50,\r\n2026-10-16,\"End\",,1.00,"
+    rows = plan(text).rows
+    assert_equal [ "The \"Big\" Cafe, Main", "End" ], rows.map(&:payee)
+    assert_equal "line one\nline two", rows.first.memo
+    assert_empty plan(text).problems
+  end
 end
